@@ -1,0 +1,10 @@
+# Infraestructura de la fábrica de software — no forma parte del producto
+_worktrees/
+codigo para auditar/
+_modo-publicacion.txt
+
+# Genéricos
+.DS_Store
+node_modules/
+.env
+.env.local

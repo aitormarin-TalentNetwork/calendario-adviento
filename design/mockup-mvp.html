@@ -1,0 +1,794 @@
+<title>Calendario de Adviento</title>
+<style>
+  /* ============================================================
+     TOKENS
+     Color — pine (ground), paper (light ground / text-on-dark),
+     gold (primary accent, foil), berry (secondary accent, sparing),
+     ink (text on light), mist (neutral, sage-biased, borders).
+     Type — display: warm literary serif (headings, day numbers on
+     doors); body: humanist sans (UI text); utility: monospace,
+     tabular (dates, counts).
+     Layout — top role-tabs (paper "ribbons") over a single working
+     panel per role; the Invitado calendar is a grid of door-cards
+     with three visual states (locked / open-unseen / watched).
+     ============================================================ */
+  :root {
+    --pine: #1b3a2f;
+    --pine-2: #234a3b;
+    --paper: #f6f1e4;
+    --paper-2: #efe7d4;
+    --gold: #c99a3d;
+    --gold-2: #e3bb63;
+    --berry: #8c2f39;
+    --ink: #16211c;
+    --mist: #d9e0d6;
+
+    --bg: var(--paper);
+    --bg-raised: #ffffff;
+    --bg-sunken: var(--paper-2);
+    --text: var(--ink);
+    --text-dim: #57604f;
+    --accent: var(--gold);
+    --accent-ink: #3c2c0c;
+    --border: #ded3ba;
+    --nav-bg: var(--pine);
+    --nav-text: var(--paper);
+    --nav-text-dim: #b9c9bf;
+    --door-locked: linear-gradient(160deg, #26473a, #1b3a2f);
+    --door-open: linear-gradient(160deg, #2d5544, #234a3b);
+    --danger: var(--berry);
+    --shadow: 0 1px 2px rgba(20, 30, 20, 0.06), 0 8px 24px rgba(20, 30, 20, 0.08);
+
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1e17;
+      --bg-raised: #16281f;
+      --bg-sunken: #0b1712;
+      --text: #ece6d6;
+      --text-dim: #a9b6a9;
+      --accent: var(--gold-2);
+      --accent-ink: #2a1e07;
+      --border: #2a4436;
+      --nav-bg: #0b1712;
+      --nav-text: #ece6d6;
+      --nav-text-dim: #7f9186;
+      --door-locked: linear-gradient(160deg, #16281f, #0f1e17);
+      --door-open: linear-gradient(160deg, #234a3b, #16281f);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --bg: #0f1e17;
+    --bg-raised: #16281f;
+    --bg-sunken: #0b1712;
+    --text: #ece6d6;
+    --text-dim: #a9b6a9;
+    --accent: var(--gold-2);
+    --accent-ink: #2a1e07;
+    --border: #2a4436;
+    --nav-bg: #0b1712;
+    --nav-text: #ece6d6;
+    --nav-text-dim: #7f9186;
+    --door-locked: linear-gradient(160deg, #16281f, #0f1e17);
+    --door-open: linear-gradient(160deg, #234a3b, #16281f);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    -webkit-font-smoothing: antialiased;
+  }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+  p { margin: 0; }
+  button { font: inherit; }
+  .mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  /* ---------- shell ---------- */
+  .shell { min-height: 100vh; display: flex; flex-direction: column; }
+
+  .topbar {
+    background: var(--nav-bg);
+    color: var(--nav-text);
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    padding: 14px 28px;
+    flex-wrap: wrap;
+  }
+  .wordmark {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .wordmark .glyph { font-size: 1.3rem; }
+  .roletabs { display: flex; gap: 4px; margin-left: auto; }
+  .roletab {
+    background: transparent;
+    border: 1px solid transparent;
+    color: var(--nav-text-dim);
+    padding: 8px 14px;
+    border-radius: 999px;
+    cursor: pointer;
+    font-size: 0.88rem;
+    transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+  }
+  .roletab:hover { color: var(--nav-text); }
+  .roletab[aria-selected="true"] {
+    background: rgba(246, 241, 228, 0.1);
+    border-color: rgba(246, 241, 228, 0.25);
+    color: var(--nav-text);
+  }
+  .roletab .tabkicker {
+    display: block;
+    font-size: 0.66rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.7;
+  }
+
+  main { flex: 1; }
+  .view { display: none; }
+  .view.active { display: block; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 40px 28px 80px; }
+  .wrap.narrow { max-width: 640px; }
+
+  .pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  .pagehead h1 { font-size: 1.7rem; }
+  .pagehead .sub { color: var(--text-dim); font-size: 0.92rem; margin-top: 4px; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg-raised);
+    color: var(--text);
+    padding: 9px 16px;
+    font-size: 0.88rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, transform 0.15s ease;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-color: transparent;
+    font-weight: 600;
+  }
+  .btn-primary:hover { filter: brightness(1.05); }
+  .btn-ghost { border-color: transparent; background: transparent; }
+  .btn-danger { color: var(--danger); border-color: transparent; background: transparent; }
+  .btn-danger:hover { text-decoration: underline; }
+  .btn-sm { padding: 6px 11px; font-size: 0.8rem; border-radius: 8px; }
+
+  .card {
+    background: var(--bg-raised);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.74rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+  }
+  .pill-live { background: #dcecdf; color: #245c34; }
+  .pill-live::before { content: "●"; font-size: 0.55rem; color: #3f9a56; }
+  :root[data-theme="dark"] .pill-live,
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .pill-live { background: #17331f; color: #86d69a; } }
+
+  /* ============================================================ SUPER ADMIN */
+  .grid-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  .cal-summary-card { padding: 18px; display: flex; flex-direction: column; gap: 10px; }
+  .cal-summary-card h3 { font-size: 1.05rem; }
+  .cal-summary-card .meta { color: var(--text-dim); font-size: 0.82rem; }
+  .cal-summary-card .stats { display: flex; gap: 14px; font-size: 0.78rem; color: var(--text-dim); margin-top: 2px; }
+  .cal-summary-card .stats strong { color: var(--text); font-family: var(--font-mono); }
+
+  table.admins {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+  }
+  table.admins th {
+    text-align: left;
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-dim);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  table.admins td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  table.admins tr:last-child td { border-bottom: none; }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--pine-2); color: var(--paper);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 0.85rem; margin-right: 10px;
+  }
+  :root[data-theme="dark"] .avatar,
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .avatar { background: var(--gold-2); color: var(--accent-ink); } }
+  .person { display: flex; align-items: center; }
+  .person .who strong { display: block; font-size: 0.9rem; }
+  .person .who span { color: var(--text-dim); font-size: 0.78rem; }
+
+  .section-title {
+    font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text-dim); margin: 40px 0 14px;
+  }
+
+  /* ============================================================ ADMIN */
+  .admin-layout { display: grid; grid-template-columns: 260px 1fr; gap: 0; min-height: 560px; }
+  .admin-sidebar {
+    border-right: 1px solid var(--border);
+    padding: 20px 14px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .cal-list-item {
+    display: flex; flex-direction: column; gap: 2px;
+    padding: 10px 12px; border-radius: 10px; cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .cal-list-item:hover { background: var(--bg-sunken); }
+  .cal-list-item.active { background: var(--bg-sunken); border-color: var(--border); }
+  .cal-list-item .name { font-size: 0.92rem; font-weight: 600; }
+  .cal-list-item .dates { font-size: 0.76rem; color: var(--text-dim); font-family: var(--font-mono); }
+
+  .admin-detail { padding: 28px 32px; }
+  .field-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 16px; }
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field label { font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+  .field input[type="text"],
+  .field input[type="date"],
+  .field select {
+    padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); font: inherit; font-size: 0.9rem;
+  }
+  .skin-picker { display: flex; gap: 10px; }
+  .skin-swatch {
+    width: 46px; height: 46px; border-radius: 10px; cursor: pointer;
+    border: 2px solid transparent; position: relative;
+  }
+  .skin-swatch.selected { border-color: var(--accent); }
+  .skin-swatch.selected::after {
+    content: "✓"; position: absolute; inset: 0; display: flex; align-items: center;
+    justify-content: center; color: #fff; font-size: 0.85rem; text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  }
+  .skin-a { background: linear-gradient(160deg, #26473a, #0f1e17); }
+  .skin-b { background: linear-gradient(160deg, #8c2f39, #4a1319); }
+  .skin-c { background: linear-gradient(160deg, #2b3f6b, #14203f); }
+  .skin-d { background: linear-gradient(160deg, #c99a3d, #7a5a1e); }
+
+  .cover-picker {
+    display: flex; align-items: center; gap: 14px;
+    padding: 10px; border: 1px dashed var(--border); border-radius: 10px;
+  }
+  .cover-preview {
+    width: 64px; height: 64px; border-radius: 8px;
+    background: linear-gradient(160deg, #2d5544, #1b3a2f);
+    display: flex; align-items: center; justify-content: center;
+    color: var(--paper); font-family: var(--font-display); font-size: 1.4rem;
+  }
+
+  .daygrid-editor {
+    display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; margin-top: 8px;
+  }
+  .day-cell-mini {
+    aspect-ratio: 1; border-radius: 8px; border: 1px solid var(--border);
+    display: flex; align-items: flex-end; justify-content: flex-start;
+    padding: 6px; cursor: pointer; position: relative; overflow: hidden;
+    font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600;
+    background: var(--bg-sunken); color: var(--text-dim);
+  }
+  .day-cell-mini.filled { color: #fff; }
+  .day-cell-mini.selected { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .day-cell-mini .playdot {
+    position: absolute; top: 6px; right: 6px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--accent);
+  }
+
+  .day-editor-panel {
+    margin-top: 18px; padding: 18px; border-radius: 12px;
+    background: var(--bg-sunken); border: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 12px;
+  }
+  .day-editor-panel h4 { font-family: var(--font-display); font-size: 1.05rem; }
+  .segmented { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; width: fit-content; }
+  .segmented button {
+    padding: 6px 14px; border: none; background: var(--bg-raised); color: var(--text-dim); cursor: pointer; font-size: 0.82rem;
+  }
+  .segmented button.active { background: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  textarea {
+    font: inherit; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); color: var(--text); resize: vertical; min-height: 60px;
+  }
+
+  table.guests { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin-top: 10px; }
+  table.guests th {
+    text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em;
+    color: var(--text-dim); padding: 8px 10px; border-bottom: 1px solid var(--border);
+  }
+  table.guests td { padding: 10px 10px; border-bottom: 1px solid var(--border); }
+  .guest-actions { display: flex; gap: 14px; justify-content: flex-end; }
+  .invite-row { display: flex; gap: 10px; margin-top: 14px; }
+  .invite-row input { flex: 1; padding: 9px 11px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font: inherit; }
+
+  /* ============================================================ INVITADO */
+  .portada {
+    min-height: calc(100vh - 62px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 40px 24px;
+    background:
+      radial-gradient(ellipse at top, rgba(201,154,61,0.16), transparent 55%),
+      var(--nav-bg);
+    color: var(--nav-text);
+  }
+  .portada .cover-photo {
+    width: 128px; height: 128px; border-radius: 50%;
+    background: linear-gradient(150deg, #e3bb63, #8c2f39 60%, #1b3a2f);
+    margin-bottom: 26px;
+    box-shadow: 0 0 0 6px rgba(246,241,228,0.08), var(--shadow);
+  }
+  .portada h1 { font-size: 2.1rem; color: var(--nav-text); max-width: 20ch; }
+  .portada .tagline { margin-top: 10px; color: var(--nav-text-dim); font-size: 1rem; max-width: 36ch; }
+  .google-btn {
+    margin-top: 30px; display: inline-flex; align-items: center; gap: 10px;
+    background: var(--paper); color: var(--ink); border: none; border-radius: 999px;
+    padding: 12px 22px; font-size: 0.92rem; font-weight: 600; cursor: pointer;
+    box-shadow: var(--shadow);
+  }
+  .google-btn .g { font-family: var(--font-display); font-size: 1.05rem; }
+
+  .invitado-header {
+    padding: 30px 28px 10px; text-align: center;
+  }
+  .invitado-header h1 { font-size: 1.8rem; }
+  .invitado-header .tagline { color: var(--text-dim); margin-top: 6px; }
+  .invitado-header .rangefield { margin-top: 10px; font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); letter-spacing: 0.03em; }
+
+  .doorgrid {
+    max-width: 780px; margin: 30px auto 70px; padding: 0 28px;
+    display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px;
+  }
+  @media (max-width: 640px) { .doorgrid { grid-template-columns: repeat(4, 1fr); } }
+
+  .door {
+    aspect-ratio: 0.85;
+    border-radius: 12px;
+    position: relative;
+    display: flex;
+    align-items: flex-end;
+    padding: 10px;
+    color: var(--paper);
+    font-family: var(--font-display);
+    overflow: hidden;
+    background: var(--door-locked);
+    border: 1px solid rgba(0,0,0,0.15);
+  }
+  .door .num {
+    font-family: var(--font-mono);
+    font-size: 0.95rem;
+    font-weight: 600;
+    background: rgba(15, 24, 18, 0.55);
+    padding: 2px 7px;
+    border-radius: 999px;
+    backdrop-filter: blur(2px);
+  }
+  .door.locked { cursor: default; opacity: 0.82; }
+  .door.locked .lock {
+    position: absolute; top: 10px; right: 10px; font-size: 0.95rem; opacity: 0.75;
+  }
+  .door.open-unseen {
+    cursor: pointer;
+    background: var(--door-open);
+    box-shadow: 0 0 0 1px rgba(227,187,99,0.35), var(--shadow);
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .door.open-unseen:hover { transform: translateY(-2px); box-shadow: 0 0 0 1px var(--accent), var(--shadow); }
+  .door.open-unseen .hint {
+    position: absolute; top: 10px; right: 10px; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 0 3px rgba(201,154,61,0.25);
+  }
+  .door.today::before {
+    content: "hoy"; position: absolute; top: 8px; left: 10px;
+    font-family: var(--font-body); font-size: 0.6rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--accent-2, var(--gold-2));
+  }
+  .door.watched {
+    cursor: pointer;
+    background-size: cover; background-position: center;
+    transition: transform 0.15s ease;
+  }
+  .door.watched:hover { transform: translateY(-2px); }
+  .door.watched::after {
+    content: ""; position: absolute; inset: 0;
+    background: linear-gradient(to top, rgba(10,16,12,0.65) 0%, rgba(10,16,12,0.05) 55%);
+  }
+  .door.watched .num { position: relative; z-index: 1; }
+  .door.watched .frame-play {
+    position: absolute; top: 10px; right: 10px; z-index: 1;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: rgba(15,24,18,0.55); display: flex; align-items: center; justify-content: center;
+    font-size: 0.6rem; color: var(--paper);
+  }
+
+  /* frame gradients standing in for real video thumbnails, rotated by day */
+  .frame-1 { background-image: linear-gradient(155deg, #7a5a1e, #1b3a2f); }
+  .frame-2 { background-image: linear-gradient(155deg, #8c2f39, #2b3f22); }
+  .frame-3 { background-image: linear-gradient(155deg, #2b3f6b, #6b3f2b); }
+  .frame-4 { background-image: linear-gradient(155deg, #c99a3d, #2b3f22); }
+  .frame-5 { background-image: linear-gradient(155deg, #4a1319, #c99a3d); }
+  .frame-6 { background-image: linear-gradient(155deg, #234a3b, #8c2f39); }
+
+  /* ---------- video modal ---------- */
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(10, 16, 12, 0.6);
+    display: none; align-items: center; justify-content: center; padding: 24px; z-index: 50;
+  }
+  .modal-backdrop.active { display: flex; }
+  .modal {
+    background: var(--bg-raised); color: var(--text); border-radius: 16px;
+    max-width: 480px; width: 100%; box-shadow: var(--shadow); overflow: hidden;
+  }
+  .modal-player {
+    aspect-ratio: 16/10; background: linear-gradient(155deg, #234a3b, #0f1e17);
+    display: flex; align-items: center; justify-content: center; position: relative;
+  }
+  .modal-player .playbtn {
+    width: 56px; height: 56px; border-radius: 50%; background: rgba(246,241,228,0.92);
+    display: flex; align-items: center; justify-content: center; color: var(--pine);
+    font-size: 1.1rem; cursor: pointer;
+  }
+  .modal-player .scrub {
+    position: absolute; left: 14px; right: 14px; bottom: 14px;
+    display: flex; align-items: center; gap: 10px; color: var(--paper); font-size: 0.72rem;
+  }
+  .modal-player .bar { flex: 1; height: 3px; background: rgba(246,241,228,0.3); border-radius: 999px; overflow: hidden; }
+  .modal-player .bar::after { content: ""; display: block; width: 38%; height: 100%; background: var(--accent); }
+  .modal-body { padding: 18px 20px 22px; }
+  .modal-body .daytag {
+    font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px;
+  }
+  .modal-body .msg { font-family: var(--font-display); font-size: 1.05rem; line-height: 1.45; }
+  .modal-close {
+    position: absolute; top: 14px; right: 14px; width: 30px; height: 30px; border-radius: 50%;
+    background: rgba(15,24,18,0.5); color: var(--paper); border: none; cursor: pointer; font-size: 0.95rem;
+  }
+
+  .footnote { max-width: 780px; margin: 0 auto 60px; padding: 0 28px; color: var(--text-dim); font-size: 0.82rem; text-align: center; }
+</style>
+
+<div class="shell">
+  <nav class="topbar">
+    <div class="wordmark"><span class="glyph">🎁</span> Calendario de Adviento</div>
+    <div class="roletabs" role="tablist" aria-label="Cambiar de rol">
+      <button class="roletab" role="tab" aria-selected="true" data-role="superadmin">
+        <span class="tabkicker">Vista</span>Super Admin
+      </button>
+      <button class="roletab" role="tab" aria-selected="false" data-role="admin">
+        <span class="tabkicker">Vista</span>Admin
+      </button>
+      <button class="roletab" role="tab" aria-selected="false" data-role="invitado">
+        <span class="tabkicker">Vista</span>Invitado
+      </button>
+    </div>
+  </nav>
+
+  <main>
+    <!-- ============================================================ SUPER ADMIN ============================================================ -->
+    <section class="view active" id="view-superadmin">
+      <div class="wrap">
+        <div class="pagehead">
+          <div>
+            <h1>Todos los calendarios</h1>
+            <div class="sub">Visión global — cualquier calendario, de cualquier Admin.</div>
+          </div>
+          <button class="btn btn-primary">+ Nuevo Admin</button>
+        </div>
+
+        <div class="grid-cards">
+          <div class="card cal-summary-card">
+            <span class="pill pill-live">En marcha</span>
+            <h3>Regalo de Navidad — Equipo TalentNetwork</h3>
+            <div class="meta">Admin: Aitor Marín · 1–24 dic 2026</div>
+            <div class="stats"><span><strong>24</strong> días</span><span><strong>12</strong> invitados</span><span><strong>7</strong> vistos</span></div>
+          </div>
+          <div class="card cal-summary-card">
+            <span class="pill pill-live">En marcha</span>
+            <h3>Adviento de las Peques</h3>
+            <div class="meta">Admin: Marta Sanz · 1–24 dic 2026</div>
+            <div class="stats"><span><strong>24</strong> días</span><span><strong>3</strong> invitados</span><span><strong>15</strong> vistos</span></div>
+          </div>
+          <div class="card cal-summary-card">
+            <span class="pill" style="background:var(--bg-sunken); color:var(--text-dim);">Sin empezar</span>
+            <h3>Clientes VIP — Diciembre</h3>
+            <div class="meta">Admin: Aitor Marín · 1–24 dic 2026</div>
+            <div class="stats"><span><strong>24</strong> días</span><span><strong>0</strong> invitados</span><span><strong>0</strong> vistos</span></div>
+          </div>
+        </div>
+
+        <div class="section-title">Admins</div>
+        <div class="card">
+          <table class="admins">
+            <thead><tr><th>Persona</th><th>Calendarios a cargo</th><th>Creado</th><th></th></tr></thead>
+            <tbody>
+              <tr>
+                <td><div class="person"><span class="avatar">A</span><span class="who"><strong>Aitor Marín</strong><span>aitor.marin@talent-network.org</span></span></div></td>
+                <td class="mono">2</td>
+                <td class="mono">12 ago 2026</td>
+                <td style="text-align:right;"><button class="btn btn-sm btn-danger">Quitar</button></td>
+              </tr>
+              <tr>
+                <td><div class="person"><span class="avatar">M</span><span class="who"><strong>Marta Sanz</strong><span>marta.sanz@talent-network.org</span></span></div></td>
+                <td class="mono">1</td>
+                <td class="mono">14 ago 2026</td>
+                <td style="text-align:right;"><button class="btn btn-sm btn-danger">Quitar</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ ADMIN ============================================================ -->
+    <section class="view" id="view-admin">
+      <div class="admin-layout">
+        <aside class="admin-sidebar">
+          <div class="section-title" style="margin:6px 0 10px;">Mis calendarios</div>
+          <div class="cal-list-item active">
+            <span class="name">Regalo de Navidad — Equipo</span>
+            <span class="dates">1–24 dic 2026</span>
+          </div>
+          <div class="cal-list-item">
+            <span class="name">Clientes VIP — Diciembre</span>
+            <span class="dates">1–24 dic 2026</span>
+          </div>
+          <button class="btn btn-ghost" style="margin-top:10px;">+ Nuevo calendario</button>
+        </aside>
+
+        <div class="admin-detail">
+          <div class="pagehead">
+            <div>
+              <h1>Regalo de Navidad — Equipo</h1>
+              <div class="sub">TalentNetwork · editable en cualquier momento</div>
+            </div>
+            <button class="btn btn-danger">Borrar calendario</button>
+          </div>
+
+          <div class="field-row">
+            <div class="field"><label>Nombre del calendario</label><input type="text" value="Regalo de Navidad — Equipo TalentNetwork" /></div>
+            <div class="field"><label>Título de portada</label><input type="text" value="¡Feliz cuenta atrás, equipo! 🎄" /></div>
+          </div>
+          <div class="field-row">
+            <div class="field"><label>Fecha de inicio</label><input type="date" value="2026-12-01" /></div>
+            <div class="field"><label>Fecha de fin</label><input type="date" value="2026-12-24" /></div>
+          </div>
+          <div class="field-row">
+            <div class="field">
+              <label>Skin</label>
+              <div class="skin-picker">
+                <span class="skin-swatch skin-a selected"></span>
+                <span class="skin-swatch skin-b"></span>
+                <span class="skin-swatch skin-c"></span>
+                <span class="skin-swatch skin-d"></span>
+              </div>
+            </div>
+            <div class="field">
+              <label>Foto de portada</label>
+              <div class="cover-picker">
+                <div class="cover-preview">🎁</div>
+                <button class="btn btn-sm">Cambiar foto</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">Días del calendario</div>
+          <div class="daygrid-editor" id="dayGridEditor"></div>
+
+          <div class="day-editor-panel" id="dayEditorPanel">
+            <h4>Día <span id="dayEditorNum">3</span></h4>
+            <div class="segmented">
+              <button class="active" data-src="upload">Subir archivo</button>
+              <button data-src="link">Link externo</button>
+            </div>
+            <input type="text" placeholder="https://…" value="https://videos.talent-network.org/adviento/dia-3.mp4" />
+            <label style="font-size:0.76rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-dim);">Mensaje del día (opcional)</label>
+            <textarea>Gracias por currar tan bien este año — hoy invita la casa 🍪</textarea>
+            <div style="display:flex; gap:10px;">
+              <button class="btn btn-primary btn-sm">Guardar día</button>
+              <button class="btn btn-ghost btn-sm">Quitar vídeo</button>
+            </div>
+          </div>
+
+          <div class="section-title">Invitados</div>
+          <div class="card" style="padding: 6px 0;">
+            <table class="guests">
+              <thead><tr><th>Email</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="guestRows"></tbody>
+            </table>
+          </div>
+          <div class="invite-row">
+            <input type="text" placeholder="email@ejemplo.com" />
+            <button class="btn btn-primary">Invitar ahora</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================================ INVITADO ============================================================ -->
+    <section class="view" id="view-invitado">
+      <div id="invitadoPortada" class="portada">
+        <div class="cover-photo"></div>
+        <h1>¡Feliz cuenta atrás, equipo! 🎄</h1>
+        <p class="tagline">Cada día, del 1 al 24 de diciembre, se abre una sorpresa nueva.</p>
+        <button class="google-btn" id="btnGoogleLogin"><span class="g">G</span> Continuar con Google</button>
+      </div>
+
+      <div id="invitadoCalendar" style="display:none;">
+        <div class="invitado-header">
+          <h1>Regalo de Navidad — Equipo</h1>
+          <p class="tagline">Ábrelos según llegan los días. Los que ya viste, se quedan de recuerdo.</p>
+          <div class="rangefield">1 — 24 DIC 2026</div>
+        </div>
+        <div class="doorgrid" id="doorGrid"></div>
+        <p class="footnote">Este link es solo para este calendario — si tienes acceso a otros, guarda cada invitación por separado.</p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal">
+    <div class="modal-player">
+      <button class="modal-close" id="modalClose">✕</button>
+      <div class="playbtn">▶</div>
+      <div class="scrub"><span class="mono">0:03</span><span class="bar"></span><span class="mono">0:41</span></div>
+    </div>
+    <div class="modal-body">
+      <div class="daytag" id="modalDayTag">Día 3 · 3 dic</div>
+      <p class="msg" id="modalMsg">Gracias por currar tan bien este año — hoy invita la casa 🍪</p>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- role tabs ----------
+  var tabs = document.querySelectorAll(".roletab");
+  var views = { superadmin: document.getElementById("view-superadmin"),
+                admin: document.getElementById("view-admin"),
+                invitado: document.getElementById("view-invitado") };
+  tabs.forEach(function (t) {
+    t.addEventListener("click", function () {
+      tabs.forEach(function (o) { o.setAttribute("aria-selected", "false"); });
+      t.setAttribute("aria-selected", "true");
+      Object.keys(views).forEach(function (k) { views[k].classList.remove("active"); });
+      views[t.dataset.role].classList.add("active");
+    });
+  });
+
+  // ---------- admin: mini day grid ----------
+  var dayData = [
+    null, null, { msg: "Gracias por currar tan bien este año — hoy invita la casa 🍪" }, null, null, null,
+    null, null, null, null, null, null,
+    null, null, null, null, null, null,
+    null, null, null, null, null, null
+  ];
+  var editorGrid = document.getElementById("dayGridEditor");
+  for (var i = 1; i <= 24; i++) {
+    var cell = document.createElement("div");
+    cell.className = "day-cell-mini" + (dayData[i - 1] ? " filled" : "");
+    if (i === 3) cell.classList.add("selected");
+    cell.style.background = dayData[i - 1] ? "linear-gradient(155deg, #7a5a1e, #1b3a2f)" : "";
+    cell.innerHTML = i + (dayData[i - 1] ? '<span class="playdot"></span>' : "");
+    cell.addEventListener("click", (function (n) {
+      return function () {
+        document.querySelectorAll(".day-cell-mini").forEach(function (c) { c.classList.remove("selected"); });
+        this.classList.add("selected");
+        document.getElementById("dayEditorNum").textContent = n;
+      }.bind(cell);
+    })(i));
+    editorGrid.appendChild(cell);
+  }
+
+  var srcButtons = document.querySelectorAll(".segmented button");
+  srcButtons.forEach(function (b) {
+    b.addEventListener("click", function () {
+      srcButtons.forEach(function (o) { o.classList.remove("active"); });
+      b.classList.add("active");
+    });
+  });
+
+  // ---------- admin: guest table ----------
+  var guests = [
+    { email: "carlos.perez@talent-network.org", estado: "Invitado" },
+    { email: "lucia.ramos@talent-network.org", estado: "Invitado" },
+    { email: "nora.diaz@talent-network.org", estado: "Invitado" }
+  ];
+  var guestRows = document.getElementById("guestRows");
+  guests.forEach(function (g) {
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      "<td>" + g.email + "</td>" +
+      '<td><span class="pill pill-live">' + g.estado + "</span></td>" +
+      '<td><div class="guest-actions"><button class="btn btn-sm btn-ghost">Quitar del calendario</button><button class="btn btn-sm btn-danger">Borrar por completo</button></div></td>';
+    guestRows.appendChild(tr);
+  });
+
+  // ---------- invitado: login ----------
+  document.getElementById("btnGoogleLogin").addEventListener("click", function () {
+    document.getElementById("invitadoPortada").style.display = "none";
+    document.getElementById("invitadoCalendar").style.display = "block";
+  });
+
+  // ---------- invitado: door grid ----------
+  var TODAY = 9; // día actual simulado
+  var watchedMessages = {
+    1: "Empieza la cuenta atrás — gracias por un año entero currando codo con codo 🎄",
+    2: "Un mini vídeo random del equipo en la última offsite. Sí, ese baile pasó de verdad.",
+    4: "24 días, 24 razones para estar orgullosos del equipo. Va la número 4.",
+    5: "Feliz puente — os habéis ganado un café gratis mañana ☕",
+    6: "Bloopers del vídeo corporativo que nunca vio la luz. Hasta hoy.",
+    7: "Recordatorio: sois un equipazo. Fin del mensaje."
+  };
+  var frameClasses = ["frame-1", "frame-2", "frame-3", "frame-4", "frame-5", "frame-6"];
+
+  var doorGrid = document.getElementById("doorGrid");
+  for (var d = 1; d <= 24; d++) {
+    var door = document.createElement("div");
+    var state = d < TODAY ? (watchedMessages[d] ? "watched" : "open-unseen") : (d === TODAY ? "open-unseen" : "locked");
+    door.className = "door " + state + (d === TODAY ? " today" : "");
+    if (state === "watched") door.classList.add(frameClasses[d % frameClasses.length]);
+
+    var inner = '<span class="num">' + d + "</span>";
+    if (state === "locked") inner += '<span class="lock">🔒</span>';
+    if (state === "open-unseen") inner += '<span class="hint"></span>';
+    if (state === "watched") inner += '<span class="frame-play">▶</span>';
+    door.innerHTML = inner;
+
+    if (state !== "locked") {
+      door.addEventListener("click", (function (n) {
+        return function () {
+          document.getElementById("modalDayTag").textContent = "Día " + n + " · " + n + " dic";
+          document.getElementById("modalMsg").textContent =
+            watchedMessages[n] || "Vídeo del día " + n + " — sin mensaje adicional esta vez.";
+          document.getElementById("modalBackdrop").classList.add("active");
+        };
+      })(d));
+    }
+    doorGrid.appendChild(door);
+  }
+
+  // ---------- video modal ----------
+  var backdrop = document.getElementById("modalBackdrop");
+  document.getElementById("modalClose").addEventListener("click", function () { backdrop.classList.remove("active"); });
+  backdrop.addEventListener("click", function (e) { if (e.target === backdrop) backdrop.classList.remove("active"); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") backdrop.classList.remove("active"); });
+</script>
