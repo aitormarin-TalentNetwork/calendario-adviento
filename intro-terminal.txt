@@ -119,7 +119,20 @@ Identidad básica (rellenada por el asistente de arranque de /factory, 2026-08-1
 - Nombre: Calendario de Adviento
 - Idioma de trabajo: español (documentación y código).
 
-[PENDIENTE — el resto (formato de export al auditor, mecanismo de punto de control,
-recurso(s) compartido(s) entre terminales, cola de tareas, documento raíz de
-alcance/arquitectura) lo completa el PM con Aitor antes de que arranque ninguna
-terminal desarrolladora — ver Factory/_central/plantillas/GUIA-WIZARD.md §2-6.]
+- Worktree/rama: `_worktrees/T<n>`, rama `<AUTOR>/<slug-de-la-tarea-de-Linear>` (una por
+  issue).
+- Tablero de tareas (tu brief actual): `codigo para auditar/T<n>_<ID>_<slug>.txt`.
+- Export para el auditor: **un solo fichero activo**,
+  `codigo para auditar/T<n>_<ID>_<slug>_loop<N>-para-auditor.txt` (borra el de la ronda
+  anterior al generar el siguiente).
+- Cola de tareas listas: `codigo para auditar/cola/SIGUIENTE-<seq>_...txt`.
+- Punto de control + aviso de cada paso del ciclo (exportado/corregido/GO): mensaje
+  directo a la Directora — no hay otro mecanismo todavía.
+- Documento raíz de alcance/arquitectura: PRD en Notion ("calendario de Adviento") +
+  `docs/` en el repo para decisiones técnicas derivadas (crear si no existe).
+- Recurso(s) compartido(s) entre terminales: ninguno definido todavía — depende del
+  stack, que se elige como parte de TAL-1. Si tu tarea introduce uno, documéntalo en
+  `docs/` y avisa a la Directora para que lo añada aquí y en `director.md`.
+- Motor auditor concreto: todavía **PENDIENTE** de decidir (ver README de la fábrica,
+  §Configuración, y `ceo.md`) — si llegas a necesitarlo antes de esa decisión, dilo
+  explícitamente por mensaje directo a la Directora en vez de asumir uno.
