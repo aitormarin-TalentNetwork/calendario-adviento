@@ -8,3 +8,10 @@ _modo-publicacion.txt
 node_modules/
 .env
 .env.local
+
+# Next.js
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
