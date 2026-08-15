@@ -6,7 +6,8 @@ Decisión tomada como parte de TAL-1 (setup del proyecto y despliegue).
 
 - **Framework**: [Next.js](https://nextjs.org/) 16 (App Router) + TypeScript, con
   `src/`.
-- **Runtime**: Node.js (v20+; en desarrollo se ha usado Node 26).
+- **Runtime**: Node.js (>=20.9.0, mínimo exigido por `next@16.3.1`; en desarrollo
+  se ha usado Node 26).
 - **Gestor de paquetes**: npm (el que trae el runtime, sin añadir dependencias extra
   de tooling).
 - **Estilos**: CSS plano con variables (custom properties), siguiendo la misma
