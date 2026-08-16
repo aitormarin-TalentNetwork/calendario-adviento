@@ -33,14 +33,118 @@ Quedan **pendientes de decisión en tareas posteriores** (no bloquean TAL-1):
 - **Auth**: Auth.js (NextAuth) con proveedor Google, para cubrir el login con
   Gmail tanto de Admin como de Invitado — se define en detalle en TAL-2
   (Autenticación con Gmail).
-- **Base de datos**: PostgreSQL (plugin gestionado de Railway) + Prisma como ORM —
-  se define en detalle en TAL-3 (Modelo de datos base). Ninguna de las dos está
-  todavía provisionada ni instalada; no hay recurso compartido que reclamar por
-  ahora (ver `intro-terminal.txt`, sección Configuración de este proyecto).
+- **Base de datos**: ver "Migración a Convex" más abajo — Postgres+Prisma
+  (TAL-3) fue la elección del MVP, sustituida por Convex a partir de TAL-9/10.
 - **Almacenamiento de vídeo**: el PRD permite subir vídeo o enlazarlo. Qué backend
   de almacenamiento usar para los uploads (Railway volume, S3-compatible, etc.) se
   decide cuando se aborde esa funcionalidad — no era necesario para el "hola
   mundo" de este ticket.
+
+## Migración a Convex (TAL-9/TAL-10)
+
+Decisión de Aitor (confirmada por el PM en alcance/timeline) de migrar de
+Prisma+PostgreSQL a Convex — bloqueante para el resto de features de
+producto hasta cerrar el milestone completo (TAL-9 a TAL-1x). Motivo de
+fondo: no era una limitación técnica de Postgres/Prisma en sí (el modelo de
+datos del MVP, TAL-3 a TAL-8, quedó cerrado y auditado sin incidentes de
+ese tipo) — es una decisión de plataforma de Aitor para el proyecto.
+
+**Qué backend de Convex**: Convex Cloud gestionado (`*.convex.cloud`), no
+autoalojado. Investigado a fondo antes de decidir —
+`docs/convex-despliegue-investigacion-tal10.md` en el worktree de T2 tiene
+el análisis completo comparando ambas opciones; resumen de la
+recomendación, verificada contra el estado real antes de construir sobre
+ella (no dada por hecha):
+
+- Convex **no aloja el propio Next.js** — la app sigue en Railway en
+  cualquiera de los dos casos, el backend de Convex vive aparte.
+- Gestionado: sin responsabilidad operativa nueva (réplicas/backups/uptime
+  los lleva Convex Inc.), consultas co-localizadas (~1ms), soporte
+  oficial. Autoalojado: correría en un solo nodo sin soporte oficial,
+  trasladando a nosotros toda la responsabilidad de uptime/backups/réplicas
+  — carga operativa que hoy no existe en ningún otro componente del stack
+  (ni Postgres gestionado se llegó a provisionar en producción durante el
+  MVP).
+- Ningún requisito real del proyecto (residencia de datos, cumplimiento
+  normativo, presupuesto ajustadísimo) pide autoalojamiento — el propio
+  motivo que Convex da para recomendarlo no aplica a este proyecto.
+- Reversible más adelante si apareciera un motivo real: mismo
+  schema/funciones, solo cambiaría dónde vive el backend.
+
+Proyecto Convex: **`calendario-adviento`**, team **`aitor-marin-6a254`**
+(cuenta personal de Aitor). Dos deployments:
+
+- **Desarrollo**: `aitor-marin-6a254:calendario-adviento:dev`
+  (`beloved-barracuda-617.convex.cloud`) — el que usa `npx convex dev` en
+  local. Ver `docs/convex-modelo-de-datos.md` para cómo se creó y cómo
+  desarrollar contra él.
+- **Producción**: `aitor-marin-6a254:calendario-adviento:production`
+  (`abundant-badger-144.convex.cloud`) — se autocreó junto al proyecto
+  (TAL-9) y recibió el primer `npx convex deploy` en TAL-10 (mismo
+  schema/funciones que dev, cero datos todavía — no hay tráfico real
+  dependiendo de él, el MVP nunca llegó a provisionar Postgres de
+  producción tampoco, ver `docs/despliegue.md`).
+
+**Qué cambia en el despliegue de Railway** (Next.js sigue ahí, sin cambio
+de plataforma):
+
+- Se quitan las variables de Postgres (`DATABASE_URL`) del servicio.
+- Se añaden `NEXT_PUBLIC_CONVEX_URL`/`NEXT_PUBLIC_CONVEX_SITE_URL`
+  (`abundant-badger-144.convex.cloud`/`.convex.site`, el deployment de
+  producción) como variables del servicio.
+- Recomendación de T2 (y la que sigue esta tarea) para que cada deploy de
+  Next.js lleve consigo el schema/funciones de Convex al día: build
+  command del servicio → `npx convex deploy --cmd 'npm run build'`, con
+  `CONVEX_DEPLOY_KEY` (deployment de producción) como variable de entorno
+  de build — mismo patrón "auto-deploy en cada push a main" que Railway ya
+  usa para Next.js, sin fricción añadida.
+- **Pendiente de ejecutar contra el servicio de producción real**: crear
+  el `CONVEX_DEPLOY_KEY` (`npx convex deployment token create <nombre>
+  --prod`) y aplicar estos cambios de variables/build command al servicio
+  de Railway en vivo — bloqueado por el clasificador de permisos de esta
+  terminal al intentarlo (creación de credenciales de infraestructura), y
+  consistente con el precedente ya documentado en `docs/despliegue.md`
+  (TAL-1): tocar infraestructura/cuentas externas de producción real lo
+  ejecuta el CEO, no una terminal de trabajo. Verificado en su lugar,
+  desde esta terminal: `npx convex deploy` contra el deployment de
+  producción (sin `CONVEX_DEPLOY_KEY`, usando la CLI ya autenticada de la
+  máquina) — deployó limpio, confirma que el schema/funciones son válidos
+  contra ese deployment real, no solo contra el de dev.
+
+**Prisma/Postgres retirados del código** (TAL-10): dependencias
+(`@prisma/client`, `@prisma/adapter-pg`, `pg`, `prisma`), el cliente
+generado (`src/generated/prisma`, no trackeado), el `postinstall` que lo
+regeneraba, `prisma.config.ts` y los scripts que asumían Postgres
+(`prisma/seed.ts`, `scripts/dev-seed-fixtures.ts`). Se conserva
+`prisma/schema.prisma` y `prisma/migrations/` sin tocar, como referencia
+histórica del modelo de datos del MVP — inertes (nada del proyecto los
+ejecuta ya), citados desde `docs/modelo-de-datos.md`/`docs/dias.md`/etc.
+
+`src/lib/*.ts` que hacía consultas reales con Prisma Client (`calendars.ts`,
+`current-user.ts`, `guest-calendar.ts`, `guests.ts`, `roles.ts`,
+`superadmin.ts`) quedó convertido a stubs explícitos por esta tarea, NO
+reescrito contra Convex todavía (eso es TAL-12+, fuera de alcance de
+TAL-10): cada función devuelve la degradación segura ya contemplada por su
+propio tipo de retorno cuando existe una razonable (lista vacía,
+`null`/`{ok:false,...}` con el motivo más honesto disponible), o falla
+explícitamente cuando no la hay (escrituras sin representación de "vacío",
+donde fingir éxito sería peor que un error claro) — nunca inventa datos ni
+falla en silencio. El resultado, verificado en local (build limpio, y en
+tiempo de ejecución: `/login`, `/admin`, `/superadmin`, `/c/{id}`
+devuelven 200/307 sin ningún 500, con y sin sesión real): la app entera se
+comporta como "todo el mundo sin autorizar" — cualquier página protegida
+redirige a `/login`, que sigue renderizando perfectamente (incluida la
+portada personalizada por calendario, que cae a la genérica en vez de
+romperse). Es una degradación deliberada y temporal, ya aceptada por el
+milestone completo ("se pausa cualquier feature nueva de producto hasta
+cerrar todo el milestone", ver brief de TAL-9), no un descuido — cada
+stub documenta en el propio fichero por qué esa degradación en concreto es
+la correcta y qué haría falta en TAL-12+ para dejar de serlo.
+
+Añadido en su lugar: cliente de Convex en el árbol de la app
+(`src/components/convex-client-provider.tsx`, montado en el layout raíz) —
+sin `useQuery`/`useMutation` en ningún componente todavía, solo el
+`ConvexProvider` en su sitio para que TAL-12+ no tenga que añadirlo.
 
 ## Estructura del repo
 

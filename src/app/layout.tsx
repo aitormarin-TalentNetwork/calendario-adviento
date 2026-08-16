@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ConvexClientProvider } from "@/components/convex-client-provider";
 import { TimezoneSync } from "@/components/timezone-sync";
 import "./globals.css";
 
@@ -11,8 +12,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es">
       <body>
-        <TimezoneSync />
-        {children}
+        <ConvexClientProvider>
+          <TimezoneSync />
+          {children}
+        </ConvexClientProvider>
       </body>
     </html>
   );

@@ -3,7 +3,6 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@/generated/prisma/client";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
@@ -108,18 +107,15 @@ export async function updateCalendarAction(calendarId: string, formData: FormDat
 export async function deleteCalendarAction(calendarId: string) {
   await requireCalendarAdmin(calendarId);
 
-  try {
-    // onDelete: Cascade en el schema se lleva por delante Day, Invitation y
-    // CalendarMembership de este calendario — ver prisma/schema.prisma.
-    await prisma.calendar.delete({ where: { id: calendarId } });
-  } catch (err) {
-    // P2025 = "el registro a borrar ya no existe". Un reenvío del mismo
-    // formulario de borrado (doble clic, navegar atrás) no debe fallar con
-    // un error — el resultado que pedía el usuario (que el calendario no
-    // exista) ya se cumple.
-    const alreadyGone = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
-    if (!alreadyGone) throw err;
-  }
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
+  // clasificación de "ya no existe" (antes P2025 de Prisma, ver
+  // docs/calendarios.md) ya no está disponible sin el cliente real —
+  // `requireCalendarAdmin` de arriba ya redirige a todo el mundo (ver
+  // src/lib/current-user.ts), así que esta llamada es inalcanzable hoy;
+  // se deja sin try/catch a propósito en vez de fingir una clasificación
+  // de error que ya no se puede hacer. Pendiente de reescribir contra
+  // Convex en TAL-12+.
+  await prisma.calendar.delete({ where: { id: calendarId } });
 
   revalidatePath("/admin");
   redirect("/admin");

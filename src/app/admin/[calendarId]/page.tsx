@@ -24,7 +24,8 @@ export default async function AdminCalendarPage({
   const isAdmin = access?.kind === "super-admin" || access?.role === "ADMIN";
   if (!isAdmin) redirect("/unauthorized");
 
-  const skins = await prisma.skin.findMany({ orderBy: { key: "asc" } });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.ts exporta `prisma` como `any` (TAL-10, Prisma se retira de la infraestructura); esta página es inalcanzable hoy (getAuthorizedUser devuelve siempre null, ver src/lib/current-user.ts).
+  const skins: any[] = await prisma.skin.findMany({ orderBy: { key: "asc" } });
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
@@ -71,7 +72,8 @@ export default async function AdminCalendarPage({
           Skin
           <br />
           <select name="skinId" defaultValue={calendar.skinId} required>
-            {skins.map((skin) => (
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver arriba. */}
+            {skins.map((skin: any) => (
               <option key={skin.id} value={skin.id}>
                 {skin.name}
               </option>

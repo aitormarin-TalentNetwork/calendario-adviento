@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@/generated/prisma/client";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { prisma } from "@/lib/prisma";
@@ -83,7 +82,8 @@ export async function saveDayAction(calendarId: string, dateStr: string, formDat
   // Calendar hasta que esta transacción termina, así que un
   // `calendar.update()` concurrente sobre el mismo calendario espera a que
   // esto acabe (o al revés) en lugar de intercalarse.
-  await prisma.$transaction(async (tx) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.ts exporta `prisma` como `any` (TAL-10, Prisma se retira de la infraestructura) — esta llamada es inalcanzable hoy (ver requireCalendarAdmin más arriba).
+  await prisma.$transaction(async (tx: any) => {
     const rows = await tx.$queryRaw<{ startDate: Date; endDate: Date }[]>`
       SELECT "startDate", "endDate" FROM "Calendar" WHERE id = ${calendarId} FOR UPDATE
     `;
@@ -109,14 +109,12 @@ export async function deleteDayAction(calendarId: string, dateStr: string) {
   const date = parseUtcDateOnly(dateStr);
   if (!date) throw new Error("Fecha inválida.");
 
-  try {
-    await prisma.day.delete({ where: { calendarId_date: { calendarId, date } } });
-  } catch (err) {
-    // P2025 = ya no existe — un reenvío (doble clic) no debe fallar, el
-    // resultado que pedía ("que ese día no tenga vídeo") ya se cumple.
-    const alreadyGone = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
-    if (!alreadyGone) throw err;
-  }
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
+  // clasificación de "ya no existe" (antes P2025, ver docs/dias.md) ya no
+  // está disponible — `requireCalendarAdmin` de arriba ya redirige a todo
+  // el mundo (ver src/lib/current-user.ts), así que esta llamada es
+  // inalcanzable hoy. Pendiente de reescribir contra Convex en TAL-12+.
+  await prisma.day.delete({ where: { calendarId_date: { calendarId, date } } });
 
   revalidatePath(`/admin/${calendarId}`);
 }

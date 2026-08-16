@@ -1,6 +1,3 @@
-import { Prisma } from "@/generated/prisma/client";
-import { prisma } from "@/lib/prisma";
-
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -99,73 +96,41 @@ export function todayInTimeZone(now: Date, timeZone: string | undefined | null):
   return new Date(Date.UTC(year, month - 1, day));
 }
 
-export function listAdminCalendars(userId: string) {
-  return prisma.calendar.findMany({
-    where: { memberships: { some: { userId, role: "ADMIN" } } },
-    orderBy: { createdAt: "desc" },
-    include: { skin: true },
-  });
-}
-
-async function defaultSkin() {
-  // "pine" es el skin por defecto según prisma/seed.ts ("Verde pino con
-  // acentos dorados — skin por defecto"); si algún día no existe (seed
-  // distinto, entorno sin sembrar del todo), cae al primero que haya en vez
-  // de bloquear la creación del calendario.
-  return (
-    (await prisma.skin.findUnique({ where: { key: "pine" } })) ??
-    (await prisma.skin.findFirst({ orderBy: { key: "asc" } }))
-  );
+// TAL-10 — Prisma/Postgres se retiran de la infraestructura: la consulta
+// real (`prisma.calendar.findMany`, con sus calendarios+skin) todavía no
+// tiene equivalente conectado a Convex (TAL-12+). `[]` es la degradación
+// segura para una lista — la página de Admin ya sabe pintar "no tienes
+// calendarios todavía" con una lista vacía, así que no hace falta ningún
+// cambio ahí. Tipado `any[]` a propósito: no vale la pena reconstruir a
+// mano el tipo exacto de Prisma (Calendar + Skin) para un array que
+// siempre está vacío.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver comentario de arriba: `any[]` deliberado, siempre devuelve un array vacío.
+export function listAdminCalendars(userId: string): Promise<any[]> {
+  void userId;
+  return Promise.resolve([]);
 }
 
 /**
  * Crea un calendario con valores de partida razonables y, en la misma
  * transacción, la CalendarMembership del creador como ADMIN — así es como
  * alguien se convierte en Admin de su primer calendario (brief de TAL-5).
+ * Ver `docs/modelo-de-datos.md`/`docs/calendarios.md` para el resto de
+ * reglas (idempotencia por `creationKey`, etc.).
  *
- * Idempotente por `creationKey` (hallazgo de auditoría, ronda 1: un doble
- * clic o un reenvío de formulario duplicaba calendario+membership). El
- * formulario de creación manda siempre la misma clave mientras no se
- * recargue la página — si ya existe un Calendar con esa clave, se devuelve
- * tal cual en vez de crear otro. Comprobar-y-crear tiene ventana de carrera
- * (visto ya en TAL-2 con la aceptación de invitaciones): se intenta crear
- * directamente y, si el índice único choca (P2002), se relee la fila que
- * ganó la carrera en vez de fallar.
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: a diferencia
+ * de las funciones de solo lectura de este fichero, esta es una escritura
+ * sin representación de "vacío" razonable (el llamador espera un
+ * `Calendar` real de vuelta, con su `id`, para redirigir a
+ * `/admin/{id}`) — no hay una degradación segura equivalente a devolver
+ * `[]`/`null`, así que falla explícitamente en vez de fingir un
+ * calendario que no se creó. Pendiente de reescribir contra Convex en
+ * TAL-12+.
  */
-export async function createCalendarForAdmin(user: { id: string }, creationKey: string) {
-  const existing = await prisma.calendar.findUnique({ where: { creationKey } });
-  if (existing) return existing;
-
-  const skin = await defaultSkin();
-  if (!skin) {
-    throw new Error(
-      "No hay ningún Skin sembrado todavía — corre `npx prisma db seed` antes de crear calendarios."
-    );
-  }
-
-  const { startDate, endDate } = defaultCalendarDateRange();
-
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const calendar = await tx.calendar.create({
-        data: {
-          name: "Nuevo calendario",
-          coverTitle: "¡Feliz cuenta atrás, equipo! 🎄",
-          startDate,
-          endDate,
-          skinId: skin.id,
-          creationKey,
-        },
-      });
-      await tx.calendarMembership.create({
-        data: { calendarId: calendar.id, userId: user.id, role: "ADMIN" },
-      });
-      return calendar;
-    });
-  } catch (err) {
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
-      return prisma.calendar.findUniqueOrThrow({ where: { creationKey } });
-    }
-    throw err;
-  }
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver comentario de arriba: `any` deliberado, esta función siempre lanza.
+export async function createCalendarForAdmin(user: { id: string }, creationKey: string): Promise<any> {
+  void user;
+  void creationKey;
+  throw new Error(
+    "createCalendarForAdmin: Prisma/Postgres se retiraron de la infraestructura en TAL-10 (migración a Convex). Pendiente de reescribir contra Convex en TAL-12+."
+  );
 }

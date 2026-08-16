@@ -57,8 +57,10 @@ export async function DaysSection({ calendarId }: { calendarId: string }) {
     );
   }
 
-  const days = await prisma.day.findMany({ where: { calendarId } });
-  const dayByDate = new Map(days.map((day) => [toDateInputValue(day.date), day]));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.ts exporta `prisma` como `any` (TAL-10, Prisma se retira de la infraestructura); esta sección es inalcanzable hoy, ver comentario en la página que la monta.
+  const days: any[] = await prisma.day.findMany({ where: { calendarId } });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver arriba.
+  const dayByDate = new Map(days.map((day: any) => [toDateInputValue(day.date), day]));
   const dayInfos = datesInRange(calendar.startDate, calendar.endDate).map((date) => {
     const dateStr = toDateInputValue(date);
     const day = dayByDate.get(dateStr);
