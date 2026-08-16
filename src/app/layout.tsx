@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { TimezoneSync } from "@/components/timezone-sync";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -9,7 +10,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="es">
-      <body>{children}</body>
+      <body>
+        <TimezoneSync />
+        {children}
+      </body>
     </html>
   );
 }

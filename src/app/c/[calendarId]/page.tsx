@@ -1,6 +1,8 @@
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { DoorGrid } from "@/app/c/[calendarId]/door-grid";
 import { signOut } from "@/lib/auth";
+import { todayInTimeZone } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { prisma } from "@/lib/prisma";
@@ -23,7 +25,14 @@ export default async function GuestCalendarPage({
   const access = await resolveCalendarAccess(user, calendarId);
   if (!access) redirect("/unauthorized");
 
-  const result = await resolveDoors(calendarId, user.id, new Date());
+  // La zona horaria la trae la cookie `tz` (TimezoneSync, layout raíz) —
+  // en la primerísima visita (antes de que ese componente cliente haya
+  // podido escribirla) cae a UTC vía todayInTimeZone/safeTimeZone; el
+  // propio TimezoneSync fuerza un refresco en cuanto la deja escrita, así
+  // que el hueco es de una sola carga.
+  const tz = (await cookies()).get("tz")?.value;
+  const today = todayInTimeZone(new Date(), tz);
+  const result = await resolveDoors(calendarId, user.id, today);
 
   return (
     <main style={{ flex: 1, padding: "2rem" }}>

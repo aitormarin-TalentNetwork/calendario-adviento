@@ -1,3 +1,4 @@
+import { Prisma } from "@/generated/prisma/client";
 import { formatCalendarDate } from "@/lib/calendars";
 import { prisma } from "@/lib/prisma";
 
@@ -54,12 +55,17 @@ export type DoorGridResult =
 
 /**
  * Resuelve el estado de cada puerta del calendario para un Invitado
- * concreto. "Bloqueado" se decide comparando la fecha con hoy — un día
+ * concreto. "Bloqueado" se decide comparando la fecha con `today` — un día
  * queda desbloqueado desde que llega su fecha, para siempre (brief de
  * TAL-8). Dentro de lo desbloqueado: "visto" si existe DayView para
  * (day, user); si no, "abierto sin ver" — incluso si el Admin no llegó a
  * asignar vídeo ese día (el día sigue "abierto", solo que el modal no
  * tendrá nada que reproducir; ver `door-grid.tsx`).
+ *
+ * `today` tiene que venir ya resuelto con `todayInTimeZone` (src/lib/
+ * calendars.ts) en la zona horaria de quien mira el calendario, no un
+ * `new Date()` a secas — de lo contrario el desbloqueo se desplaza horas
+ * según el huso de quien lo mire (hallazgo de auditoría, ronda 1).
  */
 export async function resolveDoors(calendarId: string, userId: string, today: Date): Promise<DoorGridResult> {
   const calendar = await prisma.calendar.findUniqueOrThrow({
@@ -111,7 +117,8 @@ export type MarkViewedResult = { ok: true } | { ok: false; error: "not-found" | 
  * pertenece al calendario indicado y que su fecha ya está desbloqueada —
  * nunca confiar en que el cliente solo pudo llegar aquí desde una puerta
  * ya desbloqueada en la UI (las server actions son invocables
- * directamente).
+ * directamente). Mismo requisito que `resolveDoors` sobre `today`: debe
+ * venir de `todayInTimeZone`, no de `new Date()` a secas.
  */
 export async function markDayViewed(
   calendarId: string,
@@ -123,11 +130,24 @@ export async function markDayViewed(
   if (!day || day.calendarId !== calendarId) return { ok: false, error: "not-found" };
   if (day.date > today) return { ok: false, error: "locked" };
 
-  await prisma.dayView.upsert({
-    where: { dayId_userId: { dayId, userId } },
-    update: {},
-    create: { dayId, userId },
-  });
+  try {
+    await prisma.dayView.upsert({
+      where: { dayId_userId: { dayId, userId } },
+      update: {},
+      create: { dayId, userId },
+    });
+  } catch (err) {
+    // El upsert de Prisma no es atómico a nivel de BD para este conector
+    // (comprobado con peticiones paralelas reales en TAL-7, ver
+    // src/lib/roles.ts): dos llamadas simultáneas — dos pestañas, doble
+    // clic — pueden intentar ambas el create interno y una recibir P2002.
+    // Como el objetivo es solo "que exista una fila para (day, user)" (no
+    // hay nada que leer de vuelta ni ningún dato que pudiera divergir
+    // entre las dos), un P2002 aquí significa que la otra llamada
+    // concurrente ya lo dejó hecho — no es un fallo real, se ignora en vez
+    // de propagarlo (hallazgo de auditoría, ronda 1).
+    if (!(err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002")) throw err;
+  }
 
   return { ok: true };
 }
