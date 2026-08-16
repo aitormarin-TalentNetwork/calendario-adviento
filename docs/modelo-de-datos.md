@@ -1,5 +1,14 @@
 # Modelo de datos base (TAL-3)
 
+> **Nota TAL-10** (hallazgo de auditoría, ronda 1): Prisma/Postgres se
+> retiraron de la infraestructura activa en TAL-10 (migración a Convex,
+> decisión de Aitor — ver `docs/stack.md` § "Migración a Convex"). Este
+> documento describe el modelo de datos histórico del MVP (TAL-3 a TAL-8),
+> todavía útil como referencia de las invariantes que preservar (ver
+> `docs/convex-modelo-de-datos.md` para el equivalente en Convex) — pero
+> ya no es la capa de persistencia activa, ni `prisma/schema.prisma` se
+> ejecuta contra ninguna base de datos real hoy.
+
 ## Capa de persistencia
 
 `docs/stack.md` (TAL-1) ya apuntaba PostgreSQL + Prisma como plan para esta

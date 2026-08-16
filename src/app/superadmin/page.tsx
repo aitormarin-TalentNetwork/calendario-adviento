@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { signOut } from "@/lib/auth";
 import { getAuthorizedUser } from "@/lib/current-user";
+import { DataLayerUnavailableError, tryDataLayer } from "@/lib/not-migrated";
 import {
   addAdmin,
   listAdmins,
@@ -20,6 +21,13 @@ const STATUS_LABEL: Record<CalendarStatus, string> = {
 const ERROR_MESSAGE: Record<string, string> = {
   "invalid-email": "Escribe un email válido.",
   "calendar-not-found": "Ese calendario ya no existe — refresca la página.",
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: `addAdmin`
+  // lanza `DataLayerUnavailableError` en vez de devolver
+  // `{error:"calendar-not-found"}` cuando en realidad no se pudo consultar
+  // (hallazgo de auditoría, ronda 1 — ese mensaje habría sido un motivo
+  // inventado). `addAdminAction`, más abajo, la atrapa y redirige con este
+  // motivo distinto.
+  unavailable: "Esta acción no está disponible ahora mismo.",
 };
 
 function formatDate(date: Date) {
@@ -33,10 +41,22 @@ async function addAdminAction(formData: FormData) {
 
   const calendarId = String(formData.get("calendarId") ?? "");
   const email = String(formData.get("email") ?? "");
-  const result = await addAdmin(calendarId, email);
 
-  revalidatePath("/superadmin");
-  redirect(result.ok ? "/superadmin" : `/superadmin?error=${result.error}`);
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: `addAdmin`
+  // sigue validando el formato de email de verdad (no toca Prisma), pero
+  // lanza `DataLayerUnavailableError` en la parte real de la escritura —
+  // se atrapa aquí para redirigir con un motivo honesto ("no disponible"),
+  // en vez de dejarlo propagar como un error crudo o inventar
+  // "calendar-not-found" (hallazgo de auditoría, ronda 1).
+  try {
+    const result = await addAdmin(calendarId, email);
+    revalidatePath("/superadmin");
+    redirect(result.ok ? "/superadmin" : `/superadmin?error=${result.error}`);
+  } catch (err) {
+    if (!(err instanceof DataLayerUnavailableError)) throw err;
+    revalidatePath("/superadmin");
+    redirect("/superadmin?error=unavailable");
+  }
 }
 
 async function removeAdminAction(formData: FormData) {
@@ -59,12 +79,20 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
   const { error } = await searchParams;
   const errorMessage = typeof error === "string" ? ERROR_MESSAGE[error] : undefined;
 
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: las tres
+  // lanzan `DataLayerUnavailableError` (hallazgo de auditoría, ronda 1 —
+  // antes devolvían `[]`, que esta página interpretaba como "no hay
+  // calendarios"/"no hay ningún Admin", hechos falsos). Cada resultado se
+  // distingue explícitamente de su lista vacía real más abajo.
   const now = new Date();
-  const [calendars, admins, calendarOptions] = await Promise.all([
-    listCalendarsWithStats(now),
-    listAdmins(),
-    listCalendarOptions(),
+  const [calendarsResult, adminsResult, calendarOptionsResult] = await Promise.all([
+    tryDataLayer(() => listCalendarsWithStats(now)),
+    tryDataLayer(() => listAdmins()),
+    tryDataLayer(() => listCalendarOptions()),
   ]);
+  const calendars = calendarsResult.ok ? calendarsResult.data : null;
+  const admins = adminsResult.ok ? adminsResult.data : null;
+  const calendarOptions = calendarOptionsResult.ok ? calendarOptionsResult.data : null;
 
   return (
     <main style={{ flex: 1, padding: "2rem", display: "flex", flexDirection: "column", gap: "2rem" }}>
@@ -86,9 +114,10 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {calendars.length === 0 && <p>Todavía no hay ningún calendario creado.</p>}
+        {calendars === null && <p style={{ color: "var(--accent)" }}>Los calendarios no están disponibles ahora mismo.</p>}
+        {calendars?.length === 0 && <p>Todavía no hay ningún calendario creado.</p>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
-          {calendars.map((calendar) => (
+          {calendars?.map((calendar) => (
             <div
               key={calendar.id}
               style={{ border: "1px solid var(--accent)", borderRadius: "0.75rem", padding: "1rem" }}
@@ -127,18 +156,21 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
             <option value="" disabled>
               Calendario…
             </option>
-            {calendarOptions.map((option) => (
+            {calendarOptions?.map((option) => (
               <option key={option.id} value={option.id}>
                 {option.name}
               </option>
             ))}
           </select>
           <input name="email" type="email" placeholder="email@ejemplo.com" required />
-          <button type="submit" disabled={calendarOptions.length === 0}>
+          <button type="submit" disabled={!calendarOptions || calendarOptions.length === 0}>
             + Nuevo Admin
           </button>
         </form>
-        {calendarOptions.length === 0 && (
+        {calendarOptions === null && (
+          <p style={{ fontSize: "0.85rem", color: "var(--accent)" }}>Los calendarios no están disponibles ahora mismo.</p>
+        )}
+        {calendarOptions?.length === 0 && (
           <p style={{ fontSize: "0.85rem", color: "var(--accent)" }}>
             No hay ningún calendario todavía — crea uno antes de asignarle un Admin.
           </p>
@@ -154,7 +186,7 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
             </tr>
           </thead>
           <tbody>
-            {admins.map((admin) => (
+            {admins?.map((admin) => (
               <tr key={admin.userId} style={{ borderBottom: "1px solid color-mix(in srgb, var(--accent) 30%, transparent)" }}>
                 <td>
                   <strong>{admin.name ?? admin.email}</strong>
@@ -172,7 +204,8 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
             ))}
           </tbody>
         </table>
-        {admins.length === 0 && <p>Todavía no hay ningún Admin.</p>}
+        {admins === null && <p style={{ color: "var(--accent)" }}>Los Admins no están disponibles ahora mismo.</p>}
+        {admins?.length === 0 && <p>Todavía no hay ningún Admin.</p>}
       </section>
     </main>
   );

@@ -3,10 +3,9 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@/generated/prisma/client";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { prisma } from "@/lib/prisma";
+import { DataLayerUnavailableError } from "@/lib/not-migrated";
 import { resolveCalendarAccess } from "@/lib/roles";
 
 /**
@@ -64,14 +63,6 @@ export async function updateCalendarAction(calendarId: string, formData: FormDat
     throw new Error("La fecha de inicio no puede ser posterior a la fecha de fin.");
   }
 
-  // El selector de skin en la UI ya limita al catálogo fijo, pero esto es
-  // un límite de seguridad, no de UX: nunca confiar en que el cliente
-  // mandó un id válido.
-  const skin = await prisma.skin.findUnique({ where: { id: skinId } });
-  if (!skin) {
-    throw new Error("Skin no válido.");
-  }
-
   const coverImageUrl = coverImageUrlRaw || null;
   if (coverImageUrl) {
     let parsed: URL;
@@ -96,31 +87,36 @@ export async function updateCalendarAction(calendarId: string, formData: FormDat
     }
   }
 
-  await prisma.calendar.update({
-    where: { id: calendarId },
-    data: { name, coverTitle, startDate, endDate, skinId, coverImageUrl },
-  });
-
-  revalidatePath(`/admin/${calendarId}`);
-  revalidatePath("/admin");
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
+  // comprobación de que `skinId` es de verdad del catálogo fijo (antes
+  // `prisma.skin.findUnique`, límite de seguridad — el selector de la UI
+  // ya limita al catálogo, esto es defensa por si alguien manda un id
+  // distinto a mano) y la escritura real (`prisma.calendar.update`)
+  // todavía no tienen equivalente conectado a Convex (TAL-12+). Todo lo de
+  // arriba (campos obligatorios, formato/orden de fechas, URL https) sigue
+  // siendo validación real, sin tocar Prisma — se mantiene. Falla
+  // explícitamente aquí en vez de fingir que el skin es válido o que se
+  // guardó. `requireCalendarAdmin` de arriba ya redirige a todo el mundo
+  // hoy (ver src/lib/current-user.ts), pero esta llamada tenía que dejar
+  // de ser un residuo real de Prisma para cuando TAL-12 restaure la
+  // autorización (hallazgo de auditoría, ronda 1).
+  void skinId;
+  void name;
+  void coverTitle;
+  void coverImageUrl;
+  throw new DataLayerUnavailableError("updateCalendarAction");
 }
 
 export async function deleteCalendarAction(calendarId: string) {
   await requireCalendarAdmin(calendarId);
 
-  try {
-    // onDelete: Cascade en el schema se lleva por delante Day, Invitation y
-    // CalendarMembership de este calendario — ver prisma/schema.prisma.
-    await prisma.calendar.delete({ where: { id: calendarId } });
-  } catch (err) {
-    // P2025 = "el registro a borrar ya no existe". Un reenvío del mismo
-    // formulario de borrado (doble clic, navegar atrás) no debe fallar con
-    // un error — el resultado que pedía el usuario (que el calendario no
-    // exista) ya se cumple.
-    const alreadyGone = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
-    if (!alreadyGone) throw err;
-  }
-
-  revalidatePath("/admin");
-  redirect("/admin");
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
+  // escritura real (`prisma.calendar.delete`) todavía no tiene equivalente
+  // conectado a Convex (TAL-12+). Falla explícitamente en vez de fingir
+  // que se borró. `requireCalendarAdmin` de arriba ya redirige a todo el
+  // mundo hoy (ver src/lib/current-user.ts), pero esta llamada tenía que
+  // dejar de ser un residuo real de Prisma (hallazgo de auditoría, ronda
+  // 1).
+  void calendarId;
+  throw new DataLayerUnavailableError("deleteCalendarAction");
 }

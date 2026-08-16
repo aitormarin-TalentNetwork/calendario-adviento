@@ -1,27 +1,34 @@
-import { Prisma, type CalendarRole } from "@/generated/prisma/client";
-import { withSerializableRetry } from "@/lib/db-retry";
-import { prisma } from "@/lib/prisma";
+// Antes venía de `@/generated/prisma/client` — TAL-10 retira Prisma de la
+// infraestructura, así que el tipo se declara localmente. Mismos dos
+// valores que el `enum CalendarRole` de prisma/schema.prisma y el
+// `v.union(v.literal("ADMIN"), v.literal("GUEST"))` del schema de Convex
+// (TAL-9) — ninguno de los tres perdió ni ganó un valor, solo cambió dónde
+// vive la declaración.
+export type CalendarRole = "ADMIN" | "GUEST";
 
 export type CalendarAccess =
   | { kind: "super-admin" }
   | { kind: "member"; role: CalendarRole };
 
 /**
- * Resuelve el acceso de un usuario autenticado a un calendario concreto:
- * - Super Admin: acceso global, sin necesidad de membership.
- * - Si ya hay CalendarMembership (ADMIN o GUEST), esa es la fuente de verdad.
- * - Si no la hay pero existe una Invitation para su email en ese calendario,
- *   se resuelve aquí mismo: se crea la CalendarMembership como GUEST (ver
- *   docs/modelo-de-datos.md — así es como se "acepta" una invitación).
- * - Si no hay membership ni invitación, no tiene acceso (null).
+ * Resuelve el acceso de un usuario autenticado a un calendario concreto —
+ * ver el resto de reglas (Super Admin, CalendarMembership, aceptación de
+ * Invitation) en `docs/modelo-de-datos.md` y `docs/invitados.md`.
  *
- * Todo el bloque no-Super-Admin corre en una transacción SERIALIZABLE con
- * reintento (hallazgo de auditoría, TAL-7 ronda 1): sin esto, "aceptar
- * invitación" aquí y "quitar invitado" (src/lib/guests.ts) podían
- * entrelazarse bajo el aislamiento por defecto de Postgres de forma que la
- * persona expulsada se quedara con acceso — SERIALIZABLE hace que Postgres
- * aborte una de las dos transacciones en conflicto en vez de dejarlas
- * entrelazarse; `withSerializableRetry` la repite.
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: la parte que
+ * consultaba/creaba `CalendarMembership`/`Invitation` en una transacción
+ * `SERIALIZABLE` (hallazgo de auditoría, TAL-7 ronda 1 — ver
+ * `docs/invitados.md`) todavía no tiene equivalente conectado a Convex
+ * (TAL-12+), así que esa rama devuelve `null`. Mismo criterio que
+ * `getAuthorizedUser` (`src/lib/current-user.ts`, hallazgo de auditoría,
+ * ronda 1 de esta tarea): esto NO es una lectura de negocio como
+ * `listCalendarGuests` (que sí mentía con `[]`, y ahora lanza) — es una
+ * comprobación de autorización, "sin acceso" es fallar cerrado ante la
+ * incertidumbre, la postura de seguridad correcta, no un dato inventado.
+ * El atajo de Super Admin, que nunca tocó Prisma (`user.isSuperAdmin` ya
+ * viene resuelto por `getAuthorizedUser`), se mantiene sin cambios —
+ * aunque en la práctica no se alcanza hoy, porque `getAuthorizedUser`
+ * (TAL-10) devuelve siempre `null` también.
  */
 export async function resolveCalendarAccess(
   user: { id: string; email: string; isSuperAdmin: boolean },
@@ -29,49 +36,6 @@ export async function resolveCalendarAccess(
 ): Promise<CalendarAccess | null> {
   if (user.isSuperAdmin) return { kind: "super-admin" };
 
-  return withSerializableRetry(
-    () =>
-      prisma.$transaction(
-        async (tx) => {
-          const membership = await tx.calendarMembership.findUnique({
-            where: { calendarId_userId: { calendarId, userId: user.id } },
-          });
-          if (membership) return { kind: "member" as const, role: membership.role };
-
-          // Comparación insensible a mayúsculas: el email de sesión ya se
-          // guarda en minúsculas (ver auth.ts), pero una Invitation puede
-          // haberse creado con otra capitalización (p. ej.
-          // "Persona@Gmail.com"). `findFirst` + `mode: "insensitive"` no
-          // depende de que la columna sea citext a nivel de BD — defensa a
-          // nivel de aplicación (hallazgo de auditoría, ronda 1).
-          const invitation = await tx.invitation.findFirst({
-            where: { calendarId, email: { equals: user.email, mode: "insensitive" } },
-          });
-          if (!invitation) return null;
-
-          // Si esto choca con el índice único (P2002), es porque otra
-          // transacción concurrente ganó la carrera y ya creó la
-          // membership entre nuestro SELECT de arriba y este INSERT — NO
-          // se puede "recuperar" releyendo aquí mismo: una violación de
-          // unicidad aborta el resto de ESTA transacción de Postgres,
-          // cualquier consulta posterior en ella fallaría con "current
-          // transaction is aborted" (hallazgo de auditoría, TAL-7 ronda 2
-          // — la ronda 1 intentaba precisamente esa relectura fallida
-          // dentro del mismo `tx`). Se deja propagar el error tal cual:
-          // `withSerializableRetry` lo trata igual que un conflicto de
-          // serialización (ver `alsoRetryOn` más abajo) y reintenta la
-          // transacción ENTERA desde cero — en el reintento, el `findUnique`
-          // de arriba ya encuentra la fila que ganó la carrera y sale por
-          // la vía normal, sin necesitar ningún caso especial aquí.
-          const created = await tx.calendarMembership.create({
-            data: { calendarId, userId: user.id, role: "GUEST" },
-          });
-          return { kind: "member" as const, role: created.role };
-        },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-      ),
-    {
-      alsoRetryOn: (err) => err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002",
-    }
-  );
+  void calendarId;
+  return null;
 }

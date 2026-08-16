@@ -1,27 +1,28 @@
 import { devLoginEnabled } from "@/lib/auth.config";
 import { signIn } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
-// `callbackUrl` no solo dice a dónde volver tras el login — si apunta a
-// `/c/{calendarId}` (un Invitado que llega al link de su calendario sin
-// sesión todavía), también dice de qué calendario mostrar la portada
-// personalizada (TAL-8, brief: "portada de login personalizada por
-// calendario"). Un id que no exista simplemente no encuentra Calendar más
-// abajo y se cae a la portada genérica — no hace falta validar el formato
-// aquí.
+// `callbackUrl` seguía usándose para saber de qué calendario mostrar la
+// portada personalizada (TAL-8) cuando un Invitado llega desde
+// `/c/{calendarId}` sin sesión — TAL-10 retira esa consulta (ver más
+// abajo), la constante se queda solo por si TAL-12+ la recupera.
 const GUEST_CALLBACK_RE = /^\/c\/([^/?]+)/;
+void GUEST_CALLBACK_RE;
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { callbackUrl } = await searchParams;
   const redirectTo = typeof callbackUrl === "string" ? callbackUrl : "/";
 
-  const calendarId = typeof callbackUrl === "string" ? GUEST_CALLBACK_RE.exec(callbackUrl)?.[1] : undefined;
-  const calendar = calendarId
-    ? await prisma.calendar.findUnique({
-        where: { id: calendarId },
-        select: { coverTitle: true, coverImageUrl: true },
-      })
-    : null;
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la portada
+  // personalizada por calendario (TAL-8, `prisma.calendar.findUnique`)
+  // todavía no tiene equivalente conectado a Convex (TAL-12+). A
+  // diferencia del resto de páginas (que ya redirigen a `/login` antes de
+  // tocar Prisma, porque `getAuthorizedUser` devuelve siempre `null` — ver
+  // src/lib/current-user.ts), ESTA es la propia página de login: el punto
+  // de entrada público, alcanzable sin sesión, así que no puede dejarse
+  // reventar con un error crudo por un link de invitado
+  // (`/login?callbackUrl=/c/{id}`). Se cae a la portada genérica siempre,
+  // en vez de lanzar.
+  const calendar = null as { coverTitle: string; coverImageUrl: string | null } | null;
 
   return (
     <main

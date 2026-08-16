@@ -1,11 +1,9 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { Prisma } from "@/generated/prisma/client";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { prisma } from "@/lib/prisma";
+import { DataLayerUnavailableError } from "@/lib/not-migrated";
 import { resolveCalendarAccess } from "@/lib/roles";
 
 /**
@@ -73,34 +71,22 @@ export async function saveDayAction(calendarId: string, dateStr: string, formDat
   }
   const message = messageRaw || null;
 
-  // Comprobar el rango del calendario y guardar el día en una única
-  // transacción, con `FOR UPDATE` sobre la fila del Calendar (hallazgo de
-  // auditoría, ronda 1): sin esto, había una ventana entre leer el rango y
-  // guardar el Day en la que otra petición podía reducir el rango del
-  // calendario (updateCalendarAction, TAL-5) justo en medio — el Day
-  // quedaba fuera del rango nuevo, oculto en el listado pero reapareciendo
-  // si el rango se ampliaba después. El `FOR UPDATE` bloquea esa fila del
-  // Calendar hasta que esta transacción termina, así que un
-  // `calendar.update()` concurrente sobre el mismo calendario espera a que
-  // esto acabe (o al revés) en lugar de intercalarse.
-  await prisma.$transaction(async (tx) => {
-    const rows = await tx.$queryRaw<{ startDate: Date; endDate: Date }[]>`
-      SELECT "startDate", "endDate" FROM "Calendar" WHERE id = ${calendarId} FOR UPDATE
-    `;
-    const calendar = rows[0];
-    if (!calendar) throw new Error("El calendario ya no existe.");
-    if (date < calendar.startDate || date > calendar.endDate) {
-      throw new Error("Esa fecha ya no está dentro del rango del calendario.");
-    }
-
-    await tx.day.upsert({
-      where: { calendarId_date: { calendarId, date } },
-      update: { videoUrl, message },
-      create: { calendarId, date, videoUrl, message },
-    });
-  });
-
-  revalidatePath(`/admin/${calendarId}`);
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
+  // comprobación de rango + escritura real (antes una única transacción
+  // con `FOR UPDATE` sobre la fila del Calendar, ver docs/dias.md — el
+  // motivo de esa transacción sigue documentado ahí, este comentario no lo
+  // repite) todavía no tiene equivalente conectado a Convex (TAL-12+).
+  // Todo lo de arriba (fecha, longitud/formato de URL/mensaje) sigue
+  // siendo validación real, sin tocar Prisma — se mantiene. Falla
+  // explícitamente en vez de fingir que se guardó. `requireCalendarAdmin`
+  // de arriba ya redirige a todo el mundo hoy (ver
+  // src/lib/current-user.ts), pero esta llamada tenía que dejar de ser un
+  // residuo real de Prisma (hallazgo de auditoría, ronda 1).
+  void calendarId;
+  void date;
+  void videoUrl;
+  void message;
+  throw new DataLayerUnavailableError("saveDayAction");
 }
 
 export async function deleteDayAction(calendarId: string, dateStr: string) {
@@ -109,14 +95,14 @@ export async function deleteDayAction(calendarId: string, dateStr: string) {
   const date = parseUtcDateOnly(dateStr);
   if (!date) throw new Error("Fecha inválida.");
 
-  try {
-    await prisma.day.delete({ where: { calendarId_date: { calendarId, date } } });
-  } catch (err) {
-    // P2025 = ya no existe — un reenvío (doble clic) no debe fallar, el
-    // resultado que pedía ("que ese día no tenga vídeo") ya se cumple.
-    const alreadyGone = err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025";
-    if (!alreadyGone) throw err;
-  }
-
-  revalidatePath(`/admin/${calendarId}`);
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
+  // escritura real (antes `prisma.day.delete`, ver docs/dias.md) todavía
+  // no tiene equivalente conectado a Convex (TAL-12+). Falla
+  // explícitamente en vez de fingir que se borró. `requireCalendarAdmin`
+  // de arriba ya redirige a todo el mundo hoy (ver
+  // src/lib/current-user.ts), pero esta llamada tenía que dejar de ser un
+  // residuo real de Prisma (hallazgo de auditoría, ronda 1).
+  void calendarId;
+  void date;
+  throw new DataLayerUnavailableError("deleteDayAction");
 }

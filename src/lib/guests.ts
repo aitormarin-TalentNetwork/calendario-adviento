@@ -1,13 +1,4 @@
-import { Prisma } from "@/generated/prisma/client";
-import { withSerializableRetry } from "@/lib/db-retry";
-import { prisma } from "@/lib/prisma";
-
-// Mismo patrón que TAL-4 (src/lib/superadmin.ts): local-part + "@" + dominio
-// con al menos un punto, sin espacios. Duplicado a propósito en vez de
-// importado de superadmin.ts — son módulos de features distintas
-// desarrolladas en paralelo, no vale la pena acoplarlas por seis
-// caracteres de regex.
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+import { DataLayerUnavailableError } from "@/lib/not-migrated";
 
 export type CalendarGuest = {
   email: string;
@@ -17,42 +8,23 @@ export type CalendarGuest = {
   accepted: boolean;
 };
 
+// Mismo patrón que TAL-4 (src/lib/superadmin.ts): local-part + "@" + dominio
+// con al menos un punto, sin espacios.
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
- * Invitados de un calendario: unión de Invitation (por email) y
- * CalendarMembership GUEST (por User, vía email) — no son la misma tabla
- * porque Invitation no referencia a User (ver docs/modelo-de-datos.md, TAL-3:
- * la invitación se resuelve sola al primer login). Se excluyen los emails
- * que ya son ADMIN de este calendario (una Invitation puede seguir existiendo
- * de antes de que se les diera Admin — ver src/lib/superadmin.ts,
- * removeAdminEverywhere — pero ya no tiene sentido mostrarlos como
- * "invitado pendiente").
+ * Invitados de un calendario — ver `docs/invitados.md` para las reglas
+ * completas (unión de `Invitation` y `CalendarMembership` GUEST).
+ *
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: lanza
+ * `DataLayerUnavailableError` en vez de `[]` (hallazgo de auditoría, ronda
+ * 1 — una lista vacía se leería como "sin invitados todavía", un hecho
+ * falso, no "no se pudo consultar"). Quien llama debe usar
+ * `tryDataLayer` y mostrar un mensaje honesto de "no disponible".
  */
 export async function listCalendarGuests(calendarId: string): Promise<CalendarGuest[]> {
-  const [invitations, memberships] = await Promise.all([
-    prisma.invitation.findMany({ where: { calendarId } }),
-    prisma.calendarMembership.findMany({
-      where: { calendarId },
-      include: { user: { select: { email: true } } },
-    }),
-  ]);
-
-  const adminEmails = new Set(
-    memberships.filter((m) => m.role === "ADMIN").map((m) => m.user.email.toLowerCase())
-  );
-
-  const byEmail = new Map<string, CalendarGuest>();
-  for (const invitation of invitations) {
-    const key = invitation.email.toLowerCase();
-    if (adminEmails.has(key)) continue;
-    byEmail.set(key, { email: invitation.email, accepted: false });
-  }
-  for (const membership of memberships) {
-    if (membership.role !== "GUEST") continue;
-    const key = membership.user.email.toLowerCase();
-    byEmail.set(key, { email: membership.user.email, accepted: true });
-  }
-
-  return [...byEmail.values()].sort((a, b) => a.email.localeCompare(b.email));
+  void calendarId;
+  throw new DataLayerUnavailableError("listCalendarGuests");
 }
 
 export type InviteGuestResult =
@@ -60,111 +32,68 @@ export type InviteGuestResult =
   | { ok: false; error: "invalid-email" | "calendar-not-found" };
 
 /**
- * Invita a alguien a un calendario por email (crea la Invitation). No hace
- * falta que exista ya un User — se resuelve solo la primera vez que esa
- * persona entra con Gmail (src/lib/roles.ts). Idempotente: invitar dos
- * veces al mismo email al mismo calendario no es un error, es un no-op
- * (`@@unique([calendarId, email])` en el schema).
+ * Invita a alguien a un calendario por email — ver `docs/invitados.md`.
+ *
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: la validación
+ * de formato de email es una función pura (no toca Prisma) y sigue
+ * funcionando de verdad — se mantiene, no hay motivo para fingir que
+ * también está "no disponible". Lo que sí falla es la escritura real
+ * (`Invitation` upsert): lanza `DataLayerUnavailableError` en vez de
+ * devolver `{ok:false, error:"calendar-not-found"}` (hallazgo de
+ * auditoría, ronda 1 — ese calendario casi seguro SÍ existe, solo que no
+ * se pudo comprobar; "calendar-not-found" sería un motivo inventado).
  */
 export async function inviteGuest(calendarId: string, rawEmail: string): Promise<InviteGuestResult> {
   const email = rawEmail.trim().toLowerCase();
   if (!email || !EMAIL_PATTERN.test(email)) return { ok: false, error: "invalid-email" };
 
-  const calendar = await prisma.calendar.findUnique({ where: { id: calendarId } });
-  if (!calendar) return { ok: false, error: "calendar-not-found" };
-
-  await prisma.invitation.upsert({
-    where: { calendarId_email: { calendarId, email } },
-    update: {},
-    create: { calendarId, email },
-  });
-
-  return { ok: true };
+  void calendarId;
+  throw new DataLayerUnavailableError("inviteGuest");
 }
 
 /**
- * ¿Es este email invitado (o ya invitado-aceptado, es decir GUEST) de este
- * calendario concreto? Usado para acotar "borrar por completo" a alguien
- * que de verdad tiene relación con el calendario desde el que se dispara
- * la acción — ver removeGuestEverywhere y el comentario en
- * src/app/admin/[calendarId]/guests-actions.ts (hallazgo de auditoría,
- * ronda 1).
+ * ¿Es este email invitado (o ya invitado-aceptado) de este calendario
+ * concreto? — ver `docs/invitados.md`, usado para acotar "borrar por
+ * completo" a alguien con relación real con el calendario.
+ *
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: a diferencia
+ * del resto de este fichero, esto NO es una lectura que se muestre como
+ * dato al usuario — es una comprobación de autorización que gatea un
+ * borrado global peligroso (`removeGuestEverywhereAction`). `false`
+ * (fallar cerrado — "no autorizado") es la postura de seguridad correcta
+ * ante la incertidumbre, no una mentira sobre datos de negocio: es el
+ * mismo criterio que ya usa `getAuthorizedUser`/`resolveCalendarAccess`
+ * (`src/lib/current-user.ts`/`roles.ts`) para negar acceso por defecto.
+ * En la práctica da igual: `removeGuestEverywhere` (más abajo) también
+ * lanza, así que el borrado no llegaría a ejecutarse aunque esta
+ * comprobación devolviera `true` por error.
  */
 export async function isCalendarGuest(calendarId: string, rawEmail: string): Promise<boolean> {
-  const email = rawEmail.trim().toLowerCase();
-  const [invitation, membership] = await Promise.all([
-    prisma.invitation.findUnique({ where: { calendarId_email: { calendarId, email } } }),
-    prisma.calendarMembership.findFirst({
-      where: { calendarId, role: "GUEST", user: { email } },
-    }),
-  ]);
-  return Boolean(invitation || membership);
+  void calendarId;
+  void rawEmail;
+  return false;
 }
 
 /**
- * "Quitar del calendario" (mockup): borra la Invitation Y la
- * CalendarMembership GUEST de ese email en ESE calendario concreto —
- * las dos, no solo una. Si solo se borrara la membership, la Invitation
- * que queda volvería a resolverse sola la próxima vez que esa persona
- * visite /c/<calendarId> (ver resolveCalendarAccess) y la "expulsión"
- * quedaría deshecha sin que nadie lo pidiera. `role: "GUEST"` en el
- * `deleteMany` es defensa en profundidad: aunque se llamara por error con
- * el email de un Admin, nunca borra una membership ADMIN.
+ * "Quitar del calendario" — ver `docs/invitados.md`.
  *
- * SERIALIZABLE + reintento (hallazgo de auditoría, ronda 1): sin esto, este
- * borrado y una aceptación de invitación concurrente (resolveCalendarAccess,
- * src/lib/roles.ts) podían entrelazarse bajo el aislamiento por defecto de
- * forma que la persona expulsada conservara el acceso — ver
- * src/lib/db-retry.ts.
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: sin
+ * representación de "vacío" razonable para una escritura de borrado que no
+ * devuelve nada (`Promise<void>`) — fingir éxito dejaría a quien lo llama
+ * pensando que expulsó a alguien que en realidad sigue teniendo acceso.
+ * Falla explícitamente. Pendiente de reescribir contra Convex en TAL-12+.
  */
 export async function removeGuestFromCalendar(calendarId: string, rawEmail: string): Promise<void> {
-  const email = rawEmail.trim().toLowerCase();
-  await withSerializableRetry(() =>
-    prisma.$transaction(
-      async (tx) => {
-        await tx.invitation.deleteMany({ where: { calendarId, email } });
-        const user = await tx.user.findUnique({ where: { email } });
-        if (user) {
-          await tx.calendarMembership.deleteMany({
-            where: { calendarId, userId: user.id, role: "GUEST" },
-          });
-        }
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-    )
-  );
+  void calendarId;
+  void rawEmail;
+  throw new DataLayerUnavailableError("removeGuestFromCalendar");
 }
 
 /**
- * "Borrar por completo" (mockup): a diferencia de quitar-de-un-calendario,
- * esto es explícitamente global por diseño (brief de TAL-7 lo pide así) —
- * borra todas las Invitation de ese email (en cualquier calendario) y
- * todas sus CalendarMembership GUEST (en cualquier calendario), aunque el
- * Admin que dispara la acción solo administre el calendario desde cuya
- * tabla se llamó. No toca membership ADMIN en ningún calendario (esto es
- * gestión de invitados, no de Admins — eso es TAL-4) ni borra el User en
- * sí (identidad de la persona, no algo de lo que esta pantalla deba
- * disponer).
- *
- * Quién puede llamar a esto con qué `email` se acota en la server action
- * (isCalendarGuest, arriba) — esta función en sí no vuelve a comprobarlo,
- * confía en su llamador (mismo patrón que el resto de src/lib/*.ts, que no
- * repiten la autorización de src/app/**\/actions.ts).
- *
- * SERIALIZABLE + reintento, mismo motivo que removeGuestFromCalendar.
+ * "Borrar por completo" — ver `docs/invitados.md`. Mismo motivo que
+ * `removeGuestFromCalendar` para fallar en vez de degradar.
  */
 export async function removeGuestEverywhere(rawEmail: string): Promise<void> {
-  const email = rawEmail.trim().toLowerCase();
-  await withSerializableRetry(() =>
-    prisma.$transaction(
-      async (tx) => {
-        await tx.invitation.deleteMany({ where: { email } });
-        const user = await tx.user.findUnique({ where: { email } });
-        if (user) {
-          await tx.calendarMembership.deleteMany({ where: { userId: user.id, role: "GUEST" } });
-        }
-      },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }
-    )
-  );
+  void rawEmail;
+  throw new DataLayerUnavailableError("removeGuestEverywhere");
 }

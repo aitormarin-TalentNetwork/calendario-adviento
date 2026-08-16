@@ -1,31 +1,38 @@
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 
 export type AuthorizedUser = { id: string; email: string; isSuperAdmin: boolean };
 
 /**
  * Usuario autenticado, con `isSuperAdmin` leído siempre en fresco de la base
- * de datos — nunca del JWT/sesión. El JWT solo dice "quién eres" (dura hasta
- * 30 días); usarlo también como fuente de "qué privilegios tienes ahora
- * mismo" significa que revocar (o conceder) Super Admin en BD no surtiría
- * efecto hasta que expire o se recree la sesión (hallazgo de auditoría,
- * ronda 1). Toda comprobación de rol/privilegio debe pasar por aquí, no por
- * `session.user` directamente.
+ * de datos — nunca del JWT/sesión (hallazgo de auditoría, ronda 1: usar el
+ * JWT como fuente de privilegios significa que revocar/conceder Super Admin
+ * no surtiría efecto hasta que expire o se recree la sesión).
  *
- * Se busca por `session.user.id` (el `userId` inmutable que auth.ts guardó
- * en el JWT al hacer login), NUNCA por email: buscar por email vincula la
- * sesión a "quien tenga ahora mismo ese email en BD", no a la persona que
- * inició sesión — si ese User se borra y otro se crea después con el mismo
- * email, una sesión de hasta 30 días pasaría a representar a la persona
- * nueva y heredaría sus privilegios (hallazgo de auditoría, ronda 2).
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: la consulta
+ * real de este usuario (`prisma.user.findUnique`) todavía no tiene
+ * equivalente conectado a Convex (eso es TAL-12+), así que esta función
+ * devuelve siempre `null`.
+ *
+ * A diferencia de los stubs de lectura de negocio (`listAdminCalendars`,
+ * `listCalendarGuests`, etc. — hallazgo de auditoría, ronda 1: esos SÍ
+ * mentían al devolver `[]`/`ok:true` como si fuera un dato real, y ahora
+ * lanzan en su lugar), esta función no es una lectura de negocio — es la
+ * comprobación de autorización que gatea el acceso a TODA la app. `null`
+ * ("nadie está autorizado") es la postura de seguridad correcta ante la
+ * incertidumbre (fallar cerrado), no un dato inventado sobre qué existe en
+ * el mundo: ningún sistema de autenticación real concede acceso cuando no
+ * puede verificar quién eres, tampoco debería este. Es además la única
+ * opción que no rompe la app entera — lanzar aquí reventaría cada página
+ * protegida en cada visita (el mismo tipo de fallo universal que el
+ * hallazgo bloqueante de esta ronda sobre `ConvexClientProvider`, pero sin
+ * ninguna forma de "no disponible" razonable para un guard de auth que se
+ * invoca en cada render). Se mantiene la llamada a `auth()` (no toca
+ * Prisma, solo decodifica el JWT) para no perder ni siquiera esa parte del
+ * comportamiento real.
  */
 export async function getAuthorizedUser(): Promise<AuthorizedUser | null> {
   const session = await auth();
   if (!session?.user?.id) return null;
 
-  const user = await prisma.user.findUnique({
-    where: { id: session.user.id },
-    select: { id: true, email: true, isSuperAdmin: true },
-  });
-  return user;
+  return null;
 }

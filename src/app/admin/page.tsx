@@ -6,23 +6,31 @@ import { SubmitButton } from "@/components/submit-button";
 import { formatCalendarDate, listAdminCalendars } from "@/lib/calendars";
 import { signOut } from "@/lib/auth";
 import { getAuthorizedUser } from "@/lib/current-user";
+import { tryDataLayer } from "@/lib/not-migrated";
 
 export default async function AdminCalendarsPage() {
   const user = await getAuthorizedUser();
   if (!user) redirect("/login?callbackUrl=/admin");
 
-  const calendars = await listAdminCalendars(user.id);
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura:
+  // `listAdminCalendars` lanza `DataLayerUnavailableError` (hallazgo de
+  // auditoría, ronda 1 — antes devolvía `[]`, que esta página ya
+  // interpretaba como "no administras ningún calendario todavía", un
+  // hecho falso). Se distingue explícitamente de la lista vacía real.
+  const result = await tryDataLayer(() => listAdminCalendars(user.id));
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
       <h1>Mis calendarios</h1>
       <p style={{ color: "var(--accent)" }}>Sesión: {user.email}</p>
 
-      {calendars.length === 0 ? (
+      {!result.ok ? (
+        <p style={{ color: "var(--accent)" }}>Tus calendarios no están disponibles ahora mismo.</p>
+      ) : result.data.length === 0 ? (
         <p>Todavía no administras ningún calendario.</p>
       ) : (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
-          {calendars.map((calendar) => (
+          {result.data.map((calendar) => (
             <li key={calendar.id}>
               <Link href={`/admin/${calendar.id}`}>
                 {calendar.name} — {formatCalendarDate(calendar.startDate)} a{" "}
