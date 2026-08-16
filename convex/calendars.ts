@@ -20,6 +20,31 @@ function assertRangeNotInverted(startDate: string, endDate: string): void {
 }
 
 /**
+ * Solo `https:` — mismo límite que ya validaba `updateCalendarAction`
+ * (Next.js, hallazgo de auditoría TAL-5 ronda 1: `javascript:`/`data:`/
+ * `file:` son URLs sintácticamente válidas que podrían ejecutar contenido
+ * activo si se renderizan tal cual). Corrección de auditoría, TAL-12
+ * ronda 1: esa validación solo vivía en la Server Action — un futuro
+ * llamador directo de `createCalendarPublic`/`updateCalendarPublic`
+ * (saltándose la UI) podía guardar un esquema peligroso. Se repite aquí
+ * como invariante de escritura real, no solo de UI — mismo criterio que
+ * el resto de invariantes de este fichero (rango de fechas, integridad
+ * referencial).
+ */
+function assertSafeCoverImageUrl(url: string | undefined): void {
+  if (url === undefined) return;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("La foto de portada debe ser una URL válida.");
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error("La foto de portada debe ser una URL https:// — no se aceptan otros esquemas por seguridad.");
+  }
+}
+
+/**
  * Equivalente Convex al trigger `BEFORE UPDATE ON "Calendar"` de Postgres
  * (TAL-6 ronda 3, docs/dias.md) que impedía reducir el rango del
  * calendario dejando algún `Day` existente fuera de él. Convex no tiene
@@ -131,6 +156,7 @@ async function createCalendarHandler(
   assertValidCalendarDate(args.startDate);
   assertValidCalendarDate(args.endDate);
   assertRangeNotInverted(args.startDate, args.endDate);
+  assertSafeCoverImageUrl(args.coverImageUrl);
 
   const calendarId = await ctx.db.insert("calendars", {
     name: args.name,
@@ -191,6 +217,7 @@ async function updateCalendarHandler(
   assertValidCalendarDate(args.endDate);
   assertRangeNotInverted(args.startDate, args.endDate);
   await assertNoDayOutsideRange(ctx, args.calendarId, args.startDate, args.endDate);
+  assertSafeCoverImageUrl(args.coverImageUrl);
 
   await ctx.db.patch(args.calendarId, {
     name: args.name,

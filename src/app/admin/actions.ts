@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { fetchMutation } from "convex/nextjs";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
@@ -115,13 +115,40 @@ export async function updateCalendarAction(calendarId: string, formData: FormDat
 }
 
 export async function deleteCalendarAction(calendarId: string) {
-  await requireCalendarAdmin(calendarId);
+  const user = await getAuthorizedUser();
+  if (!user) redirect(`/login?callbackUrl=/admin/${calendarId}`);
 
-  // TAL-12 — reconectada contra Convex (`calendars.deleteCalendarPublic`).
-  // Idempotente (ver `convex/calendars.ts::deleteCalendarHandler`): un
-  // reenvío del mismo formulario de borrado (doble clic, navegar atrás) no
-  // falla — mismo criterio que el P2025 ("ya no existe") de la versión
-  // Prisma.
+  // Hallazgo de auditoría, ronda 1: `requireCalendarAdmin` (como las otras
+  // dos actions) comprueba rol vía `resolveCalendarAccess`, que consulta
+  // la `calendarMembership` del usuario — pero un reenvío del mismo
+  // borrado (doble clic, navegar atrás) llega DESPUÉS de que la primera
+  // llamada ya borró esa membership junto con el calendario. Comprobar rol
+  // primero rompía la idempotencia que ya documenta `docs/calendarios.md`:
+  // sin membership que consultar, `resolveCalendarAccess` devuelve `null`
+  // y el reenvío caía en `/unauthorized` en vez de tratarse como éxito —
+  // aunque `deleteCalendarHandler` (Convex) sí es idempotente por su
+  // cuenta, nunca se llegaba a invocarlo.
+  //
+  // Corrección: se comprueba primero si el calendario TODAVÍA existe
+  // (mismo orden que la versión Prisma de `admin/[calendarId]/page.tsx`,
+  // TAL-5 — existencia antes que rol). Si ya no existe, el estado que
+  // pedía el usuario ya se cumple — no hay membership que pudiera
+  // demostrar rol de todas formas, así que no hace falta (ni se puede)
+  // volver a exigirlo; se trata como éxito sin debilitar nada para un
+  // calendario que SÍ existe, donde la comprobación de rol de abajo sigue
+  // siendo obligatoria y real.
+  const calendar = await fetchQuery(api.calendars.getPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+  });
+  if (calendar) {
+    const access = await resolveCalendarAccess(user, calendarId);
+    const isAdmin = access?.kind === "super-admin" || access?.role === "ADMIN";
+    if (!isAdmin) redirect("/unauthorized");
+  }
+
+  // Idempotente también del lado de Convex (`deleteCalendarHandler`) — un
+  // `calendarId` que ya no existe es un no-op, no un error.
   await fetchMutation(api.calendars.deleteCalendarPublic, {
     serverSecret: convexAppServerSecret(),
     calendarId: calendarId as Id<"calendars">,

@@ -81,6 +81,17 @@ explícitamente tras el `new URL(...)`, rechazando cualquier otro esquema
 Probado en el navegador: `javascript:alert(1)` y `http://…` rechazados con
 error del servidor; `https://…` aceptado y guardado.
 
+> **TAL-12** (sugerencia de auditoría, ronda 1, no bloqueante): esta
+> validación solo vivía en la Server Action — un futuro llamador directo de
+> `calendars.createCalendarPublic`/`updateCalendarPublic` (con el secreto
+> compartido, saltándose la UI) podía guardar un esquema peligroso.
+> `assertSafeCoverImageUrl` (`convex/calendars.ts`) repite exactamente la
+> misma comprobación dentro de las dos mutations, como invariante de
+> escritura real — no solo de UI, mismo criterio que el resto de
+> invariantes del fichero. Verificado contra el deployment real: un
+> `coverImageUrl: "javascript:alert(1)"` mandado directamente a
+> `createCalendarPublic` (sin pasar por la Server Action) se rechaza igual.
+
 Deliberadamente **no** se hace una petición HTTP desde el servidor para
 comprobar que la URL sirve de verdad una imagen (`content-type: image/*`):
 eso convertiría el propio backend en un proxy que pide lo que sea que le
@@ -157,9 +168,27 @@ que pedía el usuario (que el calendario no exista) ya se cumple.
 > real en TAL-9), así que el check-then-insert por `creationKey` es seguro
 > tal cual. Igual con el borrado: `deleteCalendarHandler` trata un
 > `calendarId` que ya no existe como no-op (`if (!calendar) return;`),
-> mismo comportamiento observable que el `P2025` de Prisma, verificado
-> contra el deployment real (borrar dos veces el mismo calendario no
-> lanza).
+> mismo comportamiento observable que el `P2025` de Prisma.
+>
+> **Hallazgo de auditoría, TAL-12 ronda 1**: que la mutation en sí sea
+> idempotente no bastaba — `deleteCalendarAction` (Next.js) comprobaba rol
+> vía `requireCalendarAdmin`/`resolveCalendarAccess` ANTES de llamar a la
+> mutation, y esa comprobación consulta la `calendarMembership` del
+> usuario. Un reenvío llega después de que el primer borrado ya se llevó
+> esa membership por delante (cascade) — sin membership que consultar,
+> `resolveCalendarAccess` devuelve `null` y el reenvío caía en
+> `/unauthorized` en vez de tratarse como éxito, nunca llegaba a invocar la
+> mutation (que sí lo habría manejado bien). Corrección: se comprueba
+> primero si el calendario TODAVÍA existe (mismo orden que ya usaba la
+> versión Prisma de `admin/[calendarId]/page.tsx`, TAL-5 — existencia antes
+> que rol); si ya no existe, no hay membership que pudiera demostrar rol de
+> todas formas, así que se trata como éxito sin volver a exigirlo — sin
+> debilitar nada para un calendario que SÍ existe, donde la comprobación de
+> rol sigue siendo obligatoria y real. Verificado contra el deployment real
+> con un Admin normal (no Super Admin, cuyo atajo habría ocultado el
+> hallazgo): borrar dos veces seguidas el mismo calendario redirige a
+> `/admin` las dos veces; un tercero sin relación con un calendario que SÍ
+> existe sigue recibiendo `/unauthorized`.
 
 ## Fechas: por qué hay un `formatCalendarDate` en vez de `toLocaleDateString` a secas
 
