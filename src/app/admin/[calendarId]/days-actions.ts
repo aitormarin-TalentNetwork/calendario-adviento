@@ -1,9 +1,13 @@
 "use server";
 
+import { fetchMutation } from "convex/nextjs";
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { parseUtcDateOnly } from "@/lib/calendars";
+import { convexAppServerSecret } from "@/lib/convex-server";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { DataLayerUnavailableError } from "@/lib/not-migrated";
 import { resolveCalendarAccess } from "@/lib/roles";
 
 /**
@@ -69,40 +73,45 @@ export async function saveDayAction(calendarId: string, dateStr: string, formDat
   if (messageRaw && messageRaw.length > MAX_MESSAGE_LENGTH) {
     throw new Error(`El mensaje no puede superar los ${MAX_MESSAGE_LENGTH} caracteres.`);
   }
-  const message = messageRaw || null;
+  const message = messageRaw || undefined;
 
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
-  // comprobación de rango + escritura real (antes una única transacción
-  // con `FOR UPDATE` sobre la fila del Calendar, ver docs/dias.md — el
-  // motivo de esa transacción sigue documentado ahí, este comentario no lo
-  // repite) todavía no tiene equivalente conectado a Convex (TAL-12+).
-  // Todo lo de arriba (fecha, longitud/formato de URL/mensaje) sigue
-  // siendo validación real, sin tocar Prisma — se mantiene. Falla
-  // explícitamente en vez de fingir que se guardó. `requireCalendarAdmin`
-  // de arriba ya redirige a todo el mundo hoy (ver
-  // src/lib/current-user.ts), pero esta llamada tenía que dejar de ser un
-  // residuo real de Prisma (hallazgo de auditoría, ronda 1).
-  void calendarId;
-  void date;
-  void videoUrl;
-  void message;
-  throw new DataLayerUnavailableError("saveDayAction");
+  // TAL-13 — reconectado contra Convex. La comprobación de rango +
+  // escritura real vive ahora en `days.ts::upsertDayHandler` (antes una
+  // única transacción con `FOR UPDATE` sobre la fila del Calendar, ver
+  // docs/dias.md para el motivo original de esa transacción y cómo se
+  // traduce). `date` se manda como el string "YYYY-MM-DD" ya validado por
+  // `parseUtcDateOnly` arriba — no el `Date` que devuelve esa función:
+  // Convex guarda fechas como día natural en ese mismo formato (ver
+  // docs/convex-modelo-de-datos.md § "Fechas como día natural"), así que
+  // no hace falta (ni conviene) un viaje de ida y vuelta por `Date`.
+  await fetchMutation(api.days.upsertDayPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+    date: dateStr,
+    videoUrl,
+    message,
+  });
+
+  revalidatePath(`/admin/${calendarId}`);
 }
 
 export async function deleteDayAction(calendarId: string, dateStr: string) {
   await requireCalendarAdmin(calendarId);
 
-  const date = parseUtcDateOnly(dateStr);
-  if (!date) throw new Error("Fecha inválida.");
+  if (!parseUtcDateOnly(dateStr)) throw new Error("Fecha inválida.");
 
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
-  // escritura real (antes `prisma.day.delete`, ver docs/dias.md) todavía
-  // no tiene equivalente conectado a Convex (TAL-12+). Falla
-  // explícitamente en vez de fingir que se borró. `requireCalendarAdmin`
-  // de arriba ya redirige a todo el mundo hoy (ver
-  // src/lib/current-user.ts), pero esta llamada tenía que dejar de ser un
-  // residuo real de Prisma (hallazgo de auditoría, ronda 1).
-  void calendarId;
-  void date;
-  throw new DataLayerUnavailableError("deleteDayAction");
+  // TAL-13 — reconectado contra Convex. `deleteDayHandler` (convex/days.ts)
+  // es idempotente por sí mismo (si el día ya no existe, no hace nada) —
+  // ya no hace falta el catch de "P2025" de la versión Prisma, era
+  // específico de ese error de Prisma. También borra en cascada las
+  // `dayViews` asociadas (decisión de producto cerrada con Aitor, ver
+  // brief de esta tarea — mismo comportamiento que tenía Prisma por
+  // defecto vía `onDelete: Cascade`).
+  await fetchMutation(api.days.deleteDayPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+    date: dateStr,
+  });
+
+  revalidatePath(`/admin/${calendarId}`);
 }

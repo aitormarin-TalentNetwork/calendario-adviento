@@ -1,4 +1,4 @@
-# Gestión de Días (TAL-6)
+# Gestión de Días (TAL-6, reconectada sobre Convex en TAL-13)
 
 ## Qué hace
 
@@ -136,3 +136,201 @@ de import/JSX adyacentes), no de diseño.
 Mismo problema de colisión de cookies de next-auth entre dev servers en
 `localhost` documentado en `docs/superadmin.md` — coordinado con T2 por
 mensaje directo antes de cada sesión de pruebas en el navegador.
+
+## Reconexión sobre Convex (TAL-13)
+
+TAL-10 retiró Prisma/Postgres de la infraestructura y dejó
+`saveDayAction`/`deleteDayAction`/`DaysSection` lanzando
+`DataLayerUnavailableError` en vez de fingir un guardado o una rejilla
+vacía (hallazgo de auditoría, TAL-10 ronda 1). TAL-13 los reconecta contra
+Convex. Traducción, sección por sección de este documento:
+
+- **"Un día = una fecha, no un número 'Día N'"**, **"Sin `Day` = sin vídeo
+  asignado"**, **"Validación de URL del vídeo"**, **"Límites de
+  longitud"**: sin cambios de comportamiento — mismas reglas, ahora
+  aplicadas dos veces (Next.js, como siempre; y también dentro de
+  `convex/days.ts::upsertDayHandler`, defensa en profundidad — el secreto
+  compartido de TAL-11 prueba "esta llamada viene de nuestro servidor", no
+  "nuestro servidor validó todo correctamente", son cosas distintas, ver
+  `docs/convex-auth-investigacion-tal11.md`).
+- **"Guardar un día es atómico con la comprobación de rango" y el trigger
+  `BEFORE UPDATE ON "Calendar"` de la ronda 3**: Convex no tiene triggers
+  de base de datos ni `SELECT ... FOR UPDATE`. La comprobación de rango
+  vive ahora dentro de la propia mutation `upsertDay`
+  (`convex/days.ts`) — lee el `Calendar` y compara `date` contra
+  `[startDate, endDate]` en el mismo cuerpo transaccional que hace el
+  upsert, sin necesitar ningún bloqueo explícito: una mutation de Convex
+  ya corre con aislamiento serializable y reintento automático (ver
+  `docs/convex-modelo-de-datos.md` § "Concurrencia"). El "trigger" que
+  antes protegía la mitad de reducir el rango del calendario ahora vive en
+  `updateCalendarRange` (`convex/calendars.ts`, TAL-9/TAL-12) — **la
+  propia auditoría de TAL-9 ya verificó esto como CARRERA real entre las
+  dos mutations** (`upsertDay` guardando justo cuando `updateCalendarRange`
+  encoge el rango a la vez), no solo cada una por separado — 25
+  repeticiones simultáneas, 0 violaciones de la invariante (detalle
+  completo en `docs/convex-modelo-de-datos.md` § "Invariante de rango
+  Calendar/Day"). TAL-13 no reabre esa verificación, solo confirma que
+  sigue intacta tras extender `upsertDay` con las validaciones nuevas de
+  esta ronda (ver "Evidencia" más abajo).
+- **`P2025`/reenvío de borrado**: `deleteDayHandler` (`convex/days.ts`) es
+  idempotente por construcción (si el día ya no existe, no hace nada) —
+  no hace falta capturar ningún código de error específico de Prisma, era
+  un detalle de ese conector, no una regla de producto.
+- **Cascade de `DayView` al borrar un `Day`** (hueco nuevo, no existía en
+  la versión Prisma como decisión explícita — `onDelete: Cascade` lo
+  resolvía solo, sin que nadie tuviera que decidirlo): Convex no tiene
+  cascade automático. **Decisión de producto de Aitor, cerrada** (ver
+  brief de TAL-13, Linear): borrar un `Day` borra también las `DayView`
+  asociadas — mismo comportamiento final que tenía Prisma, ahora explícito
+  en `deleteDayHandler` en vez de implícito en el schema.
+  **Corrección de la ronda 1 de auditoría**: la primera versión cargaba
+  TODAS las `dayViews` de un día con `.collect()` y las borraba una a una
+  en la MISMA transacción que el propio `Day` — sin ninguna cota. Convex
+  limita cada transacción a 32.000 documentos escaneados, 16.000
+  escritos, 16 MiB y 1 segundo
+  (https://docs.convex.dev/production/state/limits); un día con
+  suficientes vistas podía exceder ese límite y quedar sin poder borrarse
+  NUNCA (la mutation entera se revierte si excede el límite — ni el `Day`
+  ni sus `dayViews` se borrarían). Se descartó cerrar esto con un límite
+  de producto nuevo (p. ej. "máximo N invitados por calendario") porque no
+  existe ninguno hoy y añadir uno solo para esquivar un límite técnico de
+  la plataforma sería una decisión de producto que no le corresponde a
+  esta tarea (el alcance/producto lo decide el PM). En su lugar: el `Day`
+  se borra de inmediato (el calendario deja de mostrarlo ya mismo), y la
+  limpieza de sus `dayViews` se reprograma en segundo plano por lotes de
+  200 (`convex/dayViews.ts::cleanupDayViewsBatch`, reprogramándose a sí
+  misma vía `ctx.scheduler.runAfter` mientras queden más) — nunca depende
+  de que quepan todas en una sola transacción. Verificado contra el
+  deployment real con 210 `dayViews` en un mismo día (por encima del lote
+  de 200, para forzar al menos una reprogramación) — tras `deleteDayPublic`,
+  tanto `days` como `dayViews` quedan en 0 documentos (detalle en
+  "Evidencia").
+- **`MAX_MANAGEABLE_DAYS` (366)**: sigue siendo un límite de renderizado
+  en Next.js (`days-section.tsx`), sin cambios — nunca vivió en la capa de
+  datos, ni en Prisma ni ahora en Convex. Queda anotado (no resuelto por
+  esta tarea, es dominio de TAL-12) que tampoco hay ninguna comprobación
+  de este límite del lado de escritura (`updateCalendarRange`) — ver
+  `docs/convex-diseno-tal13-gestion-dias.md` para el razonamiento
+  completo.
+- **Fechas como string, no `Date`**: `days-actions.ts` manda el string
+  `"YYYY-MM-DD"` ya validado por `parseUtcDateOnly` directamente a Convex
+  (no el `Date` que esa función devuelve) — Convex guarda fechas como día
+  natural en ese formato (`docs/convex-modelo-de-datos.md` § "Fechas como
+  día natural"). `days-section.tsx` hace el camino inverso al leer
+  (`requireDate`, un `parseUtcDateOnly` que lanza si alguna vez recibiera
+  un formato inválido de Convex — no debería poder pasar, `Convex/dates.ts`
+  ya lo garantiza al guardar, pero se trata como el fallo real que sería
+  si pasara, no como "sección no disponible").
+
+## Evidencia (TAL-13)
+
+**Cambio de plan respecto a lo previsto**: durante esta tarea, T1 (TAL-12)
+desplegó por accidente su `schema.ts` local (sin un índice nuevo de T3,
+TAL-16) contra el deployment de desarrollo COMPARTIDO
+(`beloved-barracuda-617.convex.cloud`), borrando ese índice —
+`npx convex dev`/`deploy` sincroniza el schema del deployment al estado
+EXACTO del `schema.ts` local de quien despliega, no de forma aditiva. Con
+tres ramas de schema en vuelo a la vez (TAL-12/13/16), cualquiera de las
+tres corría el mismo riesgo. Decisión de la Directora: cada terminal
+provisiona su propio deployment de desarrollo mientras las tres ramas no
+estén mergeadas (patrón normal de Convex, no una solución de emergencia).
+Esta tarea se verificó contra un deployment propio y aislado,
+`wandering-goose-523.convex.cloud` (proyecto `calendario-adviento-t2`,
+mismo team `aitor-marin-6a254`) — mismo schema/funciones que recibiría el
+deployment compartido al fusionar, sin ningún riesgo de pisar a T1/T3
+mientras tanto.
+
+Verificado con un cliente externo real (`ConvexHttpClient`, el mismo
+mecanismo de base que usa `fetchMutation`/`fetchQuery` de `convex/nextjs`
+— no `npx convex run`, que usa el canal de administrador de la CLI, no el
+público):
+
+1. **Guardar un día válido dentro de rango** (`upsertDayPublic`) → éxito,
+   `_id` devuelto.
+2. **Fecha fuera de rango** → rechazado por el servidor (mismo mensaje que
+   ya verificó TAL-9 para esta invariante — no reabierta, solo confirmada
+   tras extender la función).
+3. **Esquema no-https** (`javascript:alert(1)`) → rechazado (validación
+   nueva de esta tarea).
+4. **URL de más de 2000 caracteres** → rechazado (validación nueva).
+5. **Mensaje de más de 2000 caracteres** → rechazado (validación nueva).
+6. **Secreto de servidor incorrecto** → rechazado por
+   `requireServerSecret` (TAL-11) — confirma que la frontera pública sigue
+   exigiéndolo también en las funciones nuevas de esta tarea.
+7. **Listar días de un calendario** (`getCalendarDaysPublic`) → devuelve
+   exactamente el día guardado, con el rango del calendario.
+8. **Actualizar el mismo día** (mismo `date`, distinto `videoUrl`) →
+   sigue habiendo un solo día (upsert, no fila duplicada).
+9. **Borrar un día que no existe** (`deleteDayPublic`) → no lanza,
+   idempotente.
+10. **Borrar un día real** → desaparece de la consulta posterior.
+11. **Cascade de `dayViews` al borrar un `Day`** (decisión de producto
+    cerrada, ver arriba): se creó un `Day`, se marcó como visto por un
+    usuario real (`dayViews:markViewed`, vía CLI), se confirmó la fila con
+    `npx convex data dayViews` — y tras `deleteDayPublic` sobre ese mismo
+    día, tanto `days` como `dayViews` quedaron vacíos (`npx convex data
+    dayViews`/`days`, 0 documentos). Confirma también, de paso, que la
+    consulta `by_day_and_user` filtrada solo por `dayId` (sin fijar
+    `userId`) funciona como prefijo de índice válido contra el deployment
+    real — quedaba señalado como "a confirmar" en
+    `docs/convex-diseno-tal16-gestion-invitados.md` para un índice
+    análogo, ya confirmado aquí.
+12. **Borrado por lotes a volumen real, por encima de un lote**
+    (corrección de auditoría, ronda 1): con una mutation interna temporal
+    de solo pruebas (borrada tras verificar), se sembraron 210 `dayViews`
+    reales sobre un mismo `Day` (por encima del lote de 200 de
+    `cleanupDayViewsBatch`, para forzar al menos una reprogramación vía
+    `ctx.scheduler.runAfter`) → tras `deleteDayPublic`, tanto `days` como
+    `dayViews` quedaron en 0 documentos — confirma que la reprogramación
+    recursiva completa el borrado hasta el final, no solo el primer lote.
+    También confirma, de paso, que referenciar
+    `internal.dayViews.cleanupDayViewsBatch` desde DENTRO del propio
+    `dayViews.ts` (auto-reprogramación) no dispara el problema de
+    referencia circular de tipos que sí afecta a `ctx.runMutation` desde
+    el mismo fichero (ver comentarios de `convex/users.ts`/`access.ts`,
+    TAL-11) — `npx convex dev --typecheck=enable` compiló limpio con este
+    patrón.
+
+**Regresión de extremo a extremo, con la limitación real que tiene hoy**:
+dev-login real (`AUTH_DEV_LOGIN=true`) contra el servidor Next.js real
+(`npx next dev -p 3001`, apuntando al mismo deployment aislado vía
+`.env.local`), sesión real, membership ADMIN real concedida sobre el
+calendario de prueba (`calendarMemberships:addMembership`, vía CLI) →
+`GET /admin/{calendarId}` responde `200` (no redirige a `/login` ni a
+`/unauthorized`), confirmando que la cadena de autorización completa
+(`getAuthorizedUser`/`resolveCalendarAccess`, TAL-11) reconoce
+correctamente esa membership contra el deployment aislado. **No se pudo
+probar `DaysSection`/`saveDayAction`/`deleteDayAction` a través de la
+página real**: `AdminCalendarPage` (`page.tsx`) todavía depende de
+`getCalendarForAdminPage`, que sigue lanzando `DataLayerUnavailableError`
+(dominio de TAL-12, en curso en paralelo) — la página corta ahí mismo con
+"Este calendario no está disponible ahora mismo" antes de llegar a
+montar `DaysSection`. No es una limitación de esta verificación: es que
+la página completa depende de una pieza que todavía no está — la
+regresión de extremo a extremo real de `DaysSection` a través de la UI
+queda pendiente de que TAL-12 conecte el resto de la página, momento en
+el que valdría la pena repetirla.
+
+`npx next build`/`npx eslint .` limpios; `AGENTS.md` intacto tras varios
+arranques de `next dev`.
+
+**Hallazgo incidental, no específico de esta tarea**: el proyecto no
+tenía `convex/tsconfig.json` (nunca se generó/committeó desde TAL-9, que
+se conectó a un proyecto YA existente en vez de crear uno nuevo) — sin él,
+`npx convex dev`/`deploy` **salta en silencio** el typecheck propio de
+Convex (mensaje: "Found no convex/tsconfig.json..., so skipping
+typecheck"), en cualquier terminal, para cualquier tarea, no solo esta.
+`npx next build`/`tsc` de la raíz sí cubre `convex/*.ts` (está dentro de
+`include` en `tsconfig.json`), pero con las opciones del compilador de
+Next.js, no las que Convex espera para su propio runtime (`target`,
+`lib`, `module`, etc. — ver el fichero generado). Añadido aquí
+(`convex/tsconfig.json`, generado con `npx convex codegen --init`,
+estándar de Convex, no modificado a mano) porque hacía falta para que MI
+propia verificación con `--typecheck=enable` fuera real y no un
+"skipping" silencioso — es un fichero de configuración puramente
+aditivo, no toca lógica de ningún dominio, así que no debería chocar con
+TAL-12/TAL-16 en paralelo.
+
+Scripts de prueba no comprometidos al repo (mismo criterio que el resto
+del proyecto — sin test runner elegido todavía); los resultados quedan
+documentados aquí.
