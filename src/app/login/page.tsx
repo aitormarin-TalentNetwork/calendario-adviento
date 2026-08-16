@@ -10,7 +10,16 @@ void GUEST_CALLBACK_RE;
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { callbackUrl } = await searchParams;
-  const redirectTo = typeof callbackUrl === "string" ? callbackUrl : "/";
+  // Hallazgo de auditoría, TAL-17: `"/"` ya no es un destino real — desde
+  // esta misma tarea, `/` redirige a `/login` (no hay landing prevista en
+  // el PRD). Usarlo aquí como destino por defecto creaba un bucle
+  // /login → / → /login para cualquiera que entrara a /login directamente
+  // (sin `callbackUrl`, justo el caso normal ahora que `/` ya no muestra
+  // nada). `/admin` es un destino real para cualquier rol autenticado
+  // (Admin, Super Admin o Guest sin calendarios propios — la página ya
+  // gestiona los tres casos con contenido honesto, sin gate de rol más
+  // allá de estar autenticado, ver TAL-12).
+  const redirectTo = typeof callbackUrl === "string" ? callbackUrl : "/admin";
 
   // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la portada
   // personalizada por calendario (TAL-8, `prisma.calendar.findUnique`)
