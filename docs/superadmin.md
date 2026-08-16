@@ -1,4 +1,4 @@
-# Panel Super Admin (TAL-4)
+# Panel Super Admin (TAL-4, reconectado sobre Convex en TAL-15)
 
 ## Qué hace
 
@@ -68,3 +68,80 @@ desarrollo (`cookies.sessionToken.name` en la config de next-auth) — no se
 ha aplicado porque afecta a `src/lib/auth.config.ts`/`auth.ts` (TAL-2,
 compartido con TAL-5 en paralelo), y no era parte del alcance de esta
 tarea.
+
+## Reconexión sobre Convex (TAL-15)
+
+TAL-10 retiró Prisma/Postgres y dejó las cinco funciones de
+`src/lib/superadmin.ts` lanzando `DataLayerUnavailableError`. TAL-15 las
+reconecta contra `convex/superadmin.ts`.
+
+- **`viewedCount` calculado de verdad** (hallazgo del propio diseño,
+  `docs/convex-diseno-tal15-panel-superadmin.md` — el comentario de este
+  mismo documento, arriba, ya explicaba desde TAL-4 que debía ser la
+  suma de `DayView` de todos los `Day` del calendario, pero el
+  placeholder `0` de la versión Prisma nunca se actualizó tras TAL-8, así
+  que el panel llevaba mostrando un dato falso en producción). Traducido
+  literalmente: por cada calendario, por cada `Day`, se cuentan sus
+  `dayViews` (índice `by_day_and_user` prefijado por `dayId`) y se suman
+  — tercer nivel de N+1 (calendario → días → vistas), aceptable a la
+  escala del producto (24 días como mucho por calendario).
+- **`addAdmin` no reutiliza `calendarMemberships.ts::addMembership`
+  (TAL-9)**, que deliberadamente nunca promociona un rol ya existente —
+  decisión correcta para su propio caso de uso, pero no sirve para el
+  ascenso GUEST→ADMIN que este panel necesita. `addAdmin` es una función
+  propia, aislada, que no toca código de TAL-9 ya auditado (decisión
+  cerrada en el diseño, confirmada en el brief de TAL-15).
+- **Fechas como string, no `Date`**: `calendarStatus` compara
+  `startDate`/`endDate`/`now` como strings `"YYYY-MM-DD"` (orden
+  lexicográfico == orden cronológico, ver `docs/convex-modelo-de-datos.md`
+  § "Fechas como día natural"), no objetos `Date` como en la versión
+  Prisma. `src/lib/superadmin.ts` sigue exponiendo `Date` hacia
+  `page.tsx` (sin cambios en la UI) — la conversión ocurre en la
+  frontera, no se propaga el string más allá de esa capa.
+- **Autorización del actor, no solo del objetivo** (hallazgo de
+  auditoría en tareas hermanas, TAL-12/TAL-16 — ver comentario completo
+  en `convex/superadmin.ts::requireSuperAdmin`): las cinco funciones
+  reciben el `userId` de quien actúa (`actorUserId`) y vuelven a
+  comprobar `isSuperAdmin` en fresco dentro de la propia función, en vez
+  de confiar en que Next.js ya lo comprobó antes de llamar. Aplicado
+  también a las tres lecturas, no solo a `addAdmin`/
+  `removeAdminEverywhere` — el panel expone emails/roles de todo el
+  sistema, información tan sensible como las propias escrituras.
+- **`addAdmin`/`removeAdminEverywhere` en una sola mutation cada una**
+  (mismo motivo que el punto anterior): comprobar existencia/rol y
+  actuar siempre dentro de la misma función, nunca repartido en varias
+  llamadas desde Next.js — evita la ventana de carrera (TOCTOU) que
+  costó rondas de auditoría a TAL-12/TAL-16.
+
+### Evidencia (TAL-15)
+
+Verificado contra un deployment de desarrollo propio y aislado
+(`wandering-goose-523.convex.cloud`, mismo criterio que TAL-13 mientras
+TAL-12/TAL-16 no estén mergeadas), con un cliente externo real
+(`ConvexHttpClient`, mismo mecanismo de base que `fetchQuery`/
+`fetchMutation`):
+
+1. **Las cinco funciones rechazan a un actor que no es Super Admin**
+   (`requireSuperAdmin`) — probado con un usuario real sin el flag,
+   las cinco devuelven "No autorizado."
+2. **`listCalendarsWithStats`**: dos calendarios de prueba con rangos
+   distintos → `status` correcto en los dos extremos (`upcoming` para
+   uno que empieza en el futuro, `finished` para uno que ya terminó);
+   `daysCount`/`invitedCount` correctos; `viewedCount` = 2 tras marcar 2
+   vistas reales de 2 usuarios distintos sobre el mismo día (confirma la
+   suma, no una deduplicación por usuario).
+3. **`addAdmin`**: email inválido → `{ok:false, error:"invalid-email"}`;
+   ascenso real de una persona ya GUEST (con invitación viva) a ADMIN →
+   `{ok:true}`, confirmado releyendo `listAdmins`.
+4. **`removeAdminEverywhere`**, los dos caminos reales: sobre alguien con
+   invitación viva en ese calendario → degradado a GUEST (fila de
+   `calendarMemberships` sigue existiendo, `role: "GUEST"`, confirmado
+   con `npx convex data calendarMemberships`); sobre alguien sin
+   invitación → la fila desaparece por completo. Los dos casos
+   verificados en la misma pasada, no solo razonados por separado.
+
+`npx next build`/`npx eslint .` limpios; `npx convex dev
+--typecheck=enable` limpio; `AGENTS.md` intacto.
+
+Scripts de prueba no comprometidos al repo (mismo criterio que el resto
+del proyecto); los resultados quedan documentados aquí.
