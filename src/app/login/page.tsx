@@ -1,9 +1,27 @@
 import { devLoginEnabled } from "@/lib/auth.config";
 import { signIn } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+
+// `callbackUrl` no solo dice a dónde volver tras el login — si apunta a
+// `/c/{calendarId}` (un Invitado que llega al link de su calendario sin
+// sesión todavía), también dice de qué calendario mostrar la portada
+// personalizada (TAL-8, brief: "portada de login personalizada por
+// calendario"). Un id que no exista simplemente no encuentra Calendar más
+// abajo y se cae a la portada genérica — no hace falta validar el formato
+// aquí.
+const GUEST_CALLBACK_RE = /^\/c\/([^/?]+)/;
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { callbackUrl } = await searchParams;
   const redirectTo = typeof callbackUrl === "string" ? callbackUrl : "/";
+
+  const calendarId = typeof callbackUrl === "string" ? GUEST_CALLBACK_RE.exec(callbackUrl)?.[1] : undefined;
+  const calendar = calendarId
+    ? await prisma.calendar.findUnique({
+        where: { id: calendarId },
+        select: { coverTitle: true, coverImageUrl: true },
+      })
+    : null;
 
   return (
     <main
@@ -18,7 +36,15 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         padding: "2rem",
       }}
     >
-      <h1 style={{ fontSize: "1.8rem" }}>¡Feliz cuenta atrás, equipo! 🎄</h1>
+      {calendar?.coverImageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- URL externa arbitraria (validada como https:// al guardarla, TAL-5), no vale next/image sin configurar dominios remotos.
+        <img
+          src={calendar.coverImageUrl}
+          alt=""
+          style={{ width: "120px", height: "120px", objectFit: "cover", borderRadius: "50%" }}
+        />
+      )}
+      <h1 style={{ fontSize: "1.8rem" }}>{calendar?.coverTitle ?? "¡Feliz cuenta atrás, equipo! 🎄"}</h1>
 
       <form
         action={async () => {

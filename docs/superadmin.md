@@ -9,12 +9,12 @@ Admin (alta/baja). Lógica en `src/lib/superadmin.ts`; UI y server actions en
 
 ## Decisiones de alcance
 
-- **Stat "vistos"**: siempre 0. Todavía no existe ningún mecanismo que
-  marque un día como visto — eso es de TAL-8 ("Experiencia del Invitado",
-  en Backlog cuando se construyó esta tarea). Mostrar 0 es el dato real
-  (nadie ha visto nada todavía), no un placeholder inventado. Cuando TAL-8
-  añada el tracking de visionado, `listCalendarsWithStats` es el único
-  sitio a tocar para que este número deje de ser siempre 0.
+- **Stat "vistos"**: conectada a `DayView` (TAL-8, hallazgo de auditoría —
+  la tabla ya existía pero `listCalendarsWithStats` seguía sin consultarla).
+  Es el total de aperturas registradas del calendario (suma de `DayView`
+  por cada `Day`), no "número de invitados que han visto algo" — una misma
+  persona viendo varios días suma varias veces, de ahí que pueda superar
+  `invitedCount`.
 - **Promoción a Super Admin**: fuera de esta tarea. El brief de Linear y el
   mockup de Super Admin solo hablan de gestión de Admin por calendario (rol
   `CalendarMembership`), no de tocar el flag global `User.isSuperAdmin`. Un

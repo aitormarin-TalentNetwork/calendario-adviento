@@ -1,6 +1,11 @@
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { DoorGrid } from "@/app/c/[calendarId]/door-grid";
+import { DoorGridLoader } from "@/app/c/[calendarId]/door-grid-loader";
 import { signOut } from "@/lib/auth";
+import { todayInTimeZone } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
+import { resolveDoors } from "@/lib/guest-calendar";
 import { prisma } from "@/lib/prisma";
 import { resolveCalendarAccess } from "@/lib/roles";
 
@@ -21,22 +26,63 @@ export default async function GuestCalendarPage({
   const access = await resolveCalendarAccess(user, calendarId);
   if (!access) redirect("/unauthorized");
 
+  // La zona horaria la trae la cookie `tz` (TimezoneSync, layout raíz).
+  // Si ya existe, se resuelven las puertas aquí mismo, en el servidor
+  // (vía rápida, sin ida y vuelta al cliente).
+  //
+  // Si NO existe todavía (primerísima visita de esta persona): NO se
+  // resuelve ninguna puerta en el servidor con un valor por defecto tipo
+  // UTC. Hallazgo de auditoría, ronda 2: eso podía filtrar en la
+  // respuesta inicial (HTML/payload de React Server Components) el
+  // vídeo/mensaje de un día que en la zona horaria REAL de quien mira
+  // todavía es futuro — comprobado con São Paulo entre las 21:00 y
+  // medianoche local, donde UTC ya considera "mañana". El refresco
+  // posterior de `TimezoneSync` no arregla esto: no revoca una respuesta
+  // que el servidor ya mandó. En su lugar, `DoorGridLoader` (componente
+  // cliente) resuelve las puertas en cuanto conoce la zona horaria real
+  // del navegador — el servidor no manda contenido de ningún día hasta
+  // entonces.
+  const tz = (await cookies()).get("tz")?.value;
+
   return (
     <main style={{ flex: 1, padding: "2rem" }}>
-      <h1>{calendar.coverTitle}</h1>
-      <p style={{ color: "var(--accent)" }}>
-        Sesión: {user.email} (
-        {access.kind === "super-admin" ? "Super Admin" : access.role}) — la
-        cuadrícula de puertas es contenido real de TAL-5.
-      </p>
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/login" });
-        }}
-      >
-        <button type="submit">Cerrar sesión</button>
-      </form>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "1.5rem" }}>
+        <div>
+          <h1>{calendar.coverTitle}</h1>
+          <p style={{ color: "var(--accent)" }}>
+            Sesión: {user.email} ({access.kind === "super-admin" ? "Super Admin" : access.role})
+          </p>
+        </div>
+        <form
+          action={async () => {
+            "use server";
+            await signOut({ redirectTo: "/login" });
+          }}
+        >
+          <button type="submit">Cerrar sesión</button>
+        </form>
+      </div>
+
+      {tz ? (
+        <ServerResolvedDoors calendarId={calendarId} userId={user.id} timeZone={tz} />
+      ) : (
+        <DoorGridLoader calendarId={calendarId} />
+      )}
     </main>
   );
+}
+
+async function ServerResolvedDoors({ calendarId, userId, timeZone }: { calendarId: string; userId: string; timeZone: string }) {
+  const today = todayInTimeZone(new Date(), timeZone);
+  const result = await resolveDoors(calendarId, userId, today);
+
+  if (!result.ok) {
+    return (
+      <p style={{ color: "var(--accent)" }}>
+        Este calendario tiene un rango de fechas demasiado largo ({result.span} días) para mostrarlo aquí —
+        contacta con quien lo administra.
+      </p>
+    );
+  }
+  return <DoorGrid calendarId={calendarId} doors={result.doors} />;
 }

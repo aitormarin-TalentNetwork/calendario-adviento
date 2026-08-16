@@ -29,6 +29,7 @@ model User {
   createdAt    DateTime @default(now())
 
   memberships CalendarMembership[]
+  dayViews    DayView[]
 }
 
 enum CalendarRole {
@@ -98,7 +99,29 @@ model Day {
   calendarId String
   calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
+  views DayView[]
+
   @@unique([calendarId, date])
+}
+
+// Quién ha visto qué día — TAL-8. "Visto" es por persona, no global del
+// Day: cada Invitado tiene su propio progreso ("los que ya viste, se
+// quedan de recuerdo", portada del mockup), de ahí la tabla intermedia en
+// vez de un booleano/timestamp en Day. Único por (dayId, userId): abrir el
+// mismo día dos veces no duplica fila, solo importa la primera vez.
+// onDelete: Cascade en `day` — si el Admin quita el vídeo de un día
+// (borra el Day, ver TAL-6), no queda nada que "haber visto"; se pierde el
+// historial de quién lo vio, que es lo esperable.
+model DayView {
+  id       String   @id @default(uuid())
+  viewedAt DateTime @default(now())
+
+  dayId  String
+  day    Day    @relation(fields: [dayId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([dayId, userId])
 }
 
 // Invitación por email a un Calendar. Sin distinción de estado (ver brief de

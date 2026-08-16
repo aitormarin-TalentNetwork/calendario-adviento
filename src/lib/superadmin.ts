@@ -11,9 +11,9 @@ export type CalendarSummary = {
   admins: { id: string; name: string | null; email: string }[];
   daysCount: number;
   invitedCount: number;
-  // Siempre 0 por ahora: todavía no existe ningún mecanismo que marque un
-  // día como visto (eso es de TAL-8, "Experiencia del Invitado", en
-  // Backlog) — mostrarlo en 0 es el dato real, no un placeholder falso.
+  // Total de DayView del calendario (TAL-8) — cada apertura cuenta una vez
+  // por (día, persona), así que puede superar invitedCount (una misma
+  // persona ve varios días). No "número de invitados que han visto algo".
   viewedCount: number;
 };
 
@@ -37,6 +37,12 @@ export async function listCalendarsWithStats(now: Date): Promise<CalendarSummary
         include: { user: { select: { id: true, name: true, email: true } } },
       },
       _count: { select: { days: true, invitations: true } },
+      // DayView cuelga de Day, no de Calendar directamente — no hay
+      // groupBy de Prisma que cuente a través de esa relación en una sola
+      // llamada, así que se trae el conteo de views por día (una query,
+      // sin N+1) y se suma en JS, mismo patrón que el agregado de
+      // `listAdmins` más abajo.
+      days: { select: { _count: { select: { views: true } } } },
     },
   });
 
@@ -49,7 +55,7 @@ export async function listCalendarsWithStats(now: Date): Promise<CalendarSummary
     admins: calendar.memberships.map((membership) => membership.user),
     daysCount: calendar._count.days,
     invitedCount: calendar._count.invitations,
-    viewedCount: 0,
+    viewedCount: calendar.days.reduce((sum, day) => sum + day._count.views, 0),
   }));
 }
 
