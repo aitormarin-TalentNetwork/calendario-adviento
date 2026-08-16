@@ -320,6 +320,53 @@ export const deleteCalendar = internalMutation({
   handler: deleteCalendarHandler,
 });
 
+/**
+ * Resuelve existencia + autorización + borrado en UNA sola mutation —
+ * hallazgo de auditoría, TAL-12 ronda 2: la versión anterior (Next.js
+ * llamando existencia, autorización y borrado como tres operaciones
+ * Convex independientes) tenía una ventana de carrera real bajo
+ * concurrencia genuina (dos peticiones solapadas, no solo un reenvío
+ * secuencial): las dos podían ver el calendario existir antes de que la
+ * primera lo borrara, así que la segunda SÍ llegaba a comprobar
+ * membership, ya no la encontraba (la primera ya la borró) y caía en "no
+ * autorizado" en vez de "ya está borrado". Mismo patrón que ya resolvió
+ * TAL-11 para `resolveMemberAccess` (docs/convex-auth-investigacion-tal11.md
+ * § "Gotcha 3") — toda la lógica que depende de un estado que otra
+ * operación puede cambiar mientras tanto tiene que vivir en una única
+ * mutation serializable, nunca repartida en varias llamadas desde
+ * Next.js.
+ *
+ * `isSuperAdmin` llega como argumento (ya resuelto por `getAuthorizedUser`
+ * en Next.js) en vez de releerse aquí: es un dato de USUARIO, no de este
+ * calendario concreto — no cambia por que otra petición borre este
+ * calendario u otro, así que no forma parte de la ventana de carrera que
+ * esta función cierra (mismo criterio que `resolveCalendarAccess`,
+ * `src/lib/roles.ts`, nunca toca Convex para el atajo de Super Admin).
+ */
+async function deleteCalendarAsUserHandler(
+  ctx: MutationCtx,
+  args: { calendarId: Id<"calendars">; userId: Id<"users">; isSuperAdmin: boolean }
+): Promise<"deleted" | "already-gone" | "unauthorized"> {
+  const calendar = await ctx.db.get(args.calendarId);
+  if (!calendar) return "already-gone";
+
+  if (!args.isSuperAdmin) {
+    const membership = await ctx.db
+      .query("calendarMemberships")
+      .withIndex("by_calendar_and_user", (q) => q.eq("calendarId", args.calendarId).eq("userId", args.userId))
+      .unique();
+    if (!membership || membership.role !== "ADMIN") return "unauthorized";
+  }
+
+  await deleteCalendarHandler(ctx, { calendarId: args.calendarId });
+  return "deleted";
+}
+
+export const deleteCalendarAsUser = internalMutation({
+  args: { calendarId: v.id("calendars"), userId: v.id("users"), isSuperAdmin: v.boolean() },
+  handler: deleteCalendarAsUserHandler,
+});
+
 export const get = internalQuery({
   args: { calendarId: v.id("calendars") },
   handler: async (ctx, args) => ctx.db.get(args.calendarId),
@@ -427,11 +474,25 @@ export const updateCalendarPublic = mutation({
   },
 });
 
-export const deleteCalendarPublic = mutation({
-  args: { serverSecret: v.string(), calendarId: v.id("calendars") },
+/**
+ * Frontera pública de `deleteCalendarAsUserHandler` — ver el comentario
+ * completo ahí para el porqué (hallazgo de auditoría, TAL-12 ronda 2).
+ * Deliberadamente NO existe una versión pública del `deleteCalendar`
+ * "desnudo" (sin `userId`/`isSuperAdmin`, que confiaría ciegamente en que
+ * quien llama ya comprobó autorización aparte): esa forma es exactamente
+ * la que permitió la ventana de carrera de la ronda 2 — la única puerta
+ * pública para borrar un calendario resuelve autorización y borrado
+ * juntos, atómicamente.
+ */
+export const deleteCalendarAsUserPublic = mutation({
+  args: { serverSecret: v.string(), calendarId: v.id("calendars"), userId: v.id("users"), isSuperAdmin: v.boolean() },
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
-    await deleteCalendarHandler(ctx, { calendarId: args.calendarId });
+    return await deleteCalendarAsUserHandler(ctx, {
+      calendarId: args.calendarId,
+      userId: args.userId,
+      isSuperAdmin: args.isSuperAdmin,
+    });
   },
 });
 

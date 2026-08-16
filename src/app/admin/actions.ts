@@ -3,7 +3,7 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { fetchMutation, fetchQuery } from "convex/nextjs";
+import { fetchMutation } from "convex/nextjs";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
@@ -118,42 +118,37 @@ export async function deleteCalendarAction(calendarId: string) {
   const user = await getAuthorizedUser();
   if (!user) redirect(`/login?callbackUrl=/admin/${calendarId}`);
 
-  // Hallazgo de auditoría, ronda 1: `requireCalendarAdmin` (como las otras
-  // dos actions) comprueba rol vía `resolveCalendarAccess`, que consulta
-  // la `calendarMembership` del usuario — pero un reenvío del mismo
-  // borrado (doble clic, navegar atrás) llega DESPUÉS de que la primera
-  // llamada ya borró esa membership junto con el calendario. Comprobar rol
-  // primero rompía la idempotencia que ya documenta `docs/calendarios.md`:
-  // sin membership que consultar, `resolveCalendarAccess` devuelve `null`
-  // y el reenvío caía en `/unauthorized` en vez de tratarse como éxito —
-  // aunque `deleteCalendarHandler` (Convex) sí es idempotente por su
-  // cuenta, nunca se llegaba a invocarlo.
+  // Hallazgo de auditoría, TAL-12 ronda 1 (reenvío secuencial) Y ronda 2
+  // (concurrencia real): la versión anterior resolvía existencia,
+  // autorización y borrado como TRES operaciones Convex independientes
+  // desde aquí. Bajo dos peticiones de verdad solapadas (no solo una
+  // detrás de otra), las dos podían ver el calendario existir antes de
+  // que la primera lo borrara — la segunda entonces SÍ llegaba a
+  // comprobar membership, ya no la encontraba (la primera ya se la había
+  // llevado por delante) y caía en `/unauthorized` en vez de tratarse
+  // como éxito. Repartir en varias llamadas desde Next.js no se puede
+  // arreglar añadiendo más comprobaciones en el mismo sitio — la ventana
+  // de carrera está en el reparto en sí.
   //
-  // Corrección: se comprueba primero si el calendario TODAVÍA existe
-  // (mismo orden que la versión Prisma de `admin/[calendarId]/page.tsx`,
-  // TAL-5 — existencia antes que rol). Si ya no existe, el estado que
-  // pedía el usuario ya se cumple — no hay membership que pudiera
-  // demostrar rol de todas formas, así que no hace falta (ni se puede)
-  // volver a exigirlo; se trata como éxito sin debilitar nada para un
-  // calendario que SÍ existe, donde la comprobación de rol de abajo sigue
-  // siendo obligatoria y real.
-  const calendar = await fetchQuery(api.calendars.getPublic, {
+  // Corrección: `calendars.deleteCalendarAsUserPublic` resuelve
+  // existencia + autorización + borrado en UNA sola mutation de Convex
+  // (mismo patrón que `access.resolveMemberAccessPublic`, TAL-11, para el
+  // mismo tipo de problema — ver el comentario completo en
+  // `convex/calendars.ts::deleteCalendarAsUserHandler`). `isSuperAdmin` se
+  // manda tal cual (ya resuelto por `getAuthorizedUser`, dato de usuario,
+  // no de este calendario concreto — no forma parte de la ventana de
+  // carrera que cierra esta mutation).
+  const result = await fetchMutation(api.calendars.deleteCalendarAsUserPublic, {
     serverSecret: convexAppServerSecret(),
     calendarId: calendarId as Id<"calendars">,
+    userId: user.id as Id<"users">,
+    isSuperAdmin: user.isSuperAdmin,
   });
-  if (calendar) {
-    const access = await resolveCalendarAccess(user, calendarId);
-    const isAdmin = access?.kind === "super-admin" || access?.role === "ADMIN";
-    if (!isAdmin) redirect("/unauthorized");
-  }
+  if (result === "unauthorized") redirect("/unauthorized");
 
-  // Idempotente también del lado de Convex (`deleteCalendarHandler`) — un
-  // `calendarId` que ya no existe es un no-op, no un error.
-  await fetchMutation(api.calendars.deleteCalendarPublic, {
-    serverSecret: convexAppServerSecret(),
-    calendarId: calendarId as Id<"calendars">,
-  });
-
+  // "deleted" o "already-gone" son los dos el mismo éxito observable desde
+  // fuera: el estado que pedía el usuario (que el calendario no exista) ya
+  // se cumple.
   revalidatePath("/admin");
   redirect("/admin");
 }

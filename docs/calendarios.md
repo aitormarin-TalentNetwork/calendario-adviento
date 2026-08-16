@@ -189,6 +189,34 @@ que pedía el usuario (que el calendario no exista) ya se cumple.
 > hallazgo): borrar dos veces seguidas el mismo calendario redirige a
 > `/admin` las dos veces; un tercero sin relación con un calendario que SÍ
 > existe sigue recibiendo `/unauthorized`.
+>
+> **Hallazgo de auditoría, TAL-12 ronda 2**: la corrección de la ronda 1
+> seguía resolviendo existencia, autorización y borrado como TRES
+> operaciones Convex independientes desde Next.js — el reenvío secuencial
+> quedaba bien cubierto, pero dos peticiones REALMENTE solapadas (no una
+> detrás de otra) podían las dos ver el calendario existir antes de que la
+> primera lo borrara; la segunda entonces sí llegaba a comprobar
+> membership, ya no la encontraba y caía en `/unauthorized`. Mismo patrón
+> que TAL-11 ya resolvió para `resolveMemberAccess` (docs/convex-auth-investigacion-tal11.md
+> § "Gotcha 3"): repartir en varias llamadas desde Next.js una lógica que
+> depende de un estado que otra operación puede cambiar mientras tanto
+> reabre la ventana, sin importar cuántas comprobaciones se añadan
+> alrededor. Corrección definitiva:
+> `calendars.deleteCalendarAsUserHandler` resuelve existencia +
+> autorización (`isSuperAdmin`, ya resuelto en Next.js sin tocar Convex —
+> o membership `ADMIN`, comprobada aquí) + borrado en UNA sola mutation
+> serializable — ya no existe ninguna versión pública de "borrar sin
+> comprobar autorización" a la que se le pueda anteponer nada por
+> separado. Verificado con concurrencia REAL entre procesos del sistema
+> operativo (no solo `Promise.all` dentro de un mismo proceso Node — mismo
+> rigor que TAL-9): 8 rondas de 6 llamadas `npx convex run` verdaderamente
+> simultáneas contra el mismo calendario recién creado, mismo Admin real
+> — en las 8 rondas, exactamente 1 `"deleted"` y el resto `"already-gone"`,
+> CERO `"unauthorized"`. Repetido con dos peticiones HTTP reales lanzadas
+> en paralelo contra la Server Action (protocolo real de Server Actions de
+> Next.js) — las dos redirigen a `/admin`, ninguna a `/unauthorized`. Un
+> stranger sin membership contra un calendario de control que SÍ existe
+> sigue recibiendo `"unauthorized"` sin afectar al calendario.
 
 ## Fechas: por qué hay un `formatCalendarDate` en vez de `toLocaleDateString` a secas
 
