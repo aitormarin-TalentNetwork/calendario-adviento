@@ -1,6 +1,7 @@
 import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
+import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "./calendarErrorMessages";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
 
@@ -76,9 +77,7 @@ async function assertNoDayOutsideRange(
     .withIndex("by_calendar_and_date", (q) => q.eq("calendarId", calendarId).gt("date", endDate))
     .first();
   if (beforeNewRange || afterNewRange) {
-    throw new Error(
-      "No se puede cambiar el rango: hay al menos un día con vídeo asignado que quedaría fuera del rango nuevo."
-    );
+    throw new Error(DAY_OUTSIDE_RANGE_ERROR_MESSAGE);
   }
 }
 

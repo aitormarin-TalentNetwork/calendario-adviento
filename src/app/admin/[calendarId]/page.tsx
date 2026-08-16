@@ -2,11 +2,11 @@ import { notFound, redirect } from "next/navigation";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { deleteCalendarAction, updateCalendarAction } from "@/app/admin/actions";
+import { deleteCalendarAction } from "@/app/admin/actions";
 import { DaysSection } from "@/app/admin/[calendarId]/days-section";
+import { EditCalendarForm } from "@/app/admin/[calendarId]/edit-calendar-form";
 import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { SubmitButton } from "@/components/submit-button";
 import { signOut } from "@/lib/auth";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
@@ -79,63 +79,7 @@ export default async function AdminCalendarPage({
         Sesión: {user.email} ({access?.kind === "super-admin" ? "Super Admin" : "Admin"})
       </p>
 
-      <form
-        action={updateCalendarAction.bind(null, calendar.id)}
-        style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1.5rem" }}
-      >
-        <label>
-          Nombre del calendario
-          <br />
-          <input name="name" type="text" defaultValue={calendar.name} required />
-        </label>
-        <label>
-          Título de portada
-          <br />
-          <input name="coverTitle" type="text" defaultValue={calendar.coverTitle} required />
-        </label>
-        <label>
-          Fecha de inicio
-          <br />
-          <input
-            name="startDate"
-            type="date"
-            defaultValue={calendar.startDate.toISOString().slice(0, 10)}
-            required
-          />
-        </label>
-        <label>
-          Fecha de fin
-          <br />
-          <input
-            name="endDate"
-            type="date"
-            defaultValue={calendar.endDate.toISOString().slice(0, 10)}
-            required
-          />
-        </label>
-        <label>
-          Skin
-          <br />
-          <select name="skinId" defaultValue={calendar.skinId} required>
-            {skins.map((skin) => (
-              <option key={skin.id} value={skin.id}>
-                {skin.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Foto de portada (URL, opcional)
-          <br />
-          <input
-            name="coverImageUrl"
-            type="url"
-            defaultValue={calendar.coverImageUrl ?? ""}
-            placeholder="https://…"
-          />
-        </label>
-        <SubmitButton>Guardar cambios</SubmitButton>
-      </form>
+      <EditCalendarForm calendar={calendar} skins={skins} />
 
       <DaysSection calendarId={calendar.id} />
 
