@@ -3,9 +3,12 @@
 import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { fetchMutation } from "convex/nextjs";
+import { api } from "../../../convex/_generated/api";
+import type { Id } from "../../../convex/_generated/dataModel";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { DataLayerUnavailableError } from "@/lib/not-migrated";
+import { convexAppServerSecret } from "@/lib/convex-server";
 import { resolveCalendarAccess } from "@/lib/roles";
 
 /**
@@ -87,36 +90,71 @@ export async function updateCalendarAction(calendarId: string, formData: FormDat
     }
   }
 
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
-  // comprobación de que `skinId` es de verdad del catálogo fijo (antes
-  // `prisma.skin.findUnique`, límite de seguridad — el selector de la UI
-  // ya limita al catálogo, esto es defensa por si alguien manda un id
-  // distinto a mano) y la escritura real (`prisma.calendar.update`)
-  // todavía no tienen equivalente conectado a Convex (TAL-12+). Todo lo de
-  // arriba (campos obligatorios, formato/orden de fechas, URL https) sigue
-  // siendo validación real, sin tocar Prisma — se mantiene. Falla
-  // explícitamente aquí en vez de fingir que el skin es válido o que se
-  // guardó. `requireCalendarAdmin` de arriba ya redirige a todo el mundo
-  // hoy (ver src/lib/current-user.ts), pero esta llamada tenía que dejar
-  // de ser un residuo real de Prisma para cuando TAL-12 restaure la
-  // autorización (hallazgo de auditoría, ronda 1).
-  void skinId;
-  void name;
-  void coverTitle;
-  void coverImageUrl;
-  throw new DataLayerUnavailableError("updateCalendarAction");
+  // TAL-12 — reconectada contra Convex (`calendars.updateCalendarPublic`).
+  // La comprobación de que `skinId` es de verdad del catálogo fijo (límite
+  // de seguridad — el selector de la UI ya limita al catálogo, esto es
+  // defensa por si alguien manda un id distinto a mano) vive ahora dentro
+  // de la propia mutation de Convex (`convex/calendars.ts::updateCalendarHandler`),
+  // igual que antes vivía en la capa de datos con `prisma.skin.findUnique`
+  // — nunca en la Server Action. Todo lo de arriba (campos obligatorios,
+  // formato/orden de fechas, URL https) sigue siendo validación de
+  // servidor real, aquí igual que con Prisma.
+  await fetchMutation(api.calendars.updateCalendarPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+    name,
+    coverTitle,
+    coverImageUrl: coverImageUrl ?? undefined,
+    startDate: startDateRaw,
+    endDate: endDateRaw,
+    skinId: skinId as Id<"skins">,
+  });
+
+  revalidatePath(`/admin/${calendarId}`);
+  revalidatePath("/admin");
 }
 
 export async function deleteCalendarAction(calendarId: string) {
-  await requireCalendarAdmin(calendarId);
+  const user = await getAuthorizedUser();
+  if (!user) redirect(`/login?callbackUrl=/admin/${calendarId}`);
 
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: la
-  // escritura real (`prisma.calendar.delete`) todavía no tiene equivalente
-  // conectado a Convex (TAL-12+). Falla explícitamente en vez de fingir
-  // que se borró. `requireCalendarAdmin` de arriba ya redirige a todo el
-  // mundo hoy (ver src/lib/current-user.ts), pero esta llamada tenía que
-  // dejar de ser un residuo real de Prisma (hallazgo de auditoría, ronda
-  // 1).
-  void calendarId;
-  throw new DataLayerUnavailableError("deleteCalendarAction");
+  // Hallazgo de auditoría, TAL-12 ronda 1 (reenvío secuencial) Y ronda 2
+  // (concurrencia real): la versión anterior resolvía existencia,
+  // autorización y borrado como TRES operaciones Convex independientes
+  // desde aquí. Bajo dos peticiones de verdad solapadas (no solo una
+  // detrás de otra), las dos podían ver el calendario existir antes de
+  // que la primera lo borrara — la segunda entonces SÍ llegaba a
+  // comprobar membership, ya no la encontraba (la primera ya se la había
+  // llevado por delante) y caía en `/unauthorized` en vez de tratarse
+  // como éxito. Repartir en varias llamadas desde Next.js no se puede
+  // arreglar añadiendo más comprobaciones en el mismo sitio — la ventana
+  // de carrera está en el reparto en sí.
+  //
+  // Corrección: `calendars.deleteCalendarAsUserPublic` resuelve
+  // existencia + autorización + borrado en UNA sola mutation de Convex
+  // (mismo patrón que `access.resolveMemberAccessPublic`, TAL-11, para el
+  // mismo tipo de problema — ver el comentario completo en
+  // `convex/calendars.ts::deleteCalendarAsUserHandler`).
+  //
+  // Hallazgo de auditoría, ronda 3: NO se manda `user.isSuperAdmin` como
+  // argumento — sería un resultado de autorización afirmado desde fuera
+  // (esta misma sesión de Next.js, resuelto en una query Convex aparte
+  // por `getAuthorizedUser`), exactamente el tipo de dato que esta
+  // mutation no debe aceptar tal cual: un privilegio revocado entre esa
+  // lectura y esta llamada seguiría surtiendo efecto si se confiara en él
+  // aquí. Solo se manda `userId` — una referencia de identidad, no un
+  // privilegio — y la propia mutation relee `isSuperAdmin` del documento
+  // `users` dentro de su misma transacción.
+  const result = await fetchMutation(api.calendars.deleteCalendarAsUserPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+    userId: user.id as Id<"users">,
+  });
+  if (result === "unauthorized") redirect("/unauthorized");
+
+  // "deleted" o "already-gone" son los dos el mismo éxito observable desde
+  // fuera: el estado que pedía el usuario (que el calendario no exista) ya
+  // se cumple.
+  revalidatePath("/admin");
+  redirect("/admin");
 }

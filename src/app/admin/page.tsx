@@ -6,31 +6,27 @@ import { SubmitButton } from "@/components/submit-button";
 import { formatCalendarDate, listAdminCalendars } from "@/lib/calendars";
 import { signOut } from "@/lib/auth";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { tryDataLayer } from "@/lib/not-migrated";
 
 export default async function AdminCalendarsPage() {
   const user = await getAuthorizedUser();
   if (!user) redirect("/login?callbackUrl=/admin");
 
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura:
-  // `listAdminCalendars` lanza `DataLayerUnavailableError` (hallazgo de
-  // auditoría, ronda 1 — antes devolvía `[]`, que esta página ya
-  // interpretaba como "no administras ningún calendario todavía", un
-  // hecho falso). Se distingue explícitamente de la lista vacía real.
-  const result = await tryDataLayer(() => listAdminCalendars(user.id));
+  // TAL-12 — reconectada contra Convex (`calendars.listCalendarsForUserPublic`).
+  // Ya no hay ningún estado especial de "no disponible" que distinguir de
+  // la lista vacía real — `[]` aquí siempre significa "todavía no
+  // administras ningún calendario", igual que con Prisma.
+  const calendars = await listAdminCalendars(user.id);
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
       <h1>Mis calendarios</h1>
       <p style={{ color: "var(--accent)" }}>Sesión: {user.email}</p>
 
-      {!result.ok ? (
-        <p style={{ color: "var(--accent)" }}>Tus calendarios no están disponibles ahora mismo.</p>
-      ) : result.data.length === 0 ? (
+      {calendars.length === 0 ? (
         <p>Todavía no administras ningún calendario.</p>
       ) : (
         <ul style={{ listStyle: "none", display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
-          {result.data.map((calendar) => (
+          {calendars.map((calendar) => (
             <li key={calendar.id}>
               <Link href={`/admin/${calendar.id}`}>
                 {calendar.name} — {formatCalendarDate(calendar.startDate)} a{" "}
