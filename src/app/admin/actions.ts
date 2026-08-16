@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { fetchMutation } from "convex/nextjs";
 import { api } from "../../../convex/_generated/api";
+import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "../../../convex/calendarErrorMessages";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
@@ -43,27 +44,71 @@ export async function createCalendarAction(formData: FormData) {
   redirect(`/admin/${calendar.id}`);
 }
 
-export async function updateCalendarAction(calendarId: string, formData: FormData) {
+export type UpdateCalendarFieldValues = {
+  name: string;
+  coverTitle: string;
+  startDate: string;
+  endDate: string;
+  skinId: string;
+  coverImageUrl: string;
+};
+
+export type UpdateCalendarState = {
+  error: string | null;
+  values: UpdateCalendarFieldValues;
+};
+
+// TAL-20, hallazgo de auditoría ronda 1: el mensaje que ve el usuario ante
+// un fallo NO reconocido no puede ser el texto crudo de la excepción — ni
+// siquiera "solo la línea de mensaje" (ver más abajo por qué esa
+// extracción tampoco basta). Un mensaje genérico y neutro para cualquier
+// cosa que no sea una de las validaciones de negocio ya conocidas.
+const GENERIC_SAVE_ERROR_MESSAGE = "No se pudo guardar el calendario. Inténtalo de nuevo.";
+
+export async function updateCalendarAction(
+  calendarId: string,
+  _prevState: UpdateCalendarState,
+  formData: FormData
+): Promise<UpdateCalendarState> {
   await requireCalendarAdmin(calendarId);
 
-  const name = formData.get("name")?.toString().trim();
-  const coverTitle = formData.get("coverTitle")?.toString().trim();
-  const startDateRaw = formData.get("startDate")?.toString();
-  const endDateRaw = formData.get("endDate")?.toString();
-  const skinId = formData.get("skinId")?.toString();
-  const coverImageUrlRaw = formData.get("coverImageUrl")?.toString().trim();
+  const name = formData.get("name")?.toString().trim() ?? "";
+  const coverTitle = formData.get("coverTitle")?.toString().trim() ?? "";
+  const startDateRaw = formData.get("startDate")?.toString() ?? "";
+  const endDateRaw = formData.get("endDate")?.toString() ?? "";
+  const skinId = formData.get("skinId")?.toString() ?? "";
+  const coverImageUrlRaw = formData.get("coverImageUrl")?.toString().trim() ?? "";
+
+  // Lo que el admin acababa de escribir se devuelve siempre junto al
+  // resultado (éxito o error) — TAL-20, hallazgo de auditoría ronda 1:
+  // `useActionState`/`<form action>` resetea los campos no controlados del
+  // formulario en cuanto la action termina, con éxito o sin él (no es un
+  // reset "solo si falla" — es "en cuanto la promesa se resuelve", y
+  // devolver `{error: ...}` sin lanzar cuenta como resolución). Sin esto,
+  // un admin que corrige un fallo de validación perdería también el resto
+  // de campos que sí había rellenado bien. Ver `edit-calendar-form.tsx`,
+  // que usa estos valores como formulario controlado en vez de
+  // `defaultValue` para que el reset automático no les afecte.
+  const values: UpdateCalendarFieldValues = {
+    name,
+    coverTitle,
+    startDate: startDateRaw,
+    endDate: endDateRaw,
+    skinId,
+    coverImageUrl: coverImageUrlRaw,
+  };
 
   if (!name || !coverTitle || !startDateRaw || !endDateRaw || !skinId) {
-    throw new Error("Faltan campos obligatorios.");
+    return { error: "Faltan campos obligatorios.", values };
   }
 
   const startDate = parseUtcDateOnly(startDateRaw);
   const endDate = parseUtcDateOnly(endDateRaw);
   if (!startDate || !endDate) {
-    throw new Error("Las fechas deben tener formato YYYY-MM-DD y ser fechas reales.");
+    return { error: "Las fechas deben tener formato YYYY-MM-DD y ser fechas reales.", values };
   }
   if (startDate > endDate) {
-    throw new Error("La fecha de inicio no puede ser posterior a la fecha de fin.");
+    return { error: "La fecha de inicio no puede ser posterior a la fecha de fin.", values };
   }
 
   const coverImageUrl = coverImageUrlRaw || null;
@@ -72,7 +117,7 @@ export async function updateCalendarAction(calendarId: string, formData: FormDat
     try {
       parsed = new URL(coverImageUrl);
     } catch {
-      throw new Error("La foto de portada debe ser una URL válida.");
+      return { error: "La foto de portada debe ser una URL válida.", values };
     }
     // Solo https: — new URL() por sí sola solo valida sintaxis y acepta
     // esquemas como javascript:/data:/file:, que ejecutarían contenido
@@ -84,9 +129,10 @@ export async function updateCalendarAction(calendarId: string, formData: FormDat
     // es determinante; una URL rota simplemente no cargará como <img> más
     // adelante, que es un fallo visible y de bajo riesgo, no de seguridad.
     if (parsed.protocol !== "https:") {
-      throw new Error(
-        "La foto de portada debe ser una URL https:// — no se aceptan otros esquemas por seguridad."
-      );
+      return {
+        error: "La foto de portada debe ser una URL https:// — no se aceptan otros esquemas por seguridad.",
+        values,
+      };
     }
   }
 
@@ -99,19 +145,71 @@ export async function updateCalendarAction(calendarId: string, formData: FormDat
   // — nunca en la Server Action. Todo lo de arriba (campos obligatorios,
   // formato/orden de fechas, URL https) sigue siendo validación de
   // servidor real, aquí igual que con Prisma.
-  await fetchMutation(api.calendars.updateCalendarPublic, {
-    serverSecret: convexAppServerSecret(),
-    calendarId: calendarId as Id<"calendars">,
-    name,
-    coverTitle,
-    coverImageUrl: coverImageUrl ?? undefined,
-    startDate: startDateRaw,
-    endDate: endDateRaw,
-    skinId: skinId as Id<"skins">,
-  });
+  //
+  // TAL-20 — hallazgo: `updateCalendarHandler` también valida en Convex
+  // (p.ej. `assertNoDayOutsideRange`, "no se puede estrechar el rango si
+  // deja un día con vídeo fuera") y esas comprobaciones lanzan `Error` de
+  // verdad. Eso NO es un fallo inesperado — es una regla de negocio ya
+  // auditada (TAL-12) tan legítima como las de arriba — pero al no
+  // capturarse aquí, la excepción se escapaba entera del Server Action y
+  // Next.js la trataba como un crash de verdad: la misma pantalla genérica
+  // de error de producción que un fallo de hidratación (React error #441
+  // en consola, sin relación real con hidratación esta vez). Se captura
+  // aquí y se trata igual que las validaciones de arriba: un resultado
+  // esperado del formulario, no una excepción — PERO solo para el fallo
+  // concreto que reconocemos (hallazgo de auditoría, ronda 1): capturar
+  // cualquier rechazo de `fetchMutation` y devolver su mensaje tal cual
+  // disfrazaba de "validación normal" cualquier otra cosa (Convex mal
+  // configurado, red caída, un bug de verdad futuro) y además podía filtrar
+  // detalles internos si Convex cambia de formato de mensaje algún día.
+  try {
+    await fetchMutation(api.calendars.updateCalendarPublic, {
+      serverSecret: convexAppServerSecret(),
+      calendarId: calendarId as Id<"calendars">,
+      name,
+      coverTitle,
+      coverImageUrl: coverImageUrl ?? undefined,
+      startDate: startDateRaw,
+      endDate: endDateRaw,
+      skinId: skinId as Id<"skins">,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // fetchMutation envuelve el `Error` del handler de Convex en un mensaje
+    // con formato fijo (comprobado contra un throw real):
+    //   "[Request ID: …] Server Error\nUncaught Error: <mensaje>\n    at …\n    at …"
+    // — la primera línea es un identificador de petición y el resto, tras
+    // el mensaje real, es la traza de pila del lado de Convex. Extraemos la
+    // primera línea que no sea ninguna de esas dos cosas y le quitamos el
+    // prefijo "Uncaught Error:"/"Error:" que antepone Convex — pero el
+    // resultado SOLO se le enseña al usuario si coincide EXACTAMENTE con un
+    // mensaje de validación de negocio que ya conocemos y ya está pensado
+    // para leerse tal cual (`DAY_OUTSIDE_RANGE_ERROR_MESSAGE`, importado de
+    // `convex/calendarErrorMessages.ts` — fichero compartido sin
+    // dependencias de runtime de Convex a propósito, para que este texto no
+    // pueda divergir entre los dos sitios). Cualquier otro mensaje —
+    // incluida cualquier extracción con este mismo formato pero de un
+    // `Error` que no reconocemos — se trata como fallo NO reconocido: se
+    // registra en el servidor (para que quede rastro real de que algo se
+    // rompió) y al usuario se le da un mensaje genérico, nunca el texto
+    // crudo de una excepción no reconocida.
+    const messageLine = message
+      .split("\n")
+      .map((line) => line.trim())
+      .find((line) => line.length > 0 && !line.startsWith("[Request ID") && !line.startsWith("at "));
+    const cleaned = (messageLine ?? "").replace(/^Uncaught Error:\s*/, "").replace(/^Error:\s*/, "");
+
+    if (cleaned === DAY_OUTSIDE_RANGE_ERROR_MESSAGE) {
+      return { error: cleaned, values };
+    }
+
+    console.error("updateCalendarAction: fallo inesperado al actualizar el calendario", err);
+    return { error: GENERIC_SAVE_ERROR_MESSAGE, values };
+  }
 
   revalidatePath(`/admin/${calendarId}`);
   revalidatePath("/admin");
+  return { error: null, values };
 }
 
 export async function deleteCalendarAction(calendarId: string) {
