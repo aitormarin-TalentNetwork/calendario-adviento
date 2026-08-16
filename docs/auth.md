@@ -1,0 +1,171 @@
+# Autenticación y control de acceso (TAL-2)
+
+## Librería elegida
+
+**Auth.js v5** (`next-auth@beta`), con proveedor de **Google** — ya apuntado
+como plan en `docs/stack.md` (TAL-1). Se confirma aquí. Se descartó
+`@auth/prisma-adapter` (sesiones en base de datos): habría añadido tablas
+(`Account`, `Session`, `VerificationToken`) al schema compartido con TAL-3
+justo mientras T1 seguía desarrollándolo en paralelo, para un beneficio que
+no hace falta en el MVP. En su lugar:
+
+- **Sesión con estrategia `jwt`** (cookie firmada, sin tabla de sesión),
+  `maxAge` de 30 días → cumple "sesión persistente" sin tocar el schema de
+  TAL-3.
+- El `User` de nuestro propio modelo (`prisma/schema.prisma`) se crea/actualiza
+  con un `upsert` por email dentro del callback `jwt`, la primera vez que
+  alguien inicia sesión — no se usa el adapter de Prisma para esto, solo
+  Prisma directamente.
+
+## Middleware vs. página: por qué se reparte así
+
+`src/proxy.ts` (el "middleware" de Next.js — renombrado a `proxy.ts` en la
+convención de ficheros de Next 16) corre en el runtime Edge y por eso usa una instancia
+"ligera" de Auth.js (`src/lib/auth.config.ts`, sin nada que dependa de
+`@prisma/adapter-pg`/`pg`, que son librerías de Node y no funcionan en Edge).
+Ese middleware solo comprueba **si hay sesión** para las rutas protegidas
+(`/superadmin`, `/admin/*`, `/c/*`) y redirige a `/login?callbackUrl=...` si
+no la hay.
+
+La resolución de **rol concreto** (Super Admin / Admin de este calendario /
+Invitado de este calendario) pasa siempre por `src/lib/roles.ts` dentro de la
+página (runtime Node, con acceso a Prisma):
+
+- Super Admin: `User.isSuperAdmin` (flag global), leído siempre en fresco de
+  BD vía `src/lib/current-user.ts::getAuthorizedUser()` — **nunca** del JWT
+  (ver "Por qué isSuperAdmin no vive en el JWT" más abajo).
+- Admin/Invitado: `CalendarMembership` para ese `calendarId` concreto.
+- Si no hay `CalendarMembership` pero sí una `Invitation` para el email de la
+  sesión en ese calendario, se resuelve ahí mismo: se crea la
+  `CalendarMembership` como `GUEST` (así se "acepta" una invitación, tal
+  como lo describe `docs/modelo-de-datos.md` — la Invitation no tiene campo
+  de estado a propósito).
+- Si no hay ni membership ni invitación → `/unauthorized`.
+
+Esto evita bakear la lista de calendarios/roles de cada usuario en el JWT
+(no escala bien si alguien tiene muchos calendarios) a cambio de una consulta
+a Prisma por página protegida — asumible en este MVP.
+
+## Por qué `isSuperAdmin` no vive en el JWT (corrección de auditoría, ronda 1)
+
+La ronda 1 guardaba `isSuperAdmin` en el JWT en el momento del login y lo
+reutilizaba en cada petición sin volver a consultar la BD. Con sesión de 30
+días, eso significa que revocar (o conceder) Super Admin en la base de datos
+no surtía efecto hasta que esa sesión concreta expirase o se cerrase sesión a
+mano — una ventana de hasta 30 días con el privilegio equivocado.
+
+Corrección: el JWT/sesión solo llevan `userId` (un identificador, no cambia
+de significado con el tiempo). Toda comprobación de privilegio pasa por
+`getAuthorizedUser()`, que relee `User.isSuperAdmin` de Postgres en cada
+petición a una página protegida. Cuesta una consulta extra por página, pero
+así una revocación surte efecto en la siguiente petición, no en la siguiente
+sesión.
+
+### `getAuthorizedUser()` busca por id, no por email (corrección de auditoría, ronda 2)
+
+La primera versión de `getAuthorizedUser()` releía `User` por
+`session.user.email` en vez de por el `userId` que ya viaja en el JWT. Eso
+rompe la vinculación sesión↔identidad: si se borra ese `User` y luego se crea
+otro con el mismo email (una persona que se da de baja y se vuelve a invitar,
+o cualquier operación de administración futura en TAL-4), la sesión antigua
+—válida hasta 30 días— pasaba a resolver como el usuario nuevo y heredaba sus
+privilegios, `isSuperAdmin` incluido.
+
+Corrección: `prisma.user.findUnique({ where: { id: session.user.id } })`.
+Probado simulando el escenario exacto: usuario A con `isSuperAdmin: true`
+inicia sesión y accede a `/superadmin` (200); se borra el `User` de A y se
+crea un `User` B nuevo con el mismo email (`isSuperAdmin: false`); la MISMA
+cookie de sesión de A vuelve a pedir `/superadmin` → ya no cuela como B, sino
+que `getAuthorizedUser()` no encuentra ningún `User` con ese id y la sesión
+se trata como inválida (redirige a `/login`, código 307 confirmado en los
+logs del servidor) — falla cerrado en vez de reengancharse a una identidad
+distinta.
+
+## Aceptar una invitación es idempotente (corrección de auditoría, ronda 1)
+
+La ronda 1 resolvía una `Invitation` con `findUnique` (¿existe membership?)
+seguido de `create` (si no existe, créala). Con dos peticiones concurrentes
+para el mismo usuario+calendario (doble pestaña, doble clic, un retry de
+red) ambas podían ver "no existe" y la segunda `create` chocaba con el índice
+único `(calendarId, userId)` y fallaba.
+
+Corrección: `src/lib/roles.ts` usa `calendarMembership.upsert(...)` con
+`update: {}` — un no-op si la membership ya existe (la crease quien la
+creara, y con el rol que tuviera; nunca se degrada un `ADMIN` a `GUEST` por
+esta vía). Además, la búsqueda de la `Invitation` pasó de `findUnique` a
+`findFirst` con `email: { equals, mode: "insensitive" }` (ver siguiente
+sección) — `findUnique` exige coincidencia exacta del índice único, y ya no
+podíamos garantizar mayúsculas/minúsculas exactas.
+
+Probado con peticiones HTTP realmente concurrentes (8 en paralelo con
+`curl`, mismo usuario/calendario, sin membership previa): el `upsert` de
+Prisma sobre este conector **no es atómico** — dos `upsert` simultáneos
+pueden intentar ambos el `create` interno y uno de los dos revienta con
+`P2002` (violación del índice único) en vez de resolverse solo como un
+`update`. Por eso el `upsert` va envuelto en un `try/catch` que atrapa
+específicamente `P2002` y, si salta, relee la fila con `findUniqueOrThrow` —
+quien "pierde la carrera" solo necesita la fila que ya creó el otro, no es un
+error real. Repetido el mismo test tras esto: 8/8 peticiones en 200, una sola
+fila de membership creada.
+
+## Bootstrap del primer Super Admin
+
+No hay UI todavía para promover a alguien a Super Admin (llega con TAL-4). El
+primer Super Admin se resuelve con la variable de entorno
+`SUPER_ADMIN_EMAILS` (lista separada por comas): si el email coincide **al
+crear** el `User` (primer login de esa persona), se marca `isSuperAdmin:
+true`. Deliberadamente no se re-evalúa en logins siguientes ni sobre un
+`User` ya existente — una vez creado, promover/degradar Super Admin es cosa
+del panel (TAL-4) o de tocar la fila directamente, no de esta variable.
+
+## Login real vs. simulado
+
+- **Real**: proveedor Google de Auth.js (`GOOGLE_CLIENT_ID` /
+  `GOOGLE_CLIENT_SECRET`). Requiere un proyecto de Google Cloud con la
+  pantalla de consentimiento OAuth configurada — **no se ha creado en esta
+  tarea** (no hay credenciales de Google Cloud disponibles en este entorno de
+  desarrollo); queda como env vars sin rellenar, listas para cuando se
+  provisionen (ver "Pendiente" más abajo).
+- **Simulado** (`AUTH_DEV_LOGIN=true`, y siempre bloqueado si
+  `NODE_ENV=production` aunque la variable esté puesta): añade un proveedor
+  `Credentials` sin contraseña — basta un email para "entrar como" ese
+  usuario. Es la vía usada para la evidencia de esta tarea (ver export al
+  auditor) y para desarrollo local de TAL-4/TAL-5 sin depender de Google. El
+  botón solo aparece en `/login` si la variable está activa.
+
+## Normalización de email entre Gmail e Invitation (corrección de auditoría, ronda 1)
+
+El email de la sesión se guarda siempre en minúsculas (`user.email.toLowerCase()`
+en `auth.ts`), pero una `Invitation` (creada a mano hoy, o desde el futuro
+panel de TAL-5) podía guardarse con otra capitalización — `Persona@Gmail.com`
+no habría hecho match exacto con `persona@gmail.com`.
+
+Corrección a nivel de aplicación: `resolveCalendarAccess` compara con
+`findFirst({ where: { email: { equals, mode: "insensitive" } } })` en vez de
+`findUnique` por igualdad exacta. Es independiente de cómo esté tipada la
+columna en BD.
+
+Nota para cuando se rebase sobre `main`: T1 añadió `@db.Citext` a
+`Invitation.email` (y a `User.email`) en TAL-3, como corrección de su propia
+ronda de auditoría — eso resuelve el mismo problema a nivel de base de datos
+(unicidad e igualdad insensibles a mayúsculas garantizadas por Postgres). Una
+vez el rebase traiga esa migración, la comprobación `mode: "insensitive"` de
+aquí pasa a ser redundante (no dañina, solo ya no imprescindible) — no hace
+falta quitarla, pero no hace falta añadir nada más tampoco.
+
+## Pendiente (fuera de alcance de TAL-2)
+
+- Crear el proyecto de Google Cloud + pantalla de consentimiento OAuth y
+  rellenar `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` (en Railway para
+  producción, y opcionalmente en local) — requiere acceso a una cuenta de
+  Google Cloud del proyecto, decisión/credencial que no corresponde a esta
+  terminal.
+- Panel para que un Super Admin gestione Admins (TAL-4) y CRUD de calendario
+  (TAL-5) — las páginas `/superadmin`, `/admin/[calendarId]` y
+  `/c/[calendarId]` de esta tarea son solo el esqueleto protegido por rol,
+  sin el contenido real.
+
+## Variables de entorno relevantes
+
+Ver `.env.example`. En local, `.env` (no versionado) necesita al menos
+`DATABASE_URL` y `AUTH_SECRET`; `AUTH_DEV_LOGIN=true` para el login simulado.
