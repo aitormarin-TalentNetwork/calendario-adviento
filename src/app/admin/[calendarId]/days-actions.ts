@@ -48,33 +48,56 @@ function parseVideoUrl(raw: string): URL {
   return parsed;
 }
 
+// Límite defensivo, no de producto: evita filas con campos absurdamente
+// largos (nadie necesita una URL o un mensaje de más de esto para un
+// vídeo-regalo del calendario) — hallazgo de auditoría, ronda 1.
+const MAX_VIDEO_URL_LENGTH = 2000;
+const MAX_MESSAGE_LENGTH = 2000;
+
 export async function saveDayAction(calendarId: string, dateStr: string, formData: FormData) {
   await requireCalendarAdmin(calendarId);
 
   const date = parseUtcDateOnly(dateStr);
   if (!date) throw new Error("Fecha inválida.");
 
-  const calendar = await prisma.calendar.findUnique({ where: { id: calendarId } });
-  if (!calendar) throw new Error("El calendario ya no existe.");
-  // Defensa en profundidad: el formulario solo se renderiza para fechas
-  // dentro del rango actual del calendario, pero ese rango puede haber
-  // cambiado (TAL-5) entre que se cargó la página y que se envía este
-  // formulario — nunca confiar solo en lo que ya filtró la UI.
-  if (date < calendar.startDate || date > calendar.endDate) {
-    throw new Error("Esa fecha ya no está dentro del rango del calendario.");
-  }
-
   const videoUrlRaw = formData.get("videoUrl")?.toString().trim();
   if (!videoUrlRaw) throw new Error("El vídeo es obligatorio.");
+  if (videoUrlRaw.length > MAX_VIDEO_URL_LENGTH) {
+    throw new Error(`La URL del vídeo no puede superar los ${MAX_VIDEO_URL_LENGTH} caracteres.`);
+  }
   const videoUrl = parseVideoUrl(videoUrlRaw).toString();
 
   const messageRaw = formData.get("message")?.toString().trim();
+  if (messageRaw && messageRaw.length > MAX_MESSAGE_LENGTH) {
+    throw new Error(`El mensaje no puede superar los ${MAX_MESSAGE_LENGTH} caracteres.`);
+  }
   const message = messageRaw || null;
 
-  await prisma.day.upsert({
-    where: { calendarId_date: { calendarId, date } },
-    update: { videoUrl, message },
-    create: { calendarId, date, videoUrl, message },
+  // Comprobar el rango del calendario y guardar el día en una única
+  // transacción, con `FOR UPDATE` sobre la fila del Calendar (hallazgo de
+  // auditoría, ronda 1): sin esto, había una ventana entre leer el rango y
+  // guardar el Day en la que otra petición podía reducir el rango del
+  // calendario (updateCalendarAction, TAL-5) justo en medio — el Day
+  // quedaba fuera del rango nuevo, oculto en el listado pero reapareciendo
+  // si el rango se ampliaba después. El `FOR UPDATE` bloquea esa fila del
+  // Calendar hasta que esta transacción termina, así que un
+  // `calendar.update()` concurrente sobre el mismo calendario espera a que
+  // esto acabe (o al revés) en lugar de intercalarse.
+  await prisma.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<{ startDate: Date; endDate: Date }[]>`
+      SELECT "startDate", "endDate" FROM "Calendar" WHERE id = ${calendarId} FOR UPDATE
+    `;
+    const calendar = rows[0];
+    if (!calendar) throw new Error("El calendario ya no existe.");
+    if (date < calendar.startDate || date > calendar.endDate) {
+      throw new Error("Esa fecha ya no está dentro del rango del calendario.");
+    }
+
+    await tx.day.upsert({
+      where: { calendarId_date: { calendarId, date } },
+      update: { videoUrl, message },
+      create: { calendarId, date, videoUrl, message },
+    });
   });
 
   revalidatePath(`/admin/${calendarId}`);

@@ -1,11 +1,27 @@
-import { deleteDayAction, saveDayAction } from "@/app/admin/[calendarId]/days-actions";
+import { DaysGridEditor } from "@/app/admin/[calendarId]/days-grid-editor";
 import { formatCalendarDate } from "@/lib/calendars";
 import { prisma } from "@/lib/prisma";
 
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+// Límite defensivo (hallazgo de auditoría, ronda 1): sin él, un rango de
+// fechas absurdamente largo (años/siglos — nada en el CRUD de calendario
+// de TAL-5 lo impide) generaría un día por cada fecha del rango en cada
+// render de esta sección, agotando memoria/CPU del servidor con una sola
+// petición autenticada. 366 cubre cualquier calendario real (incluido uno
+// que abarque un año entero) con margen; por encima, se pide acortar el
+// rango antes de poder gestionar días.
+const MAX_MANAGEABLE_DAYS = 366;
+
+function daySpan(startDate: Date, endDate: Date): number {
+  return Math.round((endDate.getTime() - startDate.getTime()) / ONE_DAY_MS) + 1;
+}
+
 /**
  * Todas las fechas de `startDate` a `endDate` (ambas incluidas, un día
- * calendario cada una) — no una numeración "Día 1..N" arbitraria, para que
- * coincida exactamente con lo que `Day.date` puede guardar.
+ * natural cada una) — no una numeración "Día 1..N" arbitraria, para que
+ * coincida exactamente con lo que `Day.date` puede guardar. Solo se llama
+ * ya sabiendo que el rango está dentro de MAX_MANAGEABLE_DAYS.
  */
 function datesInRange(startDate: Date, endDate: Date): Date[] {
   const dates: Date[] = [];
@@ -26,66 +42,38 @@ export async function DaysSection({ calendarId }: { calendarId: string }) {
     where: { id: calendarId },
     select: { startDate: true, endDate: true },
   });
+
+  const span = daySpan(calendar.startDate, calendar.endDate);
+
+  if (span > MAX_MANAGEABLE_DAYS) {
+    return (
+      <section style={{ marginTop: "2rem" }}>
+        <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
+        <p style={{ color: "var(--accent)" }}>
+          Este calendario dura {span} días — más de los {MAX_MANAGEABLE_DAYS} que se pueden gestionar aquí día a
+          día. Acorta el rango de fechas arriba antes de asignar vídeos.
+        </p>
+      </section>
+    );
+  }
+
   const days = await prisma.day.findMany({ where: { calendarId } });
   const dayByDate = new Map(days.map((day) => [toDateInputValue(day.date), day]));
-
-  const dates = datesInRange(calendar.startDate, calendar.endDate);
+  const dayInfos = datesInRange(calendar.startDate, calendar.endDate).map((date) => {
+    const dateStr = toDateInputValue(date);
+    const day = dayByDate.get(dateStr);
+    return {
+      dateStr,
+      label: formatCalendarDate(date),
+      videoUrl: day?.videoUrl ?? null,
+      message: day?.message ?? null,
+    };
+  });
 
   return (
     <section style={{ marginTop: "2rem" }}>
       <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
-      {/* La UX del mockup (rejilla de días que abre un panel lateral al
-          pinchar) requiere estado en cliente para saber qué día está
-          seleccionado. Se simplifica aquí a una lista de formularios
-          siempre visibles, uno por fecha — mismo patrón que el resto de la
-          app (server-rendered, sin JS de cliente más allá de los botones
-          ya existentes de pending/confirm) — decisión documentada en
-          docs/dias.md. */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {dates.map((date) => {
-          const dateStr = toDateInputValue(date);
-          const day = dayByDate.get(dateStr);
-          return (
-            <div
-              key={dateStr}
-              style={{ border: "1px solid var(--accent)", borderRadius: "0.5rem", padding: "0.75rem" }}
-            >
-              <strong>{formatCalendarDate(date)}</strong>
-              {!day && (
-                <span style={{ marginLeft: "0.5rem", fontSize: "0.85rem", color: "var(--accent)" }}>
-                  sin vídeo todavía
-                </span>
-              )}
-              <form
-                action={saveDayAction.bind(null, calendarId, dateStr)}
-                style={{ display: "flex", flexDirection: "column", gap: "0.4rem", marginTop: "0.5rem" }}
-              >
-                <input
-                  name="videoUrl"
-                  type="url"
-                  placeholder="https://…"
-                  defaultValue={day?.videoUrl ?? ""}
-                  required
-                />
-                <textarea
-                  name="message"
-                  placeholder="Mensaje del día (opcional)"
-                  defaultValue={day?.message ?? ""}
-                  rows={2}
-                />
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <button type="submit">Guardar día</button>
-                  {day && (
-                    <button type="submit" formAction={deleteDayAction.bind(null, calendarId, dateStr)}>
-                      Quitar vídeo
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
-          );
-        })}
-      </div>
+      <DaysGridEditor calendarId={calendarId} days={dayInfos} />
     </section>
   );
 }
