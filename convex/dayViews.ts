@@ -1,6 +1,9 @@
 import { internal } from "./_generated/api";
-import { internalMutation } from "./_generated/server";
+import { internalMutation, mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
+import type { Id } from "./_generated/dataModel";
+import { assertValidCalendarDate } from "./dates";
+import { requireServerSecret } from "./serverAuth";
 
 /**
  * Marca un día como visto — idempotente por (dayId, userId). Este es
@@ -12,24 +15,111 @@ import { v } from "convex/values";
  * check-then-insert de abajo nunca duplica fila — Convex serializa
  * mutations concurrentes que leen/escriben el mismo rango de índice.
  *
- * `internalMutation`, no `mutation` — ver docs/convex-modelo-de-datos.md §
- * "Sin autenticación/autorización todavía".
+ * La lógica vive en `markViewedHandler`, una función plana normal,
+ * reutilizada directamente por `markDayViewedAsUserHandler` más abajo —
+ * mismo motivo que el resto del proyecto (ver convex/users.ts/access.ts):
+ * evita duplicar el check-then-insert idempotente en dos sitios.
  */
+async function markViewedHandler(ctx: MutationCtx, args: { dayId: Id<"days">; userId: Id<"users"> }): Promise<Id<"dayViews">> {
+  // Integridad referencial (hallazgo de auditoría, ronda 1) — ver
+  // calendars.ts::createCalendar.
+  const [day, user] = await Promise.all([ctx.db.get(args.dayId), ctx.db.get(args.userId)]);
+  if (!day) throw new Error("El día indicado no existe.");
+  if (!user) throw new Error("El usuario indicado no existe.");
+
+  const existing = await ctx.db
+    .query("dayViews")
+    .withIndex("by_day_and_user", (q) => q.eq("dayId", args.dayId).eq("userId", args.userId))
+    .unique();
+  if (existing) return existing._id;
+  return await ctx.db.insert("dayViews", args);
+}
+
+// `internalMutation`, no `mutation` — ver docs/convex-modelo-de-datos.md §
+// "Sin autenticación/autorización todavía". No tiene wrapper público
+// propio: la única puerta pública para marcar un día como visto es
+// `markDayViewedAsUserPublic` (abajo), que resuelve autorización antes de
+// llamar aquí — mismo criterio que TAL-12 (`calendars.deleteCalendarAsUserPublic`,
+// no existe una versión pública "desnuda" de borrar sin comprobar rol).
 export const markViewed = internalMutation({
   args: { dayId: v.id("days"), userId: v.id("users") },
-  handler: async (ctx, args) => {
-    // Integridad referencial (hallazgo de auditoría, ronda 1) — ver
-    // calendars.ts::createCalendar.
-    const [day, user] = await Promise.all([ctx.db.get(args.dayId), ctx.db.get(args.userId)]);
-    if (!day) throw new Error("El día indicado no existe.");
-    if (!user) throw new Error("El usuario indicado no existe.");
+  handler: markViewedHandler,
+});
 
-    const existing = await ctx.db
-      .query("dayViews")
-      .withIndex("by_day_and_user", (q) => q.eq("dayId", args.dayId).eq("userId", args.userId))
-      .unique();
-    if (existing) return existing._id;
-    return await ctx.db.insert("dayViews", args);
+/**
+ * Resuelve autorización + validez del día + marcar-como-visto en UNA sola
+ * mutation — TAL-14, mismo patrón que TAL-12
+ * (`calendars.ts::deleteCalendarAsUserHandler`): nunca aceptar un
+ * resultado de autorización afirmado desde Next.js, resolverlo aquí
+ * dentro, en la misma transacción que la escritura que protege.
+ *
+ * `isSuperAdmin` se relee del documento `users` (nunca como argumento).
+ * Para el resto de casos (Guest o Admin con membership), delega en
+ * `access.resolveMemberAccess` (TAL-11, `ctx.runMutation` — llamada entre
+ * ficheros distintos, no crea la referencia circular de tipos que sí
+ * crearía delegar dentro del mismo fichero) — incluye la aceptación de
+ * invitación pendiente, el mismo camino que ya usa cualquier otra parte
+ * de la app que resuelve acceso de un Invitado, sin duplicar esa lógica
+ * aquí.
+ *
+ * Revalida en servidor que el día pertenece al calendario indicado y que
+ * su fecha ya está desbloqueada (`todayDate`, calculado en Next.js con la
+ * zona horaria real del cliente — ver `src/lib/guest-calendar.ts`) —
+ * nunca confiar en que el cliente solo pudo llegar aquí desde una puerta
+ * ya desbloqueada en la UI (esta mutation es un endpoint invocable
+ * directamente).
+ */
+async function markDayViewedAsUserHandler(
+  ctx: MutationCtx,
+  args: { calendarId: Id<"calendars">; dayId: Id<"days">; userId: Id<"users">; todayDate: string }
+): Promise<"marked" | "not-found" | "locked" | "unauthorized"> {
+  assertValidCalendarDate(args.todayDate);
+
+  const user = await ctx.db.get(args.userId);
+  if (!user) return "unauthorized";
+
+  if (!user.isSuperAdmin) {
+    const access = await ctx.runMutation(internal.access.resolveMemberAccess, {
+      calendarId: args.calendarId,
+      userId: args.userId,
+    });
+    if (!access) return "unauthorized";
+  }
+
+  const day = await ctx.db.get(args.dayId);
+  if (!day || day.calendarId !== args.calendarId) return "not-found";
+  if (day.date > args.todayDate) return "locked";
+
+  await markViewedHandler(ctx, { dayId: args.dayId, userId: args.userId });
+  return "marked";
+}
+
+export const markDayViewedAsUser = internalMutation({
+  args: {
+    calendarId: v.id("calendars"),
+    dayId: v.id("days"),
+    userId: v.id("users"),
+    todayDate: v.string(),
+  },
+  handler: markDayViewedAsUserHandler,
+});
+
+export const markDayViewedAsUserPublic = mutation({
+  args: {
+    serverSecret: v.string(),
+    calendarId: v.id("calendars"),
+    dayId: v.id("days"),
+    userId: v.id("users"),
+    todayDate: v.string(),
+  },
+  handler: async (ctx, args) => {
+    await requireServerSecret(args.serverSecret);
+    return await markDayViewedAsUserHandler(ctx, {
+      calendarId: args.calendarId,
+      dayId: args.dayId,
+      userId: args.userId,
+      todayDate: args.todayDate,
+    });
   },
 });
 

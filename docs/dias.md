@@ -334,3 +334,94 @@ TAL-12/TAL-16 en paralelo.
 Scripts de prueba no comprometidos al repo (mismo criterio que el resto
 del proyecto — sin test runner elegido todavía); los resultados quedan
 documentados aquí.
+
+## Experiencia del Invitado sobre Convex (TAL-14)
+
+`src/lib/guest-calendar.ts` (`resolveDoors`/`markDayViewed`, TAL-8) y
+`src/app/c/[calendarId]/page.tsx` (`getCalendarForGuestPage`) — TAL-10 los
+dejó lanzando `DataLayerUnavailableError` (sin BD real detrás). TAL-14 los
+reconecta contra Convex, con la frontera pública de secreto compartido de
+TAL-11 (`convex/serverAuth.ts`).
+
+### Lecturas vs. escrituras — mismo criterio ya establecido en TAL-12/16
+
+**Lectura** (`resolveDoors` → `convex/guestCalendar.ts::resolveCalendarDaysForGuestPublic`,
+nueva): calendario+días+estado de visto de un usuario, en una consulta.
+Vive en fichero propio, no en `days.ts`/`dayViews.ts` (dominio de TAL-13,
+T2) — solo lee esas tablas vía `ctx.db`, mismo criterio que
+`calendars.ts::assertNoDayOutsideRange` ya lee `days` sin tocar
+`days.ts`. No resuelve autorización dentro (a diferencia de la escritura
+de abajo): quien llama (`getDoorsAction`/`page.tsx`) ya comprobó
+`resolveCalendarAccess` (TAL-11) antes — una lectura no tiene la ventana
+de carrera que sí tiene una escritura, mismo criterio ya confirmado por
+el auditor en TAL-12 (`calendars.getPublic`).
+
+**Escritura** (`markDayViewed` → `convex/dayViews.ts::markDayViewedAsUserPublic`,
+nueva): resuelve autorización + validez del día (pertenece al calendario,
+está desbloqueado) + marcar-como-visto en UNA sola mutation. Antes de
+esta tarea, `markDayViewedAction` comprobaba `resolveCalendarAccess` por
+su cuenta ANTES de llamar a `markDayViewed` — exactamente el patrón que
+costó varias rondas de auditoría en TAL-12/TAL-16 (comprobar y actuar en
+llamadas Convex independientes deja una ventana de carrera real). Nunca
+llegó a exportarse así — se detectó el riesgo al diseñar esta tarea, antes
+de la primera ronda de auditoría, aplicando la lección directamente.
+`isSuperAdmin` se relee del documento `users` dentro de la mutation
+(nunca como argumento); para el resto de casos, delega en
+`access.resolveMemberAccess` (TAL-11, `ctx.runMutation` — llamada entre
+ficheros, no la referencia circular que crearía delegar dentro del mismo
+fichero) — incluye la aceptación de invitación pendiente, sin duplicar
+esa lógica aquí.
+
+### Zona horaria real del cliente — preservada, no relajada
+
+`todayDate` (el "hoy" contra el que se compara `Day.date` para
+bloqueado/desbloqueado) se sigue calculando en Next.js con
+`todayInTimeZone` a partir de la zona horaria REAL del navegador (cookie
+`tz`, o resuelta en cliente por `DoorGridLoader` en la primerísima visita
+— hallazgo de auditoría, TAL-8 ronda 2, sigue intacto: nunca se resuelve
+ninguna puerta con un valor por defecto tipo UTC antes de conocer la zona
+horaria real). Se manda a Convex como un string `"YYYY-MM-DD"` ya
+resuelto — un dato, no una conclusión de autorización, así que pasarlo
+como argumento no es el mismo tipo de problema que pasar `isSuperAdmin`
+(TAL-12 ronda 3): la mutation igual revalida su formato
+(`assertValidCalendarDate`) y lo usa solo para comparar contra
+`Day.date`, nunca para decidir quién es quién.
+
+### Verificado contra el deployment real (dev, compartido, con cerrojo)
+
+Bajo nivel (`ConvexHttpClient`/`npx convex run`, script temporal borrado
+tras la verificación):
+- `resolveDoors`: estados correctos (`locked`/`unseen`/`watched`) con
+  datos reales, `dayId` presente solo en días desbloqueados.
+- Invitado con invitación pendiente (sin membership todavía) SÍ puede
+  marcar un día desbloqueado como visto — confirma que
+  `access.resolveMemberAccess` (con aceptación de invitación) se invoca
+  de verdad dentro de la mutation.
+- Día todavía bloqueado (fecha futura respecto a `todayDate`) → `"locked"`,
+  no marca nada.
+- Stranger sin invitación ni membership, con un `dayId` real conocido →
+  `"unauthorized"`, no marca nada.
+- `dayId` de OTRO calendario → `"not-found"` (integridad referencial).
+- Concurrencia real (6 llamadas `npx convex run` simultáneas, procesos de
+  sistema operativo separados, mismo rigor que TAL-9/TAL-12): las 6
+  devuelven `"marked"`, una sola fila de `dayViews` para (día, usuario) —
+  idempotente de extremo a extremo, no solo en la mutation aislada
+  (requisito explícito del brief de esta tarea).
+
+HTTP real (servidor de desarrollo, login de invitado real vía invitación,
+cookie `tz` real):
+- Primera visita sin cookie `tz` → `"Cargando calendario…"` (vía
+  `DoorGridLoader`, protección de TAL-8 ronda 2 intacta).
+- Con cookie `tz` → rejilla resuelta en servidor con datos reales: el día
+  con vídeo asignado en el pasado aparece `unseen` con su `dayId`; hoy
+  aparece `isToday:true`, desbloqueado, sin vídeo (sigue "abierto" aunque
+  el Admin no le asignara nada); los días futuros aparecen `locked`.
+- Un stranger sin invitación que visita `/c/{calendarId}` → redirige a
+  `/unauthorized` (307).
+- Un `calendarId` con forma inválida → 500 (mismo comportamiento ya
+  aceptado en TAL-12 para `admin/[calendarId]/page.tsx` con el mismo
+  patrón — el validador de argumentos de Convex rechaza antes de llegar a
+  ningún dato, un fallo genuino, no una mentira).
+
+Scripts de prueba no comprometidos al repo (mismo criterio que el resto
+del proyecto); los resultados quedan documentados aquí.

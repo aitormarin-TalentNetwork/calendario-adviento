@@ -3,7 +3,6 @@
 import { todayInTimeZone } from "@/lib/calendars";
 import { markDayViewed, resolveDoors, type DoorGridResult } from "@/lib/guest-calendar";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { DataLayerUnavailableError } from "@/lib/not-migrated";
 import { resolveCalendarAccess } from "@/lib/roles";
 
 /**
@@ -13,37 +12,26 @@ import { resolveCalendarAccess } from "@/lib/roles";
  * haya llegado al servidor. Es un dato de cliente sin validar: pasa por
  * `todayInTimeZone`/`safeTimeZone`, que cae a UTC ante cualquier valor que
  * no sea una zona horaria IANA real en vez de romper la petición.
+ *
+ * TAL-14 — hallazgo de auditoría de las rondas anteriores de esta serie
+ * (TAL-12/TAL-16): esta action YA NO llama a `resolveCalendarAccess` por
+ * su cuenta antes de marcar como visto. Antes lo hacía (comprobar acceso
+ * aquí, marcar visto en una llamada Convex aparte) — exactamente el
+ * patrón que abrió la ventana de carrera de TAL-12: dos peticiones
+ * solapadas podían las dos pasar la comprobación y la segunda actuar
+ * sobre un estado ya obsoleto. `markDayViewed`
+ * (`src/lib/guest-calendar.ts` → `convex/dayViews.ts::markDayViewedAsUserHandler`)
+ * resuelve autorización + validez del día + escritura en UNA sola
+ * mutation de Convex — la identidad (`user.id`) sigue resolviéndose aquí
+ * (dato, no una conclusión de privilegio), la decisión de "¿tiene acceso?"
+ * vive enteramente dentro de esa mutation.
  */
 export async function markDayViewedAction(calendarId: string, dayId: string, timeZone: string) {
   const user = await getAuthorizedUser();
   if (!user) return { ok: false as const, error: "not-found" as const };
 
-  // Mismo criterio de acceso que la propia página del calendario del
-  // Invitado (Guest o Admin con membership, o Super Admin) — una server
-  // action es un endpoint invocable directamente, no solo lo que ya
-  // renderizó la página.
-  const access = await resolveCalendarAccess(user, calendarId);
-  if (!access) return { ok: false as const, error: "not-found" as const };
-
   const today = todayInTimeZone(new Date(), timeZone);
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura:
-  // `markDayViewed` lanza `DataLayerUnavailableError`. Se atrapa aquí para
-  // seguir devolviendo la forma tipada `MarkViewedResult` en vez de dejar
-  // la promesa rechazada sin gestionar (`startTransition` en
-  // `door-grid.tsx` se comía el rechazo en silencio y `setMarkError` nunca
-  // se disparaba) — pero el motivo se mapea a `"unavailable"`, no a
-  // `"not-found"` (hallazgo de auditoría, ronda 2: la capa de datos no
-  // determinó que el día no exista, solo que no se pudo consultar —
-  // devolver `"not-found"` aquí era exactamente la clasificación falsa que
-  // esta tarea pretendía eliminar en el resto de la app, aunque hoy
-  // `door-grid.tsx` solo mire `result.ok` y no el motivo concreto, un
-  // consumidor futuro que sí lo lea no debe encontrarse un dato inventado).
-  try {
-    return await markDayViewed(calendarId, dayId, user.id, today);
-  } catch (err) {
-    if (!(err instanceof DataLayerUnavailableError)) throw err;
-    return { ok: false as const, error: "unavailable" as const };
-  }
+  return await markDayViewed(calendarId, dayId, user.id, today);
 }
 
 export type GetDoorsResult = DoorGridResult | { ok: false; reason: "unauthorized" | "network-error" };
@@ -56,7 +44,13 @@ export type GetDoorsResult = DoorGridResult | { ok: false; reason: "unauthorized
  * con un valor por defecto podía filtrar en la respuesta inicial el
  * vídeo/mensaje de un día que en la zona horaria real de quien mira
  * todavía es futuro — el refresco posterior de `TimezoneSync` no revoca lo
- * que ya se mandó). Mismo criterio de acceso que `markDayViewedAction`.
+ * que ya se mandó).
+ *
+ * Esta sí comprueba `resolveCalendarAccess` por separado antes de leer —
+ * es una LECTURA, no tiene la ventana de carrera de una escritura (releer
+ * un instante después de comprobar acceso no permite a nadie actuar sobre
+ * nada ni escalar privilegio), mismo criterio ya confirmado por el
+ * auditor para las lecturas de TAL-12 (`calendars.getPublic`).
  */
 export async function getDoorsAction(calendarId: string, timeZone: string): Promise<GetDoorsResult> {
   const user = await getAuthorizedUser();
