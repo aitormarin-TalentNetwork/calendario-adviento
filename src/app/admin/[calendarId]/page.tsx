@@ -1,5 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { deleteCalendarAction, updateCalendarAction } from "@/app/admin/actions";
+import { DaysSection } from "@/app/admin/[calendarId]/days-section";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SubmitButton } from "@/components/submit-button";
 import { signOut } from "@/lib/auth";
@@ -88,6 +89,8 @@ export default async function AdminCalendarPage({
         </label>
         <SubmitButton>Guardar cambios</SubmitButton>
       </form>
+
+      <DaysSection calendarId={calendar.id} />
 
       <form action={deleteCalendarAction.bind(null, calendar.id)} style={{ marginTop: "2rem" }}>
         <ConfirmSubmitButton
