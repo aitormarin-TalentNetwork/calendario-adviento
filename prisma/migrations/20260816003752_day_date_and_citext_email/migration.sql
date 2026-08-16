@@ -1,0 +1,11 @@
+-- CreateExtension
+CREATE EXTENSION IF NOT EXISTS "citext";
+
+-- AlterTable
+ALTER TABLE "Day" ALTER COLUMN "date" SET DATA TYPE DATE;
+
+-- AlterTable
+ALTER TABLE "Invitation" ALTER COLUMN "email" SET DATA TYPE CITEXT;
+
+-- AlterTable
+ALTER TABLE "User" ALTER COLUMN "email" SET DATA TYPE CITEXT;

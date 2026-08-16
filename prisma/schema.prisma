@@ -4,17 +4,23 @@
 // cada decisión de modelado.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider   = "postgresql"
+  extensions = [citext]
 }
 
 model User {
   id           String   @id @default(uuid())
-  email        String   @unique
+  // citext en vez de String: unicidad insensible a mayúsculas a nivel de BD
+  // (Postgres por defecto distingue persona@gmail.com de Persona@gmail.com,
+  // lo que permitiría cuentas duplicadas del mismo Gmail — hallazgo de
+  // auditoría, ronda 1).
+  email        String   @unique @db.Citext
   name         String?
   // Flag global, independiente de cualquier Calendar concreto — gestiona todo
   // el sistema (crea calendarios, etc.). El rol Admin/Guest, en cambio, es por
@@ -31,9 +37,9 @@ enum CalendarRole {
 }
 
 model Calendar {
-  id    String @id @default(uuid())
+  id            String   @id @default(uuid())
   // Nombre interno, visible solo para quien administra el calendario.
-  name  String
+  name          String
   // Título alegre mostrado en la portada pública a los invitados (PRD:
   // "título alegre y una foto, configurable por calendario").
   coverTitle    String
@@ -44,7 +50,7 @@ model Calendar {
   updatedAt     DateTime @updatedAt
 
   skinId String
-  skin   Skin @relation(fields: [skinId], references: [id])
+  skin   Skin   @relation(fields: [skinId], references: [id])
 
   memberships CalendarMembership[]
   days        Day[]
@@ -55,9 +61,9 @@ model Calendar {
 // del User: la misma persona puede ser Admin de un calendario e Invitado de
 // otro, de ahí la tabla intermedia con el rol colgando de la relación.
 model CalendarMembership {
-  id         String       @id @default(uuid())
-  role       CalendarRole
-  createdAt  DateTime     @default(now())
+  id        String       @id @default(uuid())
+  role      CalendarRole
+  createdAt DateTime     @default(now())
 
   calendarId String
   calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
@@ -72,7 +78,11 @@ model CalendarMembership {
 // de texto opcional que lo acompaña.
 model Day {
   id       String   @id @default(uuid())
-  date     DateTime
+  // @db.Date (no DateTime completo): un día natural, sin hora ni zona
+  // horaria — con DateTime, 2026-12-01T00:00 y 2026-12-01T12:00 pasaban la
+  // unicidad como si fueran días distintos, rompiendo "un día = una puerta"
+  // (hallazgo de auditoría, ronda 1).
+  date     DateTime @db.Date
   videoUrl String
   message  String?
 
@@ -88,7 +98,9 @@ model Day {
 // falta un campo de estado aquí para eso.
 model Invitation {
   id        String   @id @default(uuid())
-  email     String
+  // citext, mismo motivo que User.email — evita invitar dos veces al mismo
+  // correo con distinta capitalización (hallazgo de auditoría, ronda 1).
+  email     String   @db.Citext
   createdAt DateTime @default(now())
 
   calendarId String

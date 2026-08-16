@@ -1,6 +1,8 @@
-// Siembra el catálogo fijo de Skin. Ejecutar con `npx prisma db seed` (o
-// automáticamente tras `prisma migrate dev`/`reset`, ver prisma.config.ts).
-// Idempotente: se puede correr varias veces sin duplicar filas.
+// Siembra el catálogo fijo de Skin. Ejecutar con `npx prisma db seed`
+// (Prisma 7 no lo dispara solo tras `migrate dev`/`reset` — hay que
+// invocarlo aparte). Idempotente: se puede correr varias veces sin duplicar
+// filas, y retira los que ya no están en SKINS (si no están en uso).
+import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "../src/generated/prisma/client.js";
 
@@ -22,7 +24,20 @@ async function main() {
       create: skin,
     });
   }
-  console.log(`Seed OK: ${SKINS.length} skins.`);
+
+  const keys = SKINS.map((skin) => skin.key);
+  const retired = await prisma.skin.findMany({ where: { key: { notIn: keys } } });
+  let removed = 0;
+  for (const skin of retired) {
+    try {
+      await prisma.skin.delete({ where: { id: skin.id } });
+      removed += 1;
+    } catch {
+      console.warn(`No se pudo retirar el skin "${skin.key}" — sigue en uso por algún Calendar.`);
+    }
+  }
+
+  console.log(`Seed OK: ${SKINS.length} skins (${removed} retirados).`);
 }
 
 main()
