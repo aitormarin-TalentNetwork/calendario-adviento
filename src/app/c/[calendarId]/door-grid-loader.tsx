@@ -26,9 +26,18 @@ export function DoorGridLoader({ calendarId }: { calendarId: string }) {
     const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     document.cookie = `${COOKIE_NAME}=${encodeURIComponent(timeZone)}; path=/; max-age=31536000; samesite=lax`;
 
-    getDoorsAction(calendarId, timeZone).then((r) => {
-      if (!cancelled) setResult(r);
-    });
+    getDoorsAction(calendarId, timeZone)
+      .then((r) => {
+        if (!cancelled) setResult(r);
+      })
+      .catch(() => {
+        // Fallo de red/servidor al pedir las puertas (no un `ok:false` de
+        // negocio, que ya llega como valor normal más abajo) — sin este
+        // catch, la promesa rechazada se quedaba sin gestionar y la
+        // pantalla se quedaba en "Cargando…" para siempre (no bloqueante,
+        // hallazgo de auditoría, ronda 3).
+        if (!cancelled) setResult({ ok: false, reason: "network-error" });
+      });
     return () => {
       cancelled = true;
     };

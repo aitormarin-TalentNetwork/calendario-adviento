@@ -28,7 +28,7 @@ export async function markDayViewedAction(calendarId: string, dayId: string, tim
   return markDayViewed(calendarId, dayId, user.id, today);
 }
 
-export type GetDoorsResult = DoorGridResult | { ok: false; reason: "unauthorized" };
+export type GetDoorsResult = DoorGridResult | { ok: false; reason: "unauthorized" | "network-error" };
 
 /**
  * Resuelve las puertas en la zona horaria real del cliente — la usa
