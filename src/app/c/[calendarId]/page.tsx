@@ -1,6 +1,8 @@
 import { notFound, redirect } from "next/navigation";
+import { DoorGrid } from "@/app/c/[calendarId]/door-grid";
 import { signOut } from "@/lib/auth";
 import { getAuthorizedUser } from "@/lib/current-user";
+import { resolveDoors } from "@/lib/guest-calendar";
 import { prisma } from "@/lib/prisma";
 import { resolveCalendarAccess } from "@/lib/roles";
 
@@ -21,22 +23,35 @@ export default async function GuestCalendarPage({
   const access = await resolveCalendarAccess(user, calendarId);
   if (!access) redirect("/unauthorized");
 
+  const result = await resolveDoors(calendarId, user.id, new Date());
+
   return (
     <main style={{ flex: 1, padding: "2rem" }}>
-      <h1>{calendar.coverTitle}</h1>
-      <p style={{ color: "var(--accent)" }}>
-        Sesión: {user.email} (
-        {access.kind === "super-admin" ? "Super Admin" : access.role}) — la
-        cuadrícula de puertas es contenido real de TAL-5.
-      </p>
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/login" });
-        }}
-      >
-        <button type="submit">Cerrar sesión</button>
-      </form>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "1.5rem" }}>
+        <div>
+          <h1>{calendar.coverTitle}</h1>
+          <p style={{ color: "var(--accent)" }}>
+            Sesión: {user.email} ({access.kind === "super-admin" ? "Super Admin" : access.role})
+          </p>
+        </div>
+        <form
+          action={async () => {
+            "use server";
+            await signOut({ redirectTo: "/login" });
+          }}
+        >
+          <button type="submit">Cerrar sesión</button>
+        </form>
+      </div>
+
+      {result.ok ? (
+        <DoorGrid calendarId={calendarId} doors={result.doors} />
+      ) : (
+        <p style={{ color: "var(--accent)" }}>
+          Este calendario tiene un rango de fechas demasiado largo ({result.span} días) para mostrarlo aquí —
+          contacta con quien lo administra.
+        </p>
+      )}
     </main>
   );
 }
