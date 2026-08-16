@@ -1,4 +1,4 @@
-import { mutation, query } from "./_generated/server";
+import { internalMutation, internalQuery } from "./_generated/server";
 import { v } from "convex/values";
 
 /**
@@ -11,8 +11,14 @@ import { v } from "convex/values";
  * de índice — el check-then-insert de abajo es seguro tal cual (verificado
  * con concurrencia real, ver docs/convex-modelo-de-datos.md §
  * "Concurrencia").
+ *
+ * `internalMutation`/`internalQuery`, no `mutation`/`query` — ver
+ * docs/convex-modelo-de-datos.md § "Sin autenticación/autorización
+ * todavía" (hallazgo de auditoría, ronda 1): estas funciones no tienen
+ * ningún control de acceso, así que no pueden ser API pública invocable
+ * por cualquiera con la URL del deployment.
  */
-export const createUser = mutation({
+export const createUser = internalMutation({
   args: { email: v.string(), name: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const email = args.email.trim().toLowerCase();
@@ -25,7 +31,7 @@ export const createUser = mutation({
   },
 });
 
-export const getByEmail = query({
+export const getByEmail = internalQuery({
   args: { email: v.string() },
   handler: async (ctx, args) => {
     const email = args.email.trim().toLowerCase();

@@ -51,9 +51,12 @@ mismas relaciones. Diferencias de traducción, tabla por tabla:
   `startDate`/`endDate` como `v.string()` en formato `"YYYY-MM-DD"`, no un
   timestamp — ver "Fechas como día natural" más abajo. `skinId` es
   `v.id("skins")`, el tipo nativo de Convex para una referencia a otro
-  documento — más fuerte que el `String skinId + @relation` de Prisma, porque
-  el propio sistema de tipos de Convex garantiza que apunta a un documento
-  real de esa tabla. `updatedAt` sí es un campo propio (`v.number()`,
+  documento — valida que el string tiene el formato correcto Y que
+  pertenece a la tabla `skins` (no vale un id real de otra tabla), pero NO
+  que el documento sigue existiendo — ver "Integridad referencial" más
+  abajo, es una garantía más débil de lo que este párrafo daba a entender
+  en la ronda 1 (hallazgo de auditoría). `updatedAt` sí es un campo propio
+  (`v.number()`,
   epoch-ms) — a diferencia de `@updatedAt` en Prisma, Convex **no** actualiza
   ningún campo automáticamente al hacer `patch`/`replace`; cualquier mutation
   que modifique un `calendar` tiene que poner `updatedAt: Date.now()` a mano
@@ -85,6 +88,49 @@ antes de insertar. La unicidad, por tanto, no vive en el schema — vive en el
 código de cada mutation (`convex/*.ts`), y depende de que todo el código que
 inserte en esa tabla pase por esa comprobación. Es una garantía de convención,
 no de plataforma — ver "Qué se pierde al no haber `@unique`" más abajo.
+
+## Integridad referencial
+
+`v.id("skins")`, `v.id("calendars")`, etc. en los `args` de una mutation
+validan dos cosas: que el string tiene el formato de id de Convex, y que
+pertenece a la tabla indicada (probado: pasar el id real de un `User` donde
+se espera un `v.id("skins")` se rechaza con
+`ArgumentValidationError: ... which does not match the table name in
+validator`). **Lo que NO validan es que el documento referenciado siga
+existiendo** — un id con formato y tabla correctos de un documento ya
+borrado pasa la validación del tipo igual (hallazgo de auditoría, ronda 1;
+la documentación de la ronda 1 afirmaba lo contrario para `skinId`, error
+corregido aquí). A diferencia de una FK real de Postgres (que Prisma
+traduce a `@relation`, con la garantía de la BD detrás), Convex no impide
+insertar una referencia rota.
+
+Corregido añadiendo `ctx.db.get(id)` + comprobación explícita de `null`
+al principio de cada mutation que recibe una referencia de otra tabla,
+antes de escribir: `createCalendar` (`skinId`), `addMembership`
+(`calendarId` y `userId`), `inviteGuest` (`calendarId`), `markViewed`
+(`dayId` y `userId`). `upsertDay` ya lo hacía de antes para `calendarId`
+(necesitaba leer el `Calendar` de todas formas para la invariante de
+rango). Verificado contra el deployment real con un caso que la validación
+de tipo por sí sola NO detecta: crear un `Skin`, borrarlo (mutation
+temporal solo para esta prueba), e intentar `createCalendar` con ese
+`skinId` — formato y tabla correctos, documento ya no existe → rechazado
+por el `ctx.db.get` nuevo, con "El skin indicado no existe."
+
+**Sigue sin haber cascade automático al borrar** (parte del mismo
+hallazgo): `onDelete: Cascade` en Prisma garantizaba, a nivel de schema,
+que borrar un `Calendar` se llevaba por delante sus `Day`,
+`CalendarMembership` e `Invitation` — sin que ninguna mutation de
+aplicación tuviera que acordarse de hacerlo a mano. Convex no tiene un
+equivalente declarativo. Esta tarea no incluye ninguna mutation de borrado
+todavía (fuera de alcance de TAL-9), así que no hay código que corregir
+hoy — pero queda anotado para quien escriba la primera mutation de
+"borrar calendario" (TAL-10+): tendrá que borrar explícitamente, en la
+misma mutation (Convex es transaccional, así que un borrado parcial a
+medias no puede quedar a mitad camino), todos los `Day`,
+`CalendarMembership`, `Invitation` y — transitivamente — `DayView` de los
+`Day` borrados. Sin esto, borrar un `Calendar` dejaría huérfanos exactamente
+del tipo que este documento lleva describiendo: referencias con formato y
+tabla correctos, apuntando a nada.
 
 ## Email insensible a mayúsculas
 
@@ -154,6 +200,18 @@ formato exacto y rechaza fechas que `Date.UTC` "arrastraría" al mes siguiente
 en vez de fallar. Se llama al principio de `createCalendar`,
 `updateCalendarRange` y `upsertDay` — cualquier mutation futura que reciba una
 de estas fechas del cliente (TAL-10+) debe llamarla también.
+
+**Tampoco se comprobaba que `startDate <= endDate`** (hallazgo de
+auditoría, ronda 1): `createCalendar("2026-12-25", "2026-12-01")` (rango
+invertido) se insertaba tal cual — la versión Prisma lo evitaba solo de
+forma implícita (`defaultCalendarDateRange` siempre genera un rango
+válido, y el formulario de edición no permite mandar uno invertido), sin
+una comprobación explícita equivalente. Corregido con
+`assertRangeNotInverted` (`convex/calendars.ts`), llamada en
+`createCalendar` y `updateCalendarRange` después de validar que ambas
+fechas son reales. Verificado contra el deployment real: rango invertido
+rechazado tanto al crear como al actualizar; rango válido sin cambios de
+comportamiento.
 
 ## Invariante de rango Calendar/Day
 
@@ -244,6 +302,60 @@ garantía transaccional/de reintento automático de las mutations, precisamente
 para que el código con efectos externos no idempotentes decida su propia
 estrategia de reintento en vez de heredar la de la base de datos.
 
+## Sin autenticación/autorización todavía — deliberado, temporal
+
+Hasta esta ronda, `calendars.ts`, `calendarMemberships.ts`,
+`invitations.ts`, `days.ts`, `dayViews.ts`, `users.ts` y `skins.ts`
+exportaban `mutation`/`query` — funciones **públicas**, invocables por
+cualquiera con la URL del deployment (`NEXT_PUBLIC_CONVEX_URL`), sin que
+ninguna comprobara sesión ni rol. Cualquiera podía crear calendarios,
+usuarios, invitaciones o membresías `ADMIN` arbitrarias (hallazgo de
+auditoría, ronda 1). Confirmado y cerrado esta ronda, no dejado como "hueco
+temporal" implícito:
+
+**Todas las funciones de `convex/*.ts` pasan a ser `internalMutation`/
+`internalQuery`.** Una función interna de Convex no es alcanzable desde el
+cliente público (`ConvexHttpClient`, o el SDK de React) bajo ninguna
+circunstancia — es una barrera que impone el propio servidor de Convex, no
+una convención de código que dependa de que nadie la salte por error.
+Verificado contra el deployment real: llamar a `internal.users.createUser`
+con `ConvexHttpClient` (el mismo cliente que usan las pruebas de este
+documento) devuelve `Could not find public function for
+'users:createUser'.` — rechazado de raíz, el servidor ni siquiera la
+reconoce como invocable desde ahí. Solo son alcanzables desde dentro de
+otra función de Convex (`ctx.runMutation(internal.foo.bar, args)`) o desde
+la CLI ya autenticada como administrador (`npx convex run`, el mismo canal
+que usan las pruebas de concurrencia de este documento — ver "Evidencia").
+
+**Por qué no añadir `ctx.auth`/comprobación de rol dentro de cada función
+en su lugar** (que sería la alternativa obvia): T2 investigó en paralelo
+cómo conectar Auth.js/NextAuth con Convex para TAL-11
+(`docs/convex-auth-investigacion-tal11.md`, en su worktree) y encontró dos
+patrones "oficiales" de Convex con gotchas reales — uno que el propio
+Convex no garantiza como seguro sin piezas adicionales, otro que puede
+reintroducir el mismo tipo de carrera que costó 2 rondas en TAL-7 si la
+autorización se trocea en varias llamadas en vez de una sola. Su
+recomendación, que se sigue aquí en vez de decidir algo distinto sin
+haberla visto: NextAuth sigue siendo la única fuente de sesión,
+`resolveCalendarAccess` (Next.js) sigue siendo el único punto que decide
+"quién puede hacer qué", y llama a Convex vía una única mutation por
+operación — ninguna función de Convex necesita `ctx.auth` para este
+proyecto. Diseñar eso en detalle es TAL-11, no esta tarea; aquí solo se
+cierra el hueco de "ahora mismo es una API pública sin ningún control" con
+la herramienta correcta (funciones internas), sin adelantar una decisión
+de arquitectura de autenticación que no corresponde a TAL-9.
+
+**Esto sigue siendo aceptable solo por el estado actual del proyecto, no
+en general**: este deployment no tiene datos de producción (el milestone
+completo de Convex parte de cero, ver "Qué no toca esta tarea"), y
+`convex/*.ts` no está conectado a la app Next.js todavía. En cuanto TAL-10
+empiece a conectar la app de verdad, la autorización real (quién puede
+llamar a qué, sea vía `ctx.auth` en casos concretos o vía el único punto
+de decisión en Next.js que recomienda T2) tiene que estar resuelta antes
+de exponer esto de verdad — no basta con que las funciones sean internas
+para siempre si en algún momento una `action` pública de Convex necesita
+invocarlas en nombre de un usuario real.
+
 ## Concurrencia
 
 El brief pedía explícitamente no asumir cómo se comporta Convex bajo
@@ -287,57 +399,85 @@ reales, no es magia que cubra cualquier bug de lógica).
 ## Evidencia
 
 Todas las pruebas corrieron contra el deployment real de desarrollo
-(`beloved-barracuda-617.convex.cloud`), vía `ConvexHttpClient` (uno **nuevo
-por llamada** en las pruebas de concurrencia — simula pestañas/clientes
-independientes de verdad, evitando la cola de mutations interna que un mismo
-`ConvexHttpClient` aplica por defecto, que habría serializado las llamadas
-del lado del cliente y falseado la prueba):
+(`beloved-barracuda-617.convex.cloud`).
+
+**Cambio de mecanismo de invocación en esta ronda**: desde que todo pasó a
+`internalMutation`/`internalQuery` (hallazgo #3, ver arriba), ya no son
+alcanzables con `ConvexHttpClient` (el cliente público que usaban las
+pruebas de la ronda 1) — verificado: intentarlo devuelve `Could not find
+public function for '<módulo>:<función>'`. Las pruebas de esta ronda usan
+`npx convex run <función> '<json>'` (CLI ya autenticada como
+administrador) en su lugar. Para las pruebas de concurrencia, cada llamada
+es un **proceso `npx convex run` independiente** lanzado con
+`Promise.all`/sin `await` entre medias — más representativo aún de
+"pestañas/clientes reales e independientes" que instancias de un cliente
+HTTP en el mismo proceso Node, porque cada una es un proceso del SO
+separado.
 
 1. **Email insensible a mayúsculas**: `createUser("Foo.Bar@Example.COM")`
-   seguido de `createUser("foo.bar@example.com")` devuelven el mismo `_id`;
-   `getByEmail("FOO.BAR@EXAMPLE.COM")` encuentra ese usuario.
-2. **Idempotencia de `creationKey` bajo concurrencia real**: 5
-   `createCalendar` disparados a la vez (`Promise.all`, 5 clientes
-   independientes) con la misma `creationKey` → 1 solo `_id` único entre las
-   5 respuestas.
-3. **Invariante de rango, mitad "guardar día"**: `upsertDay` con una fecha
+   seguido de `createUser("foo.bar@example.com")` devuelven el mismo `_id`.
+2. **Integridad referencial** (hallazgo #1, esta ronda): `v.id("skins")`
+   por sí solo NO detecta un documento borrado — probado creando un
+   `Skin`, borrándolo (mutation temporal solo para esta prueba, eliminada
+   después) y llamando a `createCalendar` con ese `skinId` (formato y
+   tabla correctos, documento ya no existe) → rechazado por el
+   `ctx.db.get` nuevo con "El skin indicado no existe." Confirma que la
+   corrección hace algo que la validación de tipo de Convex por sí sola no
+   hacía (distinto de pasar un id de la tabla equivocada, que Convex ya
+   rechazaba solo — probado también: `ArgumentValidationError ... which
+   does not match the table name in validator`).
+3. **Rango invertido rechazado** (hallazgo #2, esta ronda):
+   `createCalendar(startDate="2026-12-25", endDate="2026-12-01")` →
+   rechazado. `updateCalendarRange` con el mismo patrón sobre un
+   calendario ya existente → también rechazado. Rango válido → sin cambio
+   de comportamiento.
+4. **Funciones internas, no públicas** (hallazgo #3, esta ronda):
+   `ConvexHttpClient` intentando `internal.users.createUser` → rechazado
+   por el propio servidor (`Could not find public function`), no por
+   ningún filtro del lado del cliente.
+5. **Idempotencia de `creationKey` bajo concurrencia real**: 5
+   `createCalendar` (5 procesos `npx convex run` a la vez) con la misma
+   `creationKey` → 1 solo `_id` único entre las 5 respuestas.
+6. **Invariante de rango, mitad "guardar día"**: `upsertDay` con una fecha
    anterior a `startDate` → rechazado. Con una fecha dentro de rango →
    aceptado.
-4. **Invariante de rango, mitad "cambiar rango del calendario"**: con un
-   `Day` ya guardado dentro del rango, `updateCalendarRange` a un rango que
-   lo dejaría fuera → rechazado con mensaje explícito. A un rango que lo
-   mantiene dentro → aceptado, `Calendar` actualizado.
-4bis. **Invariante de rango, la CARRERA real entre las dos mitades**
-   (segunda opinión, T2 — ver "Invariante de rango Calendar/Day" arriba):
+7. **Invariante de rango, mitad "cambiar rango del calendario"**: con un
+   `Day` ya guardado dentro del rango, `updateCalendarRange` a un rango
+   que lo dejaría fuera → rechazado. A un rango que lo mantiene dentro →
+   aceptado.
+8. **Invariante de rango, la CARRERA real entre las dos mitades** (T2,
+   ronda 1 de auditoría) — repetida esta ronda tras cambiar `collect()`
+   por las dos consultas acotadas por índice (sugerencia no bloqueante):
    `updateCalendarRange` (encogiendo para dejar fuera una fecha) y
-   `upsertDay` (guardando esa fecha exacta) disparados a la vez sobre el
-   mismo calendario, 25 repeticiones con calendarios frescos en cada una →
-   0 violaciones de la invariante en las 25, con reparto real de quién
-   "gana" cada vez (10/25 `upsertDay`, 15/25 `updateCalendarRange`, 0/25
-   ambas triunfando simultáneamente).
-4ter. **Validación de formato de fecha** (segunda opinión, T2):
+   `upsertDay` (guardando esa fecha exacta) a la vez sobre el mismo
+   calendario, 15 repeticiones con calendarios frescos en cada una → **0
+   violaciones** en las 15, reparto real de quién "gana" (5/15
+   `upsertDay`, 10/15 `updateCalendarRange`, 0/15 ambas a la vez) —
+   confirma que la consulta acotada por índice sigue leyendo exactamente
+   el rango donde puede estar el día conflictivo, tal como se razonaba en
+   la ronda 1, y sigue siendo correcta bajo la carrera real tras el
+   cambio.
+9. **Validación de formato de fecha** (T2, ronda 1 de auditoría):
    `assertValidCalendarDate` rechaza `"2026-13-01"` (mes inválido),
    `"2026-02-30"` (día que no existe ese mes) y `"01-12-2026"` (formato
-   distinto) en `createCalendar`/`updateCalendarRange`/`upsertDay`; acepta
-   fechas reales bien formadas sin cambios.
-5. **DayView, idempotencia bajo concurrencia real** (el caso exacto de P2002
-   en TAL-8 ronda 1): 5 `markViewed` disparados a la vez para el mismo
-   `(dayId, userId)` → 1 solo `_id` único entre las 5 respuestas.
-6. **Control negativo** (verificación honesta, mismo criterio que
-   `docs/invitados.md`): una mutation deliberadamente rota
-   (`insert` directo, sin comprobar si ya existe) sometida a 10 llamadas
-   concurrentes reales para el mismo `(dayId, userId)` → **10 filas
-   duplicadas** (10 `_id` distintos). Confirma que el arnés de prueba
-   detecta el fallo real cuando la protección no está — no que "da OK pase lo
-   que pase". Ese fichero de control negativo era temporal, no forma parte
-   del schema final (se borró y se redesplegó tras la prueba).
-7. **CalendarMembership**, único por `(calendarId, userId)` bajo
-   concurrencia: 5 `addMembership` concurrentes → 1 solo `_id`.
-8. **Invitation**, único por `(calendarId, email normalizado)` bajo
-   concurrencia, con mayúsculas mezcladas entre llamadas → 1 solo `_id`.
-9. `npx convex dev --once` (build/typecheck real del schema + todas las
-   mutations/queries contra el deployment): limpio, sin errores — Convex
-   valida el schema y regenera `convex/_generated/` en cada push.
+   distinto); acepta fechas reales bien formadas sin cambios.
+10. **DayView, idempotencia bajo concurrencia real** (el caso exacto de
+    P2002 en TAL-8 ronda 1): 5 `markViewed` (5 procesos a la vez) para el
+    mismo `(dayId, userId)` → 1 solo `_id` único.
+11. **Control negativo** (verificación honesta, mismo criterio que
+    `docs/invitados.md`; corrido en la ronda 1, no repetido esta ronda
+    porque el mecanismo que prueba — `insert` directo sin
+    check-then-insert — no cambió): una mutation deliberadamente rota
+    sometida a 10 llamadas concurrentes reales para el mismo `(dayId,
+    userId)` → **10 filas duplicadas**. Confirma que el arnés de prueba
+    detecta el fallo real cuando la protección no está.
+12. **CalendarMembership**, único por `(calendarId, userId)` bajo
+    concurrencia real (5 procesos): 1 solo `_id`.
+13. **Invitation**, único por `(calendarId, email normalizado)` bajo
+    concurrencia real (5 procesos), con mayúsculas mezcladas entre
+    llamadas: 1 solo `_id`.
+14. `npx convex dev --once` (build/typecheck real del schema y todas las
+    mutations/queries contra el deployment): limpio, sin errores.
 
 Scripts de prueba no comprometidos al repo (mismo criterio que TAL-2/TAL-5/
 TAL-7 — el proyecto no tiene test runner elegido todavía); los resultados
