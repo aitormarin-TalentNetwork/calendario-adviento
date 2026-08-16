@@ -1,8 +1,7 @@
-import { randomUUID } from "node:crypto";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createCalendarAction } from "@/app/admin/actions";
-import { SubmitButton } from "@/components/submit-button";
+import { NewCalendarSubmit } from "@/components/new-calendar-submit";
 import { formatCalendarDate, listAdminCalendars } from "@/lib/calendars";
 import { signOut } from "@/lib/auth";
 import { getAuthorizedUser } from "@/lib/current-user";
@@ -38,12 +37,12 @@ export default async function AdminCalendarsPage() {
       )}
 
       <form action={createCalendarAction} style={{ marginTop: "1.5rem" }}>
-        {/* Generada una vez por render: mientras no se recargue la página,
-            un doble clic o un reenvío del mismo formulario manda la misma
-            clave y el servidor lo trata como el mismo intento — ver
-            createCalendarForAdmin. */}
-        <input type="hidden" name="creationKey" value={randomUUID()} />
-        <SubmitButton>+ Nuevo calendario</SubmitButton>
+        {/* creationKey asignado tras montar, exclusivamente en cliente
+            (TAL-19 — ver src/components/new-calendar-submit.tsx): mientras
+            no se recargue la página, un doble clic o un reenvío del mismo
+            formulario manda la misma clave y el servidor lo trata como el
+            mismo intento — ver createCalendarForAdmin. */}
+        <NewCalendarSubmit />
       </form>
 
       <form
