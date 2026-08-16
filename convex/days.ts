@@ -1,5 +1,6 @@
 import { mutation } from "./_generated/server";
 import { v } from "convex/values";
+import { assertValidCalendarDate } from "./dates";
 
 /**
  * Upsert por (calendarId, date) — equivalente a `saveDayAction` (TAL-6).
@@ -17,6 +18,8 @@ export const upsertDay = mutation({
     message: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    assertValidCalendarDate(args.date);
+
     const calendar = await ctx.db.get(args.calendarId);
     if (!calendar) throw new Error("El calendario ya no existe.");
     if (args.date < calendar.startDate || args.date > calendar.endDate) {

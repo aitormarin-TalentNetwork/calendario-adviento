@@ -142,6 +142,19 @@ este caso de uso, no un compromiso — Postgres `DATE` sigue siendo, por debajo,
 un valor con una zona horaria de sesión implícita en algunas operaciones; un
 string de calendario no tiene ninguna.
 
+**El `v.string()` del schema no impone el formato** (hallazgo de segunda
+opinión, T2, antes de exportar la ronda 1): toda la garantía de "orden
+lexicográfico == orden cronológico" de arriba depende de que el valor sea
+SIEMPRE `"YYYY-MM-DD"` exacto — nada en `v.string()` lo comprueba, así que un
+valor mal formado (o una fecha que no existe, tipo `"2026-02-30"`) rompía la
+comparación en silencio en cualquier mutation que lo usara. Corregido con
+`assertValidCalendarDate` (`convex/dates.ts`) — mismo criterio que
+`parseUtcDateOnly` en `src/lib/calendars.ts` (versión Prisma): exige el
+formato exacto y rechaza fechas que `Date.UTC` "arrastraría" al mes siguiente
+en vez de fallar. Se llama al principio de `createCalendar`,
+`updateCalendarRange` y `upsertDay` — cualquier mutation futura que reciba una
+de estas fechas del cliente (TAL-10+) debe llamarla también.
+
 ## Invariante de rango Calendar/Day
 
 La invariante "todo `Day` está dentro del rango de su `Calendar`" se hizo
@@ -184,6 +197,52 @@ código de cambio de rango tiene que ser literalmente una llamada a
 `updateCalendarRange` (o vivir dentro de ella), nunca un `ctx.db.patch` propio
 que la esquive — dejarlo anotado aquí para que quien haga TAL-10 no lo
 reintroduzca sin darse cuenta.
+
+**El Dashboard de Convex es otro punto donde esta garantía de convención no
+alcanza** (hallazgo de segunda opinión, T2): el argumento de arriba ("toda
+escritura pasa por una mutation definida en código") es cierto para la app,
+pero el Dashboard de Convex (`https://dashboard.convex.dev`) permite editar,
+crear o borrar cualquier documento a mano, sin pasar por ninguna mutation ni
+por `updateCalendarRange`/`upsertDay` — y Aitor va a tener acceso a ese
+Dashboard. Es una limitación conocida, no algo que este schema pueda cerrar
+por sí solo (ninguna plataforma evita que quien tiene acceso de administrador
+edite datos a mano); se documenta aquí para que quede explícito, mismo
+espíritu que el resto de esta sección: mejor una garantía más débil declarada
+a las claras que una asumida sin comprobar.
+
+**Verificado como carrera real, no solo mutation por mutation** (hallazgo de
+segunda opinión, T2 — mismo tipo de fallo que costó 2 rondas en TAL-7,
+`docs/invitados.md`: razonar cada mitad de una invariante por separado no
+basta cuando lo que importa es qué pasa si las dos escrituras concurren de
+verdad). La evidencia inicial de esta invariante probaba `upsertDay` y
+`updateCalendarRange` cada una por su cuenta; no bastaba. Se añadió una
+prueba de la CARRERA entre las dos sobre el mismo calendario: encoger el
+rango (`updateCalendarRange`) justo hasta dejar fuera una fecha, mientras a
+la vez se guarda un `Day` en esa fecha exacta (`upsertDay`), repetido 25
+veces con calendarios frescos en cada intento (ver "Evidencia" — 10/25
+"ganó" `upsertDay`, 15/25 "ganó" `updateCalendarRange`, 0/25 con las dos
+triunfando a la vez, 0/25 violaciones de la invariante). El resultado
+confirma que el OCC de Convex sí serializa correctamente estas dos mutations
+distintas cuando sus rangos de lectura/escritura se solapan (la lectura de
+`updateCalendarRange` sobre el índice `by_calendar_and_date` de ese
+calendario conflictúa con la escritura de `upsertDay` sobre ese mismo rango),
+tal como predice la teoría — pero es la prueba, no el razonamiento por sí
+solo, lo que lo confirma.
+
+**Una advertencia para TAL-10+, todavía no aplica hoy** (hallazgo de segunda
+opinión, T2): el reintento OCC funciona reejecutando el CUERPO de la mutation
+desde el principio si detecta un conflicto — inofensivo mientras la mutation
+solo lea/escriba en la base de datos de Convex (que es transaccional), pero
+peligroso si algún día una mutation dispara además un efecto externo NO
+idempotente (por ejemplo, el envío real de email de invitación, todavía
+pendiente de decidir proveedor — `docs/invitados.md` § "Envío real por email:
+pendiente"): un reintento silencioso podría reenviar ese email dos veces sin
+que nadie lo pidiera. Ninguna mutation de este schema dispara un efecto así
+todavía. Cuando TAL-10+ conecte un envío de email real, esa lógica debe vivir
+en una **action** de Convex (no en una mutation) — las actions no tienen la
+garantía transaccional/de reintento automático de las mutations, precisamente
+para que el código con efectos externos no idempotentes decida su propia
+estrategia de reintento en vez de heredar la de la base de datos.
 
 ## Concurrencia
 
@@ -248,6 +307,19 @@ del lado del cliente y falseado la prueba):
    `Day` ya guardado dentro del rango, `updateCalendarRange` a un rango que
    lo dejaría fuera → rechazado con mensaje explícito. A un rango que lo
    mantiene dentro → aceptado, `Calendar` actualizado.
+4bis. **Invariante de rango, la CARRERA real entre las dos mitades**
+   (segunda opinión, T2 — ver "Invariante de rango Calendar/Day" arriba):
+   `updateCalendarRange` (encogiendo para dejar fuera una fecha) y
+   `upsertDay` (guardando esa fecha exacta) disparados a la vez sobre el
+   mismo calendario, 25 repeticiones con calendarios frescos en cada una →
+   0 violaciones de la invariante en las 25, con reparto real de quién
+   "gana" cada vez (10/25 `upsertDay`, 15/25 `updateCalendarRange`, 0/25
+   ambas triunfando simultáneamente).
+4ter. **Validación de formato de fecha** (segunda opinión, T2):
+   `assertValidCalendarDate` rechaza `"2026-13-01"` (mes inválido),
+   `"2026-02-30"` (día que no existe ese mes) y `"01-12-2026"` (formato
+   distinto) en `createCalendar`/`updateCalendarRange`/`upsertDay`; acepta
+   fechas reales bien formadas sin cambios.
 5. **DayView, idempotencia bajo concurrencia real** (el caso exacto de P2002
    en TAL-8 ronda 1): 5 `markViewed` disparados a la vez para el mismo
    `(dayId, userId)` → 1 solo `_id` único entre las 5 respuestas.

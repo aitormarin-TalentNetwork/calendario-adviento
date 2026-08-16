@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { assertValidCalendarDate } from "./dates";
 
 /**
  * Idempotente por `creationKey` — mismo motivo que TAL-5 ronda 1 en Prisma
@@ -17,6 +18,9 @@ export const createCalendar = mutation({
     creationKey: v.string(),
   },
   handler: async (ctx, args) => {
+    assertValidCalendarDate(args.startDate);
+    assertValidCalendarDate(args.endDate);
+
     const existing = await ctx.db
       .query("calendars")
       .withIndex("by_creation_key", (q) => q.eq("creationKey", args.creationKey))
@@ -39,6 +43,9 @@ export const createCalendar = mutation({
 export const updateCalendarRange = mutation({
   args: { calendarId: v.id("calendars"), startDate: v.string(), endDate: v.string() },
   handler: async (ctx, args) => {
+    assertValidCalendarDate(args.startDate);
+    assertValidCalendarDate(args.endDate);
+
     const days = await ctx.db
       .query("days")
       .withIndex("by_calendar_and_date", (q) => q.eq("calendarId", args.calendarId))
