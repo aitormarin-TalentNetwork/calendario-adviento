@@ -47,6 +47,14 @@ export type CalendarAccess =
  * postura de seguridad correcta, no un dato inventado (mismo criterio ya
  * confirmado por el auditor en TAL-10 rondas 1-2, ver
  * `src/lib/current-user.ts`).
+ *
+ * Solo se manda `userId` a Convex, nunca `user.email` como argumento aparte
+ * (hallazgo de auditoría, ronda 1 — `resolveMemberAccessPublic` deriva el
+ * email dentro de la propia mutation a partir del usuario cargado por
+ * `userId`, ver `convex/access.ts`; aceptar aquí un email independiente
+ * habría abierto la puerta a que el contrato de la función permitiera un
+ * segundo canal de identidad, el mismo error que TAL-2 ya corrigió una vez
+ * para `getAuthorizedUser`).
  */
 export async function resolveCalendarAccess(
   user: { id: string; email: string; isSuperAdmin: boolean },
@@ -59,7 +67,6 @@ export async function resolveCalendarAccess(
       serverSecret: convexAppServerSecret(),
       calendarId: calendarId as Id<"calendars">,
       userId: user.id as Id<"users">,
-      userEmail: user.email,
     });
     if (!result) return null;
     return { kind: "member", role: result.role };

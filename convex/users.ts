@@ -97,7 +97,7 @@ export const getById = internalQuery({
 export const getByIdPublic = query({
   args: { serverSecret: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
-    requireServerSecret(args.serverSecret);
+    await requireServerSecret(args.serverSecret);
     return await getByIdHandler(ctx, { userId: args.userId });
   },
 });
@@ -110,7 +110,7 @@ export const upsertUserOnLoginPublic = mutation({
     isSuperAdminOnCreate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
-    requireServerSecret(args.serverSecret);
+    await requireServerSecret(args.serverSecret);
     return await createUserHandler(ctx, {
       email: args.email,
       name: args.name,

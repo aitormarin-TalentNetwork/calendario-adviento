@@ -16,22 +16,32 @@
 // no duplicar este helper en cada fichero de función pública.
 
 /**
- * Comparación en tiempo constante — no `===`. Un secreto de longitud fija
- * comparado con `===` sale en cuanto encuentra la primera diferencia de
- * carácter, filtrando por temporización cuántos caracteres iniciales
- * acertó un atacante (mismo motivo que comparar cualquier otro
- * secreto/token en esta app). Sin `crypto.timingSafeEqual` de Node — las
- * funciones de Convex corren en un runtime V8 por defecto (sin `"use
- * node"`), que no expone el módulo `crypto` de Node; esta comparación
- * manual no necesita ninguna API específica de runtime.
+ * Comparación en tiempo constante — no `===`, ni siquiera con un
+ * early-return por longitud (hallazgo de auditoría, ronda 1: `if (a.length
+ * !== b.length) return false` SÍ filtra por temporización si las
+ * longitudes coinciden o no, antes incluso de mirar el contenido — sigue
+ * siendo una rama que un atacante puede medir). En vez de comparar `a`/`b`
+ * directamente, se hashean los dos con la misma función (SHA-256, vía Web
+ * Crypto — disponible en el runtime V8 por defecto de Convex, sin `"use
+ * node"`, verificado contra el deployment real) y se comparan los dos
+ * digests, que SIEMPRE tienen la misma longitud fija (32 bytes) con
+ * independencia de la longitud de `a`/`b` — el bucle de comparación final
+ * itera siempre las mismas 32 veces, así que ni el contenido ni la
+ * longitud de los secretos originales afectan al tiempo de esta función.
  */
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
+async function timingSafeEqual(a: string, b: string): Promise<boolean> {
+  const [digestA, digestB] = await Promise.all([sha256(a), sha256(b)]);
   let diff = 0;
-  for (let i = 0; i < a.length; i++) {
-    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < digestA.length; i++) {
+    diff |= digestA[i] ^ digestB[i];
   }
   return diff === 0;
+}
+
+async function sha256(value: string): Promise<Uint8Array> {
+  const bytes = new TextEncoder().encode(value);
+  const digest = await crypto.subtle.digest("SHA-256", bytes);
+  return new Uint8Array(digest);
 }
 
 /**
@@ -41,8 +51,8 @@ function timingSafeEqual(a: string, b: string): boolean {
  * si no coincide o si el deployment no tiene la variable configurada
  * (nunca "seguir sin comprobar nada" ante una variable ausente).
  */
-export function requireServerSecret(received: string): void {
+export async function requireServerSecret(received: string): Promise<void> {
   const expected = process.env.CONVEX_APP_SERVER_SECRET;
   if (!expected) throw new Error("CONVEX_APP_SERVER_SECRET no configurado en este deployment.");
-  if (!timingSafeEqual(received, expected)) throw new Error("Secreto de servidor inválido.");
+  if (!(await timingSafeEqual(received, expected))) throw new Error("Secreto de servidor inválido.");
 }

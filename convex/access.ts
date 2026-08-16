@@ -38,10 +38,19 @@ import { requireServerSecret } from "./serverAuth";
  * de que la pública delegue en la interna vía `ctx.runMutation`, lo que
  * crearía una referencia circular de tipos dentro del propio fichero
  * (mismo motivo que en `convex/users.ts`).
+ *
+ * El email para buscar la invitación se deriva del propio `user` cargado
+ * por `userId`, NUNCA se acepta como argumento aparte (hallazgo de
+ * auditoría, ronda 1: un `userEmail` independiente permitía, por contrato
+ * de la función, crear la membership del usuario A usando el email del
+ * usuario B — aunque hoy el único llamador pasara los dos del mismo
+ * documento, la propia función no lo garantizaba. Mismo hallazgo de TAL-2
+ * aplicado aquí: la identidad se resuelve por `userId`, un segundo canal
+ * de email es exactamente el error que esa ronda ya corrigió una vez).
  */
 async function resolveMemberAccessHandler(
   ctx: MutationCtx,
-  args: { calendarId: Id<"calendars">; userId: Id<"users">; userEmail: string }
+  args: { calendarId: Id<"calendars">; userId: Id<"users"> }
 ): Promise<{ role: "ADMIN" | "GUEST" } | null> {
   const [calendar, user] = await Promise.all([ctx.db.get(args.calendarId), ctx.db.get(args.userId)]);
   if (!calendar || !user) return null;
@@ -52,12 +61,13 @@ async function resolveMemberAccessHandler(
     .unique();
   if (membership) return { role: membership.role };
 
-  // Las invitaciones se normalizan a minúsculas al escribir
-  // (`invitations.ts::inviteGuest`) — se normaliza también aquí el email
-  // recibido, por si la sesión llegara con otra capitalización (defensa a
-  // nivel de aplicación, mismo criterio que la versión Prisma con `mode:
-  // "insensitive"`).
-  const email = args.userEmail.trim().toLowerCase();
+  // `user.email` ya se normaliza a minúsculas al escribir
+  // (`users.ts::createUserHandler`), igual que las invitaciones
+  // (`invitations.ts::inviteGuest`) — se normaliza también aquí por
+  // defensa a nivel de aplicación, mismo criterio que la versión Prisma
+  // con `mode: "insensitive"`, sin depender de que ambos lados ya vengan
+  // normalizados.
+  const email = user.email.trim().toLowerCase();
   const invitation = await ctx.db
     .query("invitations")
     .withIndex("by_calendar_and_email", (q) => q.eq("calendarId", args.calendarId).eq("email", email))
@@ -69,19 +79,18 @@ async function resolveMemberAccessHandler(
 }
 
 export const resolveMemberAccess = internalMutation({
-  args: { calendarId: v.id("calendars"), userId: v.id("users"), userEmail: v.string() },
+  args: { calendarId: v.id("calendars"), userId: v.id("users") },
   handler: resolveMemberAccessHandler,
 });
 
 // --- Frontera pública (TAL-11) — ver convex/serverAuth.ts ---
 export const resolveMemberAccessPublic = mutation({
-  args: { serverSecret: v.string(), calendarId: v.id("calendars"), userId: v.id("users"), userEmail: v.string() },
+  args: { serverSecret: v.string(), calendarId: v.id("calendars"), userId: v.id("users") },
   handler: async (ctx, args) => {
-    requireServerSecret(args.serverSecret);
+    await requireServerSecret(args.serverSecret);
     return await resolveMemberAccessHandler(ctx, {
       calendarId: args.calendarId,
       userId: args.userId,
-      userEmail: args.userEmail,
     });
   },
 });
