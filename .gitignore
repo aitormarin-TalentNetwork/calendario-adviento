@@ -17,3 +17,8 @@ node_modules/
 next-env.d.ts
 
 /src/generated/prisma
+
+# Convex — código generado a partir de convex/*.ts (mismo criterio que
+# /src/generated/prisma: derivado, se regenera con `npx convex dev`/
+# `npx convex codegen`, no se trackea).
+/convex/_generated/

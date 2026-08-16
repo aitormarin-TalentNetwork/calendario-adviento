@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Generado por `npx convex dev`/`codegen`, no trackeado (ver
+    // .gitignore) — mismo criterio que src/generated/prisma.
+    "convex/_generated/**",
   ]),
 ]);
 
