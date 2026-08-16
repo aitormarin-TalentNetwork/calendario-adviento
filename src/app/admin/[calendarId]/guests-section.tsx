@@ -7,9 +7,8 @@ import {
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { CopyLinkButton } from "@/components/copy-link-button";
 import { SubmitButton } from "@/components/submit-button";
-import { listCalendarGuests } from "@/lib/guests";
+import { listCalendarGuests, type CalendarGuest } from "@/lib/guests";
 import { resolveInvitationLink } from "@/lib/invitation-link";
-import { tryDataLayer } from "@/lib/not-migrated";
 
 /**
  * El link no lleva token por invitado — es el mismo para cualquiera al que
@@ -31,16 +30,27 @@ async function invitationLink(calendarId: string): Promise<string | null> {
   });
 }
 
+// TAL-16 — reconectada contra Convex: `listCalendarGuests` ya no lanza
+// `DataLayerUnavailableError` (esa clase seguía ligada a "Prisma/Postgres
+// retirados, pendiente de reescribir", que dejó de ser cierto para esta
+// lectura desde esta tarea). Un fallo real (red caída, secreto no
+// coincide) se atrapa aquí mismo — mismo criterio honesto que antes
+// (hallazgo de auditoría TAL-10, ronda 1): `null` ("no disponible ahora
+// mismo") en vez de `[]`, que se leería como "todavía no hay invitados",
+// un hecho falso.
+async function tryListCalendarGuests(calendarId: string): Promise<CalendarGuest[] | null> {
+  try {
+    return await listCalendarGuests(calendarId);
+  } catch {
+    return null;
+  }
+}
+
 export async function GuestsSection({ calendarId }: { calendarId: string }) {
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura:
-  // `listCalendarGuests` lanza `DataLayerUnavailableError` (hallazgo de
-  // auditoría, ronda 1 — antes devolvía `[]`, que esta sección ya
-  // interpretaba como "todavía no hay invitados", un hecho falso).
-  const [guestsResult, link] = await Promise.all([
-    tryDataLayer(() => listCalendarGuests(calendarId)),
+  const [guests, link] = await Promise.all([
+    tryListCalendarGuests(calendarId),
     invitationLink(calendarId),
   ]);
-  const guests = guestsResult.ok ? guestsResult.data : null;
 
   return (
     <section style={{ marginTop: "2.5rem" }}>

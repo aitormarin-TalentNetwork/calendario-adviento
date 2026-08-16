@@ -1,4 +1,7 @@
-import { DataLayerUnavailableError } from "@/lib/not-migrated";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { convexAppServerSecret } from "@/lib/convex-server";
 
 export type CalendarGuest = {
   email: string;
@@ -16,84 +19,116 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Invitados de un calendario — ver `docs/invitados.md` para las reglas
  * completas (unión de `Invitation` y `CalendarMembership` GUEST).
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: lanza
- * `DataLayerUnavailableError` en vez de `[]` (hallazgo de auditoría, ronda
- * 1 — una lista vacía se leería como "sin invitados todavía", un hecho
- * falso, no "no se pudo consultar"). Quien llama debe usar
- * `tryDataLayer` y mostrar un mensaje honesto de "no disponible".
+ * TAL-16 — reconectada contra Convex (`convex/guests.ts::listCalendarGuestsPublic`,
+ * frontera pública con el secreto compartido de TAL-11 — ver
+ * `src/lib/roles.ts`/`current-user.ts` para el mismo patrón). Ya no lanza
+ * `DataLayerUnavailableError`: esta lectura sí está disponible desde esta
+ * tarea. Un fallo real de Convex (red caída, secreto no coincide) se deja
+ * propagar tal cual — mismo criterio que el resto de este fichero para
+ * escrituras, y honesto con el contrato de `DataLayerUnavailableError`
+ * (documentado como "Prisma/Postgres retirados, pendiente de reescribir",
+ * que ya no aplica aquí).
  */
 export async function listCalendarGuests(calendarId: string): Promise<CalendarGuest[]> {
-  void calendarId;
-  throw new DataLayerUnavailableError("listCalendarGuests");
+  return await fetchQuery(api.guests.listCalendarGuestsPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+  });
 }
 
-export type InviteGuestResult =
-  | { ok: true }
-  | { ok: false; error: "invalid-email" | "calendar-not-found" };
+export type InviteGuestResult = { ok: true } | { ok: false; error: "invalid-email" };
 
 /**
  * Invita a alguien a un calendario por email — ver `docs/invitados.md`.
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: la validación
- * de formato de email es una función pura (no toca Prisma) y sigue
- * funcionando de verdad — se mantiene, no hay motivo para fingir que
- * también está "no disponible". Lo que sí falla es la escritura real
- * (`Invitation` upsert): lanza `DataLayerUnavailableError` en vez de
- * devolver `{ok:false, error:"calendar-not-found"}` (hallazgo de
- * auditoría, ronda 1 — ese calendario casi seguro SÍ existe, solo que no
- * se pudo comprobar; "calendar-not-found" sería un motivo inventado).
+ * TAL-16 — reconectada contra Convex
+ * (`convex/invitations.ts::inviteGuestPublic`). La validación de formato
+ * se mantiene aquí (evita el viaje de red para el caso más común, y sigue
+ * dando el resultado tipado que espera `inviteGuestAction`) — la mutation
+ * de Convex también valida el formato por su cuenta (defensa en
+ * profundidad, TAL-16), así que un llamador futuro que se salte esta capa
+ * no puede colar un email mal formado. `"calendar-not-found"` desaparece
+ * del tipo de resultado (existía en TAL-10 solo porque Prisma/Postgres
+ * estaban retirados y ese motivo era inventado — ver comentario histórico
+ * en `docs/invitados.md`); si la mutation lanza de verdad porque el
+ * calendario no existe, es un error real e inesperado (quien llama ya
+ * resolvió acceso a ESE calendario antes de llegar aquí) y se deja
+ * propagar, no se finge un resultado tipado para él.
  */
 export async function inviteGuest(calendarId: string, rawEmail: string): Promise<InviteGuestResult> {
   const email = rawEmail.trim().toLowerCase();
   if (!email || !EMAIL_PATTERN.test(email)) return { ok: false, error: "invalid-email" };
 
-  void calendarId;
-  throw new DataLayerUnavailableError("inviteGuest");
-}
-
-/**
- * ¿Es este email invitado (o ya invitado-aceptado) de este calendario
- * concreto? — ver `docs/invitados.md`, usado para acotar "borrar por
- * completo" a alguien con relación real con el calendario.
- *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: a diferencia
- * del resto de este fichero, esto NO es una lectura que se muestre como
- * dato al usuario — es una comprobación de autorización que gatea un
- * borrado global peligroso (`removeGuestEverywhereAction`). `false`
- * (fallar cerrado — "no autorizado") es la postura de seguridad correcta
- * ante la incertidumbre, no una mentira sobre datos de negocio: es el
- * mismo criterio que ya usa `getAuthorizedUser`/`resolveCalendarAccess`
- * (`src/lib/current-user.ts`/`roles.ts`) para negar acceso por defecto.
- * En la práctica da igual: `removeGuestEverywhere` (más abajo) también
- * lanza, así que el borrado no llegaría a ejecutarse aunque esta
- * comprobación devolviera `true` por error.
- */
-export async function isCalendarGuest(calendarId: string, rawEmail: string): Promise<boolean> {
-  void calendarId;
-  void rawEmail;
-  return false;
+  await fetchMutation(api.invitations.inviteGuestPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+    email,
+  });
+  return { ok: true };
 }
 
 /**
  * "Quitar del calendario" — ver `docs/invitados.md`.
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: sin
- * representación de "vacío" razonable para una escritura de borrado que no
- * devuelve nada (`Promise<void>`) — fingir éxito dejaría a quien lo llama
- * pensando que expulsó a alguien que en realidad sigue teniendo acceso.
- * Falla explícitamente. Pendiente de reescribir contra Convex en TAL-12+.
+ * TAL-16 — reconectada contra Convex
+ * (`convex/guests.ts::removeGuestFromCalendarPublic`). Sin representación
+ * de "vacío" razonable para una escritura de borrado que no devuelve nada:
+ * un fallo real se deja propagar tal cual, fingir éxito dejaría a quien
+ * llama pensando que expulsó a alguien que en realidad sigue teniendo
+ * acceso (mismo criterio que TAL-10 dejó documentado para este fichero).
  */
 export async function removeGuestFromCalendar(calendarId: string, rawEmail: string): Promise<void> {
-  void calendarId;
-  void rawEmail;
-  throw new DataLayerUnavailableError("removeGuestFromCalendar");
+  await fetchMutation(api.guests.removeGuestFromCalendarPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+    email: rawEmail.trim().toLowerCase(),
+  });
 }
 
+export type RemoveGuestEverywhereResult = { ok: true } | { ok: false; error: "not-authorized" };
+
 /**
- * "Borrar por completo" — ver `docs/invitados.md`. Mismo motivo que
- * `removeGuestFromCalendar` para fallar en vez de degradar.
+ * "Borrar por completo" — ver `docs/invitados.md`.
+ *
+ * TAL-16 — reconectada contra Convex
+ * (`convex/guests.ts::removeGuestEverywherePublic`).
+ *
+ * `calendarId`/`email` (corrección de auditoría, ronda 1, TAL-16): antes
+ * esta función no recibía ningún `calendarId`, y la comprobación de "¿el
+ * email de verdad pertenece al calendario que administra quien llama?"
+ * vivía en una llamada aparte (`isCalendarGuest`, ya retirada de este
+ * fichero) desde `guests-actions.ts` — dos llamadas independientes dejaban
+ * una ventana TOCTOU real entre comprobar y borrar.
+ *
+ * `actorUserId` (corrección de auditoría, ronda 2, TAL-16): la ronda 2
+ * seguía dejando que Next.js decidiera si el actor está autorizado
+ * (`requireCalendarAdmin`) y solo pasaba el resultado ya calculado
+ * (`requireGuestOfCalendarId: calendarId | null`, `null` para Super
+ * Admin) — la misma clase de ventana TOCTOU, pero sobre el ROL DEL ACTOR
+ * en vez de la pertenencia del objetivo. Ahora se pasa `actorUserId` (un
+ * identificador puro, nunca un booleano/rol ya calculado) y la propia
+ * mutation de Convex relee su rol actual — igual que Super Admin/Admin
+ * de este calendario — dentro de la MISMA transacción que la pertenencia
+ * del objetivo y el borrado (ver
+ * `convex/guests.ts::removeGuestEverywhereHandler`).
+ *
+ * Devuelve un resultado tipado en vez de lanzar (a diferencia del resto de
+ * escrituras de este fichero) — nota de auditoría, ronda 2: una carrera
+ * legítima de autorización (rol o pertenencia cambiaron de verdad entre
+ * medias) no debería reventar como un error crudo; `guests-actions.ts` lo
+ * traduce a un `redirect("/unauthorized")` limpio. Cualquier OTRO fallo
+ * (red caída, secreto no coincide) sigue sin atraparse aquí y se deja
+ * propagar tal cual.
  */
-export async function removeGuestEverywhere(rawEmail: string): Promise<void> {
-  void rawEmail;
-  throw new DataLayerUnavailableError("removeGuestEverywhere");
+export async function removeGuestEverywhere(
+  actorUserId: string,
+  calendarId: string,
+  rawEmail: string
+): Promise<RemoveGuestEverywhereResult> {
+  return await fetchMutation(api.guests.removeGuestEverywherePublic, {
+    serverSecret: convexAppServerSecret(),
+    actorUserId: actorUserId as Id<"users">,
+    calendarId: calendarId as Id<"calendars">,
+    email: rawEmail.trim().toLowerCase(),
+  });
 }

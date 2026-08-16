@@ -1,5 +1,13 @@
 # Gestión de invitados (TAL-7)
 
+> **Nota TAL-16**: este documento describe el diseño original sobre
+> Prisma/Postgres (TAL-7), que sigue siendo la razón de fondo de cada regla
+> ("por qué borra las dos filas", "por qué el efecto global exige
+> pertenencia real", etc.) — solo cambió el almacén de datos que las
+> implementa. Ver la sección nueva "Gestión de invitados sobre Convex
+> (TAL-16)" al final para el diseño y la evidencia actuales; el resto del
+> documento queda como referencia histórica del razonamiento.
+
 ## Qué es un "invitado" en este modelo
 
 No hay una tabla propia de "invitado" — es la unión de dos fuentes, ya
@@ -272,3 +280,283 @@ en esta zona del código, no como algo urgente.
   estos escenarios (doble aceptación concurrente, expulsión vs. aceptación)
   son buenos candidatos para convertirse en pruebas automatizadas
   permanentes.
+
+## Gestión de invitados sobre Convex (TAL-16)
+
+Migración del contenido de este documento a Convex — mismas reglas de
+negocio de arriba (unión Invitation/CalendarMembership, borrado de las dos
+filas al "quitar del calendario", efecto global de "borrar por completo"
+acotado a pertenencia real), traducidas al modelo de TAL-9/TAL-11. Diseño
+de partida en `docs/convex-diseno-tal16-gestion-invitados.md` (T2, pseudocódigo).
+
+### Qué cambió respecto a Prisma
+
+- **`convex/invitations.ts::inviteGuest`** (ya existente desde TAL-9,
+  integridad referencial) se **extendió** con la validación de formato de
+  email que le faltaba (`EMAIL_PATTERN`, mismo patrón que TAL-4/TAL-7) —
+  antes solo la comprobaba `src/lib/guests.ts` del lado de Next.js; ahora
+  también la mutation de Convex, como defensa en profundidad. No se creó
+  una función paralela (a diferencia de la disyuntiva `addAdmin`/
+  `addMembership` de TAL-15): es una adición de comprobación, no un cambio
+  de comportamiento para quien ya la llama con un email bien formado.
+- **`convex/guests.ts`** (nuevo): `isCalendarGuest`, `removeGuestFromCalendar`,
+  `removeGuestEverywhere`, `listCalendarGuests` — equivalentes directos de
+  las funciones del mismo nombre en la versión Prisma de este documento,
+  mismo patrón de unión Invitation/CalendarMembership en código de
+  aplicación (nunca un `include` relacional real, tampoco lo era en
+  Prisma). Cada una con su envoltorio público delgado
+  (`*Public`, secreto compartido de TAL-11, `convex/serverAuth.ts`).
+- **Índice `by_email` en `invitations`** (`convex/schema.ts`): usado por
+  `removeGuestEverywhere` para no hacer `collect()` + filtro en JS sobre
+  toda la tabla — a diferencia de scans similares de esta serie
+  (`listAdmins`, TAL-15), esta operación se dispara desde una acción de
+  usuario frecuente del panel de invitados, no una operación rara de
+  administración global, así que el diseño la marcó con más urgencia.
+- **`src/lib/guests.ts`** reconectado contra Convex de verdad — ya no lanza
+  `DataLayerUnavailableError` en ninguna de sus cinco funciones. Un fallo
+  real de Convex en una escritura (`inviteGuest`, `removeGuestFromCalendar`,
+  `removeGuestEverywhere`) se deja propagar tal cual, mismo criterio que
+  el resto de escrituras de este proyecto. `listCalendarGuests` (lectura)
+  se atrapa en el llamador (`guests-section.tsx`) y se degrada a "no
+  disponible ahora mismo" — mismo criterio honesto que TAL-10 dejó
+  establecido (no fingir `[]`), solo que ya no vía la clase
+  `DataLayerUnavailableError` (esa quedó ligada a "Prisma retirado,
+  pendiente de reescribir", que dejó de ser cierto para esta lectura).
+  `isCalendarGuest` sigue fallando cerrado (`false`) ante cualquier error,
+  mismo criterio que `getAuthorizedUser`/`resolveCalendarAccess`
+  (`src/lib/current-user.ts`/`roles.ts`, TAL-11): es una comprobación de
+  autorización, no un dato de negocio.
+- `src/app/admin/[calendarId]/guests-actions.ts`/`guests-section.tsx`
+  actualizados en consecuencia (comentarios desactualizados de la era
+  TAL-10, y la lectura ya no pasa por `tryDataLayer`/`DataLayerUnavailableError`
+  de `not-migrated.ts`, que ya no representa correctamente por qué podría
+  fallar esta lectura).
+
+### Punto crítico: la carrera expulsión-vs-aceptación, verificada contra el deployment real
+
+El diseño de T2 dejaba explícito qué tenía que cumplir la mutation de
+expulsión para que el conflicto se detectase (leer/borrar `invitations`
+por la clave EXACTA de índice `(calendarId, email)`, la misma que
+`resolveMemberAccessHandler` de TAL-11 (`convex/access.ts`) ya lee para
+aceptar) — razonado, pero explícitamente no verificado con concurrencia
+real por T2 (la mutation de aceptación no existía todavía cuando escribió
+el diseño). Con TAL-11 ya mergeada, esta tarea probó la carrera de verdad,
+mismo formato que TAL-9/TAL-7: procesos `npx convex run` independientes,
+sin `await` entre medias.
+
+**Procedimiento**: por cada repetición, se resetea el estado (se quita al
+invitado si quedó de la ronda anterior), se invita de nuevo, y se lanzan a
+la vez `guests:removeGuestFromCalendar` (expulsión) y
+`access:resolveMemberAccess` (aceptación) para la misma invitación. Tras
+resolverse las dos, se comprueba con `guests:isCalendarGuest` si quedó
+acceso colgante — el único resultado incorrecto posible, ya que en
+CUALQUIER orden serie válido el resultado final es "sin invitación ni
+membership" (expulsión-primero: nunca llega a crearse nada que expulsar;
+aceptación-primero: crea la membership, pero la expulsión que llega
+después se la lleva igual, porque sigue viendo la fila de `invitations`
+hasta que la propia expulsión la borra).
+
+**Resultado — 25/25 repeticiones sin acceso colgante**, con reparto real de
+quién "ganó" cada ronda (14/25 la aceptación llegó a crear la membership
+antes de que la expulsión borrara la invitación, 11/25 la expulsión borró
+la invitación antes de que la aceptación la viera) — confirma que el
+solapamiento de índice sí se está ejerciendo bajo la carrera real, no que
+un lado sistemáticamente gana y el otro nunca se ejecuta. 0 errores de
+llamada, 0 casos de "las dos ganan". Corrido contra un deployment de
+desarrollo propio y aislado (`calendario-adviento-t3`/`combative-vole-47`
+— ver nota de proceso más abajo), no contra el compartido de T1
+(`beloved-barracuda-617`).
+
+### Verificación manual de extremo a extremo (HTTP real, con sesión autenticada)
+
+Sin navegador disponible en este entorno (extensión Chrome no conectada),
+la verificación de `guests-actions.ts`/`guests-section.tsx` se hizo con
+peticiones HTTP reales contra el servidor de Next.js en dev (`next dev -p
+3002`), usando el protocolo real de Server Actions de Next.js (formularios
+`multipart/form-data` con los campos `$ACTION_REF_n`/`$ACTION_n:0`/
+`$ACTION_n:1` que Next genera para el fallback sin JS) y una sesión de
+`dev-login` real con cookies — no una llamada directa a las funciones de
+Convex saltándose Next.js. La página real
+(`admin/[calendarId]/page.tsx`) todavía no renderiza `GuestsSection`
+porque `getCalendarForAdminPage` sigue siendo de TAL-12 (no mergeada en
+este worktree) y corta antes de llegar ahí — se usó una ruta temporal
+(`src/app/tal16-guest-test/page.tsx`, renderizando `<GuestsSection
+calendarId={...} />` directamente) solo para esta verificación, no
+comprometida al repo (mismo criterio que los scripts de prueba de
+concurrencia de este documento).
+
+Probado, con datos reales en el deployment de desarrollo propio:
+- **Invitar**: formulario "Invitar ahora" → aparece en la tabla como
+  "Invitado", confirmado también consultando `guests:listCalendarGuests`
+  directamente.
+- **Email inválido**: mismo formulario con `no-es-un-email` → rechazado
+  (`Introduce un email válido.`), nada escrito.
+- **Quitar del calendario**: desaparece de la tabla y de `invitations`.
+- **Borrar por completo**, caso feliz (Super Admin): desaparece de la
+  tabla.
+- **Borrar por completo, la comprobación de autorización de TAL-7 ronda 1**
+  (acotar el efecto global a alguien con relación real con el calendario)
+  — repetida aquí contra el código de Convex, no solo revisión de código
+  como en TAL-7: Admin de un calendario B (no Super Admin) intenta
+  `removeGuestEverywhereAction` con el `calendarId` de B pero el email de
+  alguien invitado solo al calendario A (petición forjada directamente,
+  sin pasar por el botón de la UI, que no ofrece esa combinación) → la
+  operación falla, el email sigue invitado en A intacto. Se invita ese
+  mismo email también a B y se repite la misma llamada → esta vez sí es un
+  guest real de B → se borra de los dos calendarios (A y B), confirmando
+  que el efecto global sigue siendo deliberadamente global una vez la
+  autorización lo permite (mismo comportamiento que TAL-7 documentó). Esta
+  verificación se hizo con la ronda 1 de TAL-16 (`isCalendarGuest` como
+  comprobación aparte antes del borrado) — ver la sección siguiente para
+  la corrección de ronda 1 de auditoría de TAL-16 sobre esta misma
+  comprobación y su nueva evidencia de concurrencia.
+
+### Corrección de auditoría, ronda 1 (TAL-16): ventana TOCTOU en "Borrar por completo"
+
+La ronda 1 de esta tarea comprobaba la autorización de "Borrar por
+completo" con una llamada aparte antes del borrado:
+`isCalendarGuest(calendarId, email)` (`fetchQuery`) y, si devolvía
+`true`, `removeGuestEverywhere(email)` (`fetchMutation`) — dos peticiones
+independientes a Convex desde `removeGuestEverywhereAction`
+(`guests-actions.ts`). Además, `removeGuestEverywhere` ni siquiera recibía
+`calendarId`: borraba directamente TODAS las invitaciones/memberships
+`GUEST` de ese email, en cualquier calendario.
+
+Esto deja una ventana TOCTOU (time-of-check-to-time-of-use) real: entre la
+comprobación y el borrado, la invitación o membership que justificaba la
+autorización puede desaparecer (por ejemplo, un segundo Admin ejecuta
+"quitar del calendario" para ese mismo invitado justo en ese hueco) — y el
+borrado global se ejecuta igual, porque ya pasó una comprobación que quedó
+obsoleta. Al no recibir `calendarId`, el borrado se lleva por delante las
+invitaciones/memberships de TODOS los demás calendarios de ese email
+aunque su pertenencia al calendario que en teoría autorizaba la operación
+ya no fuera cierta en el instante real del borrado.
+
+**Corrección**: `removeGuestEverywhere` (`convex/guests.ts`) pasa a recibir
+`requireGuestOfCalendarId: Id<"calendars"> | null`, y la comprobación de
+pertenencia (reutilizando `isCalendarGuestHandler`, la misma función)
+ocurre DENTRO de la propia mutation, inmediatamente antes del borrado —
+comprobación y efecto son ahora una sola transacción atómica, no dos
+llamadas sueltas. Si la comprobación falla, la mutation lanza sin escribir
+nada. `null` es el caso de Super Admin (autorización global resuelta en
+Next.js, sin necesidad de atarla a un calendario concreto).
+`removeGuestEverywhereAction` ya no llama a `isCalendarGuest` por
+separado — ese wrapper público se retiró (`convex/guests.ts` mantiene
+`isCalendarGuest`/`isCalendarGuestHandler` como `internalQuery`, sigue en
+uso, ahora solo internamente).
+
+**Probado con concurrencia real** (mismo formato que el resto de este
+documento, no solo razonamiento): email E invitado a la vez a un
+calendario A y a un calendario B sin relación. Se lanzan a la vez, sin
+`await` entre medias, `guests:removeGuestFromCalendar` sobre A (simula que
+otro Admin expulsa a E de A justo en ese instante) y
+`guests:removeGuestEverywhere` con `requireGuestOfCalendarId: A` (el
+borrado global, autorizado por la relación con A). Se repite 25 veces con
+calendarios/invitaciones frescos en cada intento, comprobando la
+invariante: si el borrado global TIENE éxito, B también debe quedar
+borrado (la autorización era válida en el instante atómico de la
+comprobación); si el borrado global FALLA (ya no es guest de A en ese
+instante), B debe quedar completamente intacto.
+
+**Resultado — 25/25 sin violaciones**, con las dos ramas realmente
+ejercidas (6/25 el borrado global tuvo éxito y se llevó A y B por delante;
+19/25 falló por "ya no autorizado" y B quedó intacto — el reparto no es
+50/50 porque `removeGuestFromCalendar` es una escritura más simple y
+rápida que `removeGuestEverywhere`, así que gana la carrera más a menudo,
+pero lo que importa es que las dos ramas se ejercitan de verdad y ninguna
+produce una violación) — confirma que la atomicidad se respeta en ambos
+sentidos, no que un lado gana siempre. Corrido contra el deployment de
+desarrollo propio (`calendario-adviento-t3`/`combative-vole-47`).
+
+### Corrección de auditoría, ronda 2 (TAL-16): ventana TOCTOU sobre el ROL DEL ACTOR
+
+La corrección de ronda 1 (arriba) cerró la ventana TOCTOU sobre la
+pertenencia del OBJETIVO (¿el email a borrar sigue siendo invitado del
+calendario que autoriza la operación?), pero seguía dejando la
+autorización del ACTOR como un hecho ya resuelto en Next.js:
+`requireCalendarAdmin` (`guests-actions.ts`) comprobaba que quien llama
+sigue siendo Admin/Super Admin, y el resultado ya calculado se pasaba a
+`removeGuestEverywhere` como `requireGuestOfCalendarId: calendarId | null`
+(`null` para Super Admin) — una llamada aparte, con el mismo tipo de hueco:
+si el rol de quien llama se revoca entre esa comprobación y la mutation
+(le quitan la membership `ADMIN` de ese calendario, o Super Admin deja de
+serlo), el borrado global se ejecutaba igual con una autorización ya
+obsoleta. Mismo tipo de hallazgo que TAL-12 (T1) encontró en su propia
+ronda 3, aplicado aquí al rol del actor en vez de a la pertenencia del
+objetivo.
+
+**Corrección**: `removeGuestEverywhere` deja de aceptar cualquier
+rol/booleano ya calculado — recibe `actorUserId` (un identificador puro) y
+`calendarId`, y `removeGuestEverywhereHandler` (`convex/guests.ts`) relee
+DENTRO de la misma transacción, en este orden: (1) `users.isSuperAdmin`
+del actor; si no lo es, (2) su `calendarMemberships` para
+`(calendarId, actorUserId)` — debe ser `ADMIN`; y solo entonces (3) la
+pertenencia del objetivo (`isCalendarGuestHandler`, la comprobación de
+ronda 1). Las tres lecturas y el borrado son ahora una sola transacción
+atómica. `guests-actions.ts::requireCalendarAdmin` sigue existiendo, pero
+pasa a ser solo la puerta de entrada rápida (redirect de UX para "ni
+siquiera eres admin de esto") — ya no es la autorización final para esta
+acción en concreto.
+
+**Regla de fondo para el resto de esta serie de tareas** (TAL-12/13/15 y
+las que vengan): cualquier función que autoriza y actúa debe resolver la
+identidad del actor dentro de sí misma (por `userId`, releyendo su rol en
+fresco), nunca aceptarla como argumento afirmado desde Next.js — ni
+siquiera el caso "ya sé que es Super Admin" es una excepción segura.
+
+**Resultado tipado en vez de excepción** (nota no bloqueante de
+auditoría, ronda 2): `removeGuestEverywhereHandler` devuelve
+`{ok:false, error:"not-authorized"}` en vez de lanzar cuando falla
+cualquiera de las comprobaciones de arriba — una carrera legítima (el rol
+o la pertenencia cambiaron de verdad entre medias, sin que nadie esté
+atacando nada) no debería reventar como un error crudo sin manejar.
+`removeGuestEverywhereAction` lo traduce a `redirect("/unauthorized")`,
+mismo criterio que el resto de rutas protegidas de la app (antes de esta
+corrección, el rechazo del hallazgo de ronda 1 sí llegaba como un HTTP 500
+crudo — confirmado no explotable por el auditor, pero peor experiencia
+que un redirect limpio ante una carrera real).
+
+**Probado con concurrencia real**: actor con membership `ADMIN` en un
+calendario A; email E invitado a la vez a A (pertenencia del objetivo
+válida) y a un calendario B sin relación. Se lanzan a la vez, sin `await`
+entre medias, "revocar la membership `ADMIN` del actor en A" (simula que
+otro Super Admin le quita el rol justo en ese instante — mutation temporal
+solo para esta prueba, no comprometida al repo, mismo criterio que el
+resto de scripts de concurrencia de este documento) y
+`guests:removeGuestEverywhere` actuando como ese actor, autorizado por A.
+25 repeticiones con calendarios/actor/invitaciones frescos en cada
+intento, misma invariante que la prueba de ronda 1 (si el borrado global
+tiene éxito, B debe quedar borrado; si falla, B debe quedar intacto).
+
+**Resultado — 25/25 sin violaciones**, con las dos ramas ejercidas (4/25
+el borrado global tuvo éxito y se llevó A y B por delante; 21/25 falló
+porque la revocación ganó la carrera y B quedó intacto — reparto todavía
+más desequilibrado que el de la prueba de ronda 1 porque revocar una
+membership es una escritura más simple aún que `removeGuestFromCalendar`,
+pero de nuevo lo relevante es que las dos ramas se ejercitan de verdad sin
+ninguna violación) — confirma que releer el rol del actor dentro de la
+misma transacción cierra también esta ventana. Corrido contra el
+deployment de desarrollo propio, con una mutation interna temporal
+(`convex/_scratch_toctou_test.ts::deleteAdminMembership`) creada solo para
+poder disparar la revocación desde `npx convex run` — borrada y
+redesplegada antes de esta exportación, mismo criterio que TAL-9 con su
+mutation temporal de borrado de skin.
+
+### Nota de proceso: un deployment de Convex por terminal mientras TAL-12/13/16 convivan
+
+Durante esta tarea se detectó (primero como un índice borrado, después
+como el problema real y más general) que `npx convex dev`/`deploy` no es
+aditivo entre worktrees: sincroniza el deployment de Convex al conjunto
+EXACTO de schema + funciones de quien despliega, así que dos terminales
+con ramas distintas sin mergear que despliegan sobre el MISMO deployment
+de desarrollo se borran mutuamente el trabajo (schema, índices, funciones
+públicas) sin ningún aviso de la plataforma. La Directora decidió que,
+mientras TAL-12 (T1)/TAL-13 (T2)/TAL-16 (esta tarea) convivan sin mergear,
+cada terminal use su propio deployment de desarrollo — T1 se queda en el
+compartido `beloved-barracuda-617` (ya avanzado con TAL-9/10/11), esta
+tarea se desplegó contra uno propio (`calendario-adviento-t3`/
+`combative-vole-47`, mismo team `aitor-marin-6a254`). No afecta al
+resultado de esta tarea (el schema/funciones son idénticos salvo por el
+código que no toca cada terminal), pero si quien retome trabajo en TAL-16
+más adelante encuentra `CONVEX_DEPLOYMENT` apuntando a un proyecto
+distinto del compartido, es la razón.

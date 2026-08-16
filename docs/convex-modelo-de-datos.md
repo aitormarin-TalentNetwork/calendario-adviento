@@ -76,6 +76,14 @@ mismas relaciones. Diferencias de traducción, tabla por tabla:
 
 Ninguna entidad ni relación nueva ni omitida respecto a Prisma.
 
+## Índices nuevos tras TAL-9
+
+- **`invitations.by_email`** (TAL-16): `removeGuestEverywhere`
+  (`convex/guests.ts`) borra TODAS las invitaciones de un email en
+  cualquier calendario — sin este índice haría falta `collect()` + filtro
+  en JS sobre toda la tabla. Ver `docs/invitados.md` § "Gestión de
+  invitados sobre Convex (TAL-16)" para el detalle completo.
+
 ## Índices en vez de `@@unique`/`@unique`
 
 Convex no tiene restricciones de unicidad declarativas a nivel de schema (no
