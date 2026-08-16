@@ -105,10 +105,15 @@ export function todayInTimeZone(now: Date, timeZone: string | undefined | null):
  * Calendarios donde `userId` es ADMIN — ver `docs/modelo-de-datos.md`.
  *
  * TAL-12 — reconectada contra Convex (`calendars.listCalendarsForUserPublic`,
- * `convex/calendars.ts`). Ya no lanza `DataLayerUnavailableError` — quien
- * llama (`src/app/admin/page.tsx`) sigue envolviéndola en `tryDataLayer`
- * para distinguir "no disponible" (Convex inalcanzable/mal configurado) de
- * la lista vacía real, que ahora sí puede volver a darse honestamente.
+ * `convex/calendars.ts`). Ya no lanza `DataLayerUnavailableError` ni hace
+ * falta envolverla en `tryDataLayer` (hallazgo de TAL-10 ronda 1, ya no
+ * aplica aquí): esa maquinaria existía para distinguir "no disponible" de
+ * una lista vacía real mientras la función estaba GARANTIZADA a fallar
+ * siempre; ahora que está reconectada de verdad, un fallo de Convex es un
+ * fallo real (red caída, mal configurado) y se deja propagar tal cual —
+ * mismo criterio que la versión Prisma original, que nunca tuvo un estado
+ * especial para "la base de datos está caída". `[]` aquí es siempre la
+ * lista vacía real.
  */
 export async function listAdminCalendars(
   userId: string
