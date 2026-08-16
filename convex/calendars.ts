@@ -336,21 +336,31 @@ export const deleteCalendar = internalMutation({
  * mutation serializable, nunca repartida en varias llamadas desde
  * Next.js.
  *
- * `isSuperAdmin` llega como argumento (ya resuelto por `getAuthorizedUser`
- * en Next.js) en vez de releerse aquí: es un dato de USUARIO, no de este
- * calendario concreto — no cambia por que otra petición borre este
- * calendario u otro, así que no forma parte de la ventana de carrera que
- * esta función cierra (mismo criterio que `resolveCalendarAccess`,
- * `src/lib/roles.ts`, nunca toca Convex para el atajo de Super Admin).
+ * Solo recibe `userId`, NUNCA `isSuperAdmin` como argumento (hallazgo de
+ * auditoría, ronda 3: la versión anterior aceptaba `isSuperAdmin` como
+ * booleano afirmado por quien llama, resuelto en una query Convex APARTE
+ * en Next.js — la mutation se lo creía sin comprobar nada, así que un
+ * privilegio revocado entre esa lectura y esta llamada seguía surtiendo
+ * efecto aquí, y de raíz: el contrato público permitía que cualquier
+ * código con el secreto compartido afirmara `isSuperAdmin: true`
+ * directamente, sin que esta mutation lo verificase por su cuenta — nunca
+ * aceptar un resultado de autorización como argumento afirmado desde
+ * fuera, ni siquiera del propio Next.js). Corrección: el documento
+ * `users` se relee aquí DENTRO de la misma transacción — `isSuperAdmin`
+ * es tan "estado que puede cambiar mientras tanto" como la membership, y
+ * cierra exactamente el mismo tipo de ventana.
  */
 async function deleteCalendarAsUserHandler(
   ctx: MutationCtx,
-  args: { calendarId: Id<"calendars">; userId: Id<"users">; isSuperAdmin: boolean }
+  args: { calendarId: Id<"calendars">; userId: Id<"users"> }
 ): Promise<"deleted" | "already-gone" | "unauthorized"> {
   const calendar = await ctx.db.get(args.calendarId);
   if (!calendar) return "already-gone";
 
-  if (!args.isSuperAdmin) {
+  const user = await ctx.db.get(args.userId);
+  if (!user) return "unauthorized";
+
+  if (!user.isSuperAdmin) {
     const membership = await ctx.db
       .query("calendarMemberships")
       .withIndex("by_calendar_and_user", (q) => q.eq("calendarId", args.calendarId).eq("userId", args.userId))
@@ -363,7 +373,7 @@ async function deleteCalendarAsUserHandler(
 }
 
 export const deleteCalendarAsUser = internalMutation({
-  args: { calendarId: v.id("calendars"), userId: v.id("users"), isSuperAdmin: v.boolean() },
+  args: { calendarId: v.id("calendars"), userId: v.id("users") },
   handler: deleteCalendarAsUserHandler,
 });
 
@@ -476,22 +486,25 @@ export const updateCalendarPublic = mutation({
 
 /**
  * Frontera pública de `deleteCalendarAsUserHandler` — ver el comentario
- * completo ahí para el porqué (hallazgo de auditoría, TAL-12 ronda 2).
- * Deliberadamente NO existe una versión pública del `deleteCalendar`
- * "desnudo" (sin `userId`/`isSuperAdmin`, que confiaría ciegamente en que
- * quien llama ya comprobó autorización aparte): esa forma es exactamente
- * la que permitió la ventana de carrera de la ronda 2 — la única puerta
- * pública para borrar un calendario resuelve autorización y borrado
- * juntos, atómicamente.
+ * completo ahí para el porqué (hallazgos de auditoría, TAL-12 rondas 2 y
+ * 3). Deliberadamente NO existe una versión pública del `deleteCalendar`
+ * "desnudo" (sin `userId`, que confiaría ciegamente en que quien llama ya
+ * comprobó autorización aparte): esa forma es exactamente la que permitió
+ * la ventana de carrera de la ronda 2. Y deliberadamente `args` NO incluye
+ * `isSuperAdmin` ni ningún otro resultado de autorización afirmado desde
+ * fuera (ronda 3) — solo `userId`, una referencia de identidad; el
+ * privilegio se relee dentro de la propia mutation. La única puerta
+ * pública para borrar un calendario resuelve identidad, autorización y
+ * borrado juntos, atómicamente, sin confiar en nada que Next.js afirme
+ * sobre el resultado de esa autorización.
  */
 export const deleteCalendarAsUserPublic = mutation({
-  args: { serverSecret: v.string(), calendarId: v.id("calendars"), userId: v.id("users"), isSuperAdmin: v.boolean() },
+  args: { serverSecret: v.string(), calendarId: v.id("calendars"), userId: v.id("users") },
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
     return await deleteCalendarAsUserHandler(ctx, {
       calendarId: args.calendarId,
       userId: args.userId,
-      isSuperAdmin: args.isSuperAdmin,
     });
   },
 });

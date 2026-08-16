@@ -134,15 +134,21 @@ export async function deleteCalendarAction(calendarId: string) {
   // existencia + autorización + borrado en UNA sola mutation de Convex
   // (mismo patrón que `access.resolveMemberAccessPublic`, TAL-11, para el
   // mismo tipo de problema — ver el comentario completo en
-  // `convex/calendars.ts::deleteCalendarAsUserHandler`). `isSuperAdmin` se
-  // manda tal cual (ya resuelto por `getAuthorizedUser`, dato de usuario,
-  // no de este calendario concreto — no forma parte de la ventana de
-  // carrera que cierra esta mutation).
+  // `convex/calendars.ts::deleteCalendarAsUserHandler`).
+  //
+  // Hallazgo de auditoría, ronda 3: NO se manda `user.isSuperAdmin` como
+  // argumento — sería un resultado de autorización afirmado desde fuera
+  // (esta misma sesión de Next.js, resuelto en una query Convex aparte
+  // por `getAuthorizedUser`), exactamente el tipo de dato que esta
+  // mutation no debe aceptar tal cual: un privilegio revocado entre esa
+  // lectura y esta llamada seguiría surtiendo efecto si se confiara en él
+  // aquí. Solo se manda `userId` — una referencia de identidad, no un
+  // privilegio — y la propia mutation relee `isSuperAdmin` del documento
+  // `users` dentro de su misma transacción.
   const result = await fetchMutation(api.calendars.deleteCalendarAsUserPublic, {
     serverSecret: convexAppServerSecret(),
     calendarId: calendarId as Id<"calendars">,
     userId: user.id as Id<"users">,
-    isSuperAdmin: user.isSuperAdmin,
   });
   if (result === "unauthorized") redirect("/unauthorized");
 
