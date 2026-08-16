@@ -87,8 +87,12 @@ export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: stri
 
     // Solo hay algo que marcar como visto si el día tiene vídeo asignado
     // y todavía no se había visto — abrir un día sin vídeo (Admin no llegó
-    // a asignarlo) no cuenta como "visto".
-    if (door.dayId && door.state === "unseen") {
+    // a asignarlo) no cuenta como "visto". `door.dayId` implica
+    // `door.videoUrl` en la práctica (Day.videoUrl no es nullable en el
+    // schema), pero se comprueba explícito para que la condición diga
+    // literalmente lo mismo que este comentario, sin depender de esa
+    // invariante externa.
+    if (door.dayId && door.videoUrl && door.state === "unseen") {
       startTransition(async () => {
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
         const result = await markDayViewedAction(calendarId, door.dayId!, timeZone);
