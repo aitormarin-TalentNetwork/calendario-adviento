@@ -1,0 +1,14 @@
+Salida real de scripts/verify-tal15-superadmin.mjs contra un deployment de
+desarrollo real (wandering-goose-523.convex.cloud, mismo criterio que
+TAL-13/TAL-12 mientras TAL-16 no esté mergeada), ejecutado desde la raíz
+del worktree con:
+
+  set -a && source .env.local && set +a && node scripts/verify-tal15-superadmin.mjs
+
+OK: las 5 funciones rechazan a un actor que no es Super Admin
+OK: listCalendarsWithStats — status upcoming/finished, daysCount=1, invitedCount=1, viewedCount=2
+OK: addAdmin rechaza email inválido
+OK: addAdmin asciende a un GUEST ya invitado a ADMIN
+OK: removeAdminEverywhere — guest1 (con invitación viva) y noInv (sin invitación) ya no son Admin
+OK: camino 'degradar a GUEST' (guest1, invitación viva) y camino 'borrar membership' (noInv, sin invitación) confirmados en la tabla real
+DONE
