@@ -14,19 +14,18 @@ rejilla + el panel de la fecha seleccionada, ronda 2).
 
 ## Decisiones de alcance
 
-- **Solo link externo, no subida de archivo real** — decisión técnica que
-  pedía explícitamente el brief. `docs/stack.md` deja pendiente qué backend
-  de almacenamiento usar para subidas (Railway volume, S3-compatible...);
-  decidirlo como parte de esta tarea habría sido resolver una decisión de
-  infraestructura no cerrada solo para desbloquear esta ronda. El campo
+- **Solo link externo, no subida de archivo real — decisión de producto,
+  cerrada.** Arrancó como decisión técnica de esta terminal (el brief
+  invitaba a decidirlo, y `docs/stack.md` no tenía cerrado qué backend de
+  almacenamiento usar para subidas — Railway volume, S3-compatible...). En
+  la ronda 2 el PM aclaró que el PRD sí pide ambos modos para el MVP, pero
+  como implica elegir un servicio de almacenamiento lo trasladó a Aitor
+  antes de confirmar. **Decisión final de Aitor**: solo link externo para
+  esta onda — la subida de archivo real queda para una tarea/onda
+  posterior, cuando se decida el backend de almacenamiento. El campo
   `videoUrl` del schema (TAL-3) ya vale igual para un enlace externo que
-  para la ruta de un archivo subido — cuando se decida el backend de
-  subidas, la subida de archivo se puede añadir sin tocar el modelo de
-  datos, solo la UI/acción de guardado. **Actualización ronda 2**: el PM
-  confirma que el PRD sí pide ambos modos para el MVP, pero como implica
-  elegir un servicio de almacenamiento, lo traslada a Aitor antes de
-  confirmar del todo — esta terminal no toca la subida de archivo hasta
-  que la Directora lo indique.
+  para la ruta de un archivo subido, así que esa tarea futura no necesita
+  tocar el modelo de datos, solo añadir la UI/acción de subida.
 - **Rejilla + panel de edición, como el mockup** (ronda 2, a petición del
   PM): la ronda 1 simplificaba esto a una lista de formularios siempre
   visibles, uno por fecha, para evitar estado de cliente. El PM pidió
