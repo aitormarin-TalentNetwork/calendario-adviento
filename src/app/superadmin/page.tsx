@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { signOut } from "@/lib/auth";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { DataLayerUnavailableError, tryDataLayer } from "@/lib/not-migrated";
 import {
   addAdmin,
   listAdmins,
@@ -21,17 +20,35 @@ const STATUS_LABEL: Record<CalendarStatus, string> = {
 const ERROR_MESSAGE: Record<string, string> = {
   "invalid-email": "Escribe un email válido.",
   "calendar-not-found": "Ese calendario ya no existe — refresca la página.",
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: `addAdmin`
-  // lanza `DataLayerUnavailableError` en vez de devolver
-  // `{error:"calendar-not-found"}` cuando en realidad no se pudo consultar
-  // (hallazgo de auditoría, ronda 1 — ese mensaje habría sido un motivo
-  // inventado). `addAdminAction`, más abajo, la atrapa y redirige con este
-  // motivo distinto.
+  // Convex no disponible (red caída, secreto mal configurado) — mismo
+  // criterio de degradación honesta que el resto de esta página, no un
+  // motivo de negocio inventado.
   unavailable: "Esta acción no está disponible ahora mismo.",
 };
 
 function formatDate(date: Date) {
   return date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
+}
+
+/**
+ * Envuelve una lectura que puede fallar (Convex no disponible, red caída)
+ * y la convierte en `null` — para que cada sección de esta página muestre
+ * "no disponible ahora mismo" en vez de una lista vacía (que se leería
+ * como un dato real: "no hay calendarios"/"no hay Admins") o tumbar la
+ * página entera. TAL-15 — reemplaza a `tryDataLayer`/
+ * `DataLayerUnavailableError` (TAL-10): esta página ya no depende de
+ * Prisma/Convex-sin-reconectar, así que ese marcador específico ya no
+ * aplica — cualquier error real de estas tres lecturas (no hay ningún
+ * paso de validación posterior que pueda fallar por su cuenta, a
+ * diferencia de `DaysSection`/TAL-13) es, en la práctica, exactamente el
+ * mismo caso: la llamada a Convex no se completó.
+ */
+async function tryFetch<T>(fn: () => Promise<T>): Promise<T | null> {
+  try {
+    return await fn();
+  } catch {
+    return null;
+  }
 }
 
 async function addAdminAction(formData: FormData) {
@@ -42,21 +59,24 @@ async function addAdminAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") ?? "");
   const email = String(formData.get("email") ?? "");
 
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: `addAdmin`
-  // sigue validando el formato de email de verdad (no toca Prisma), pero
-  // lanza `DataLayerUnavailableError` en la parte real de la escritura —
-  // se atrapa aquí para redirigir con un motivo honesto ("no disponible"),
-  // en vez de dejarlo propagar como un error crudo o inventar
-  // "calendar-not-found" (hallazgo de auditoría, ronda 1).
+  // TAL-15 — reconectado contra Convex. Un fallo de la propia llamada
+  // (Convex no disponible, secreto mal configurado) se atrapa aquí para
+  // redirigir con un motivo honesto ("no disponible"), en vez de dejarlo
+  // propagar como un error crudo — mismo criterio de degradación que el
+  // resto de esta página (`tryFetch`, arriba). El `redirect()` de éxito
+  // vive fuera de este `try` a propósito: `redirect()` lanza internamente
+  // para cortar el render, y atraparlo aquí lo convertiría en el mensaje
+  // de "no disponible" por error.
+  let result: Awaited<ReturnType<typeof addAdmin>>;
   try {
-    const result = await addAdmin(calendarId, email);
-    revalidatePath("/superadmin");
-    redirect(result.ok ? "/superadmin" : `/superadmin?error=${result.error}`);
-  } catch (err) {
-    if (!(err instanceof DataLayerUnavailableError)) throw err;
+    result = await addAdmin(user.id, calendarId, email);
+  } catch {
     revalidatePath("/superadmin");
     redirect("/superadmin?error=unavailable");
   }
+
+  revalidatePath("/superadmin");
+  redirect(result.ok ? "/superadmin" : `/superadmin?error=${result.error}`);
 }
 
 async function removeAdminAction(formData: FormData) {
@@ -65,7 +85,7 @@ async function removeAdminAction(formData: FormData) {
   if (!user?.isSuperAdmin) redirect("/unauthorized");
 
   const userId = String(formData.get("userId") ?? "");
-  if (userId) await removeAdminEverywhere(userId);
+  if (userId) await removeAdminEverywhere(user.id, userId);
 
   revalidatePath("/superadmin");
   redirect("/superadmin");
@@ -79,20 +99,15 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
   const { error } = await searchParams;
   const errorMessage = typeof error === "string" ? ERROR_MESSAGE[error] : undefined;
 
-  // TAL-10 — Prisma/Postgres se retiran de la infraestructura: las tres
-  // lanzan `DataLayerUnavailableError` (hallazgo de auditoría, ronda 1 —
-  // antes devolvían `[]`, que esta página interpretaba como "no hay
-  // calendarios"/"no hay ningún Admin", hechos falsos). Cada resultado se
-  // distingue explícitamente de su lista vacía real más abajo.
+  // TAL-15 — reconectado contra Convex. Cada resultado se distingue
+  // explícitamente de su lista vacía real más abajo (`null` = "no se
+  // pudo consultar", `[]` = "consultado, no hay nada" — no son lo mismo).
   const now = new Date();
-  const [calendarsResult, adminsResult, calendarOptionsResult] = await Promise.all([
-    tryDataLayer(() => listCalendarsWithStats(now)),
-    tryDataLayer(() => listAdmins()),
-    tryDataLayer(() => listCalendarOptions()),
+  const [calendars, admins, calendarOptions] = await Promise.all([
+    tryFetch(() => listCalendarsWithStats(user.id, now)),
+    tryFetch(() => listAdmins(user.id)),
+    tryFetch(() => listCalendarOptions(user.id)),
   ]);
-  const calendars = calendarsResult.ok ? calendarsResult.data : null;
-  const admins = adminsResult.ok ? adminsResult.data : null;
-  const calendarOptions = calendarOptionsResult.ok ? calendarOptionsResult.data : null;
 
   return (
     <main style={{ flex: 1, padding: "2rem", display: "flex", flexDirection: "column", gap: "2rem" }}>

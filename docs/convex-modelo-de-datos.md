@@ -503,8 +503,11 @@ Esta sección describe el estado de TAL-9 tal como se cerró — se deja
 intacta como registro histórico en vez de reescribirla. Para el estado
 real de la reconexión app↔Convex, ver la documentación de cada tarea que
 la fue cerrando en su propio dominio: `docs/auth.md` (TAL-11, autenticación
-y el secreto compartido de `convex/serverAuth.ts`) y `docs/dias.md`
+y el secreto compartido de `convex/serverAuth.ts`), `docs/dias.md`
 (TAL-13, `convex/days.ts` — extendido con validación de `videoUrl`/
-`message` y con `deleteDay`/`getCalendarDays` nuevas). El resto de
-dominios (`convex/calendars.ts` TAL-12, `convex/guests.ts`/`invitations.ts`
-TAL-16) siguen su propio ciclo en paralelo.
+`message` y con `deleteDay`/`getCalendarDays` nuevas) y `docs/superadmin.md`
+(TAL-15, `convex/superadmin.ts` — nuevo, cinco funciones con
+autorización del actor re-verificada dentro de cada una, no solo confiada
+a Next.js). El resto de dominios (`convex/calendars.ts` TAL-12,
+`convex/guests.ts`/`invitations.ts` TAL-16) siguen su propio ciclo en
+paralelo.
