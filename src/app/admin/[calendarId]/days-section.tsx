@@ -1,6 +1,9 @@
+import { fetchQuery } from "convex/nextjs";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { DaysGridEditor } from "@/app/admin/[calendarId]/days-grid-editor";
-import { formatCalendarDate } from "@/lib/calendars";
-import { DataLayerUnavailableError, tryDataLayer } from "@/lib/not-migrated";
+import { formatCalendarDate, parseUtcDateOnly } from "@/lib/calendars";
+import { convexAppServerSecret } from "@/lib/convex-server";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -40,22 +43,51 @@ function toDateInputValue(date: Date) {
 type DayRow = { date: Date; videoUrl: string; message: string | null };
 
 /**
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: antes
- * `prisma.calendar.findUniqueOrThrow` (rango) + `prisma.day.findMany`
- * (días ya guardados). Se resuelven juntos, mismo motivo que
- * `getCalendarForAdminPage` en la página que monta esta sección — no hay
- * rejilla parcial honesta que mostrar si cualquiera de los dos falla.
+ * `parseUtcDateOnly` sobre un string "YYYY-MM-DD" que ya viene de Convex
+ * (`getCalendarDaysPublic`) — nunca debería fallar, porque
+ * `assertValidCalendarDate` (convex/dates.ts) ya garantiza ese formato al
+ * guardar. Si alguna vez fallara, es un fallo real que hay que ver (bug de
+ * invariante, no "sección no disponible") — por eso lanza en vez de caer
+ * silenciosamente a un valor por defecto, a diferencia del catch de más
+ * abajo (que sí es "no se pudo consultar Convex", un caso distinto).
  */
-async function getDaysSectionData(
-  calendarId: string
-): Promise<{ startDate: Date; endDate: Date; days: DayRow[] }> {
-  void calendarId;
-  throw new DataLayerUnavailableError("DaysSection:calendar+days");
+function requireDate(value: string): Date {
+  const date = parseUtcDateOnly(value);
+  if (!date) {
+    throw new Error(
+      `Fecha inválida recibida de Convex: "${value}" — no debería poder pasar, la valida assertValidCalendarDate al guardar.`
+    );
+  }
+  return date;
+}
+
+/**
+ * TAL-13 — reconectado contra Convex (antes `prisma.calendar.findUniqueOrThrow`
+ * + `prisma.day.findMany`, ver docs/dias.md). Vive en `convex/days.ts`
+ * (`getCalendarDaysHandler`), no en `calendars.ts` (dominio de TAL-12 en
+ * paralelo) — el rango del calendario y sus días ya guardados se resuelven
+ * juntos en una sola llamada, no hay rejilla parcial honesta que mostrar
+ * si cualquiera de los dos falta.
+ */
+async function fetchCalendarDays(calendarId: string) {
+  return await fetchQuery(api.days.getCalendarDaysPublic, {
+    serverSecret: convexAppServerSecret(),
+    calendarId: calendarId as Id<"calendars">,
+  });
 }
 
 export async function DaysSection({ calendarId }: { calendarId: string }) {
-  const result = await tryDataLayer(() => getDaysSectionData(calendarId));
-  if (!result.ok) {
+  // Solo se atrapa el fallo de la propia llamada (Convex no disponible,
+  // secreto mal configurado, red caída) — un mensaje de "no disponible"
+  // es la degradación honesta correcta para ESTE fallo concreto. Un error
+  // dentro de `requireDate` (más abajo, fuera de este try) no se atrapa
+  // aquí a propósito: sería un fallo real de invariante, no "no se pudo
+  // consultar", y esconderlo detrás del mismo mensaje lo ocultaría en vez
+  // de dejarlo visible para investigar.
+  let raw: Awaited<ReturnType<typeof fetchCalendarDays>>;
+  try {
+    raw = await fetchCalendarDays(calendarId);
+  } catch {
     return (
       <section style={{ marginTop: "2rem" }}>
         <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
@@ -63,7 +95,14 @@ export async function DaysSection({ calendarId }: { calendarId: string }) {
       </section>
     );
   }
-  const { startDate, endDate, days } = result.data;
+
+  const startDate = requireDate(raw.startDate);
+  const endDate = requireDate(raw.endDate);
+  const days: DayRow[] = raw.days.map((day) => ({
+    date: requireDate(day.date),
+    videoUrl: day.videoUrl,
+    message: day.message ?? null,
+  }));
 
   const span = daySpan(startDate, endDate);
 
