@@ -496,3 +496,15 @@ numéricos quedan documentados aquí.
   migración de datos para esta tarea.
 - Quitar Prisma del proyecto (`prisma/`, dependencias, `.env` de Postgres) —
   eso es TAL-10, junto con conectar la app de verdad a Convex.
+
+## Actualización — reconexión de la app (posterior a esta tarea)
+
+Esta sección describe el estado de TAL-9 tal como se cerró — se deja
+intacta como registro histórico en vez de reescribirla. Para el estado
+real de la reconexión app↔Convex, ver la documentación de cada tarea que
+la fue cerrando en su propio dominio: `docs/auth.md` (TAL-11, autenticación
+y el secreto compartido de `convex/serverAuth.ts`) y `docs/dias.md`
+(TAL-13, `convex/days.ts` — extendido con validación de `videoUrl`/
+`message` y con `deleteDay`/`getCalendarDays` nuevas). El resto de
+dominios (`convex/calendars.ts` TAL-12, `convex/guests.ts`/`invitations.ts`
+TAL-16) siguen su propio ciclo en paralelo.
