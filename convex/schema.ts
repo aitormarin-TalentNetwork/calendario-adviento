@@ -76,7 +76,15 @@ export default defineSchema({
     email: v.string(),
     calendarId: v.id("calendars"),
   })
-    .index("by_calendar_and_email", ["calendarId", "email"]),
+    .index("by_calendar_and_email", ["calendarId", "email"])
+    // TAL-16 — `removeGuestEverywhere` borra TODAS las invitaciones de un
+    // email, en cualquier calendario; sin este índice haría falta un
+    // `collect()` de la tabla entera + filtro en JS. A diferencia de scans
+    // similares de esta serie (p. ej. `listAdmins`, TAL-15), esta operación
+    // se dispara desde una acción de usuario frecuente ("borrar por
+    // completo" en el panel de invitados), no una operación rara de
+    // administración global — ver docs/convex-diseno-tal16-gestion-invitados.md.
+    .index("by_email", ["email"]),
 
   skins: defineTable({
     key: v.string(),
