@@ -108,30 +108,43 @@ export type AddAdminResult =
   | { ok: true }
   | { ok: false; error: "invalid-email" | "calendar-not-found" };
 
+// Validación real de formato (local-part + "@" + dominio con al menos un
+// punto, sin espacios) — el `type="email"` del HTML es solo una ayuda de
+// UI, no sustituye validar en servidor (hallazgo de auditoría, ronda 1):
+// dejaba pasar cosas como "a@" o "@dominio".
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
 /**
  * Da de alta a alguien como ADMIN de un calendario concreto (el rol es por
  * calendario, no global — ver docs/modelo-de-datos.md). Si la persona no
  * tiene todavía User, se crea (mismo patrón que el alta por Invitation en
  * src/lib/roles.ts); si ya tenía membership GUEST en ese calendario, se
  * asciende a ADMIN.
+ *
+ * Todo en una única transacción (hallazgo de auditoría, ronda 1): sin
+ * ella, si el Calendar desaparecía justo entre el upsert de User y el de
+ * CalendarMembership, quedaba un User huérfano creado sin ningún rol real
+ * en ningún calendario.
  */
 export async function addAdmin(calendarId: string, rawEmail: string): Promise<AddAdminResult> {
   const email = rawEmail.trim().toLowerCase();
-  if (!email || !email.includes("@")) return { ok: false, error: "invalid-email" };
+  if (!email || !EMAIL_PATTERN.test(email)) return { ok: false, error: "invalid-email" };
 
   const calendar = await prisma.calendar.findUnique({ where: { id: calendarId } });
   if (!calendar) return { ok: false, error: "calendar-not-found" };
 
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: {},
-    create: { email },
-  });
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.upsert({
+      where: { email },
+      update: {},
+      create: { email },
+    });
 
-  await prisma.calendarMembership.upsert({
-    where: { calendarId_userId: { calendarId, userId: user.id } },
-    update: { role: "ADMIN" },
-    create: { calendarId, userId: user.id, role: "ADMIN" },
+    await tx.calendarMembership.upsert({
+      where: { calendarId_userId: { calendarId, userId: user.id } },
+      update: { role: "ADMIN" },
+      create: { calendarId, userId: user.id, role: "ADMIN" },
+    });
   });
 
   return { ok: true };
@@ -151,6 +164,15 @@ export async function addAdmin(calendarId: string, rawEmail: string): Promise<Ad
  * como Guest), se borra la membership entera. Probado en vivo: promover a
  * un Guest ya invitado y luego quitarle el Admin lo deja como GUEST, no lo
  * expulsa del calendario.
+ *
+ * Todo en una única transacción (hallazgo de auditoría, ronda 1): antes se
+ * lanzaban las actualizaciones en paralelo con `Promise.all`, así que un
+ * fallo a mitad (BD caída, borrado concurrente) podía dejar a la persona
+ * degradada solo en algunos calendarios y sin tocar en otros — rompía el
+ * contrato de "quitar Admin en TODOS los calendarios". Con `$transaction`,
+ * o se aplican todos los cambios o no se aplica ninguno; y al ir todo por
+ * la misma conexión, se hace secuencial en vez de en paralelo (no hace
+ * falta paralelismo aquí, el volumen de calendarios por persona es bajo).
  */
 export async function removeAdminEverywhere(userId: string): Promise<void> {
   const adminMemberships = await prisma.calendarMembership.findMany({
@@ -158,19 +180,19 @@ export async function removeAdminEverywhere(userId: string): Promise<void> {
     include: { user: { select: { email: true } } },
   });
 
-  await Promise.all(
-    adminMemberships.map(async (membership) => {
-      const invitation = await prisma.invitation.findFirst({
+  await prisma.$transaction(async (tx) => {
+    for (const membership of adminMemberships) {
+      const invitation = await tx.invitation.findFirst({
         where: { calendarId: membership.calendarId, email: membership.user.email },
       });
       if (invitation) {
-        await prisma.calendarMembership.update({
+        await tx.calendarMembership.update({
           where: { id: membership.id },
           data: { role: "GUEST" },
         });
       } else {
-        await prisma.calendarMembership.delete({ where: { id: membership.id } });
+        await tx.calendarMembership.delete({ where: { id: membership.id } });
       }
-    })
-  );
+    }
+  });
 }
