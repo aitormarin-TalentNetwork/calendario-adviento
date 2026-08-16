@@ -1,4 +1,7 @@
-import { DataLayerUnavailableError } from "@/lib/not-migrated";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { convexAppServerSecret } from "@/lib/convex-server";
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -101,36 +104,59 @@ export function todayInTimeZone(now: Date, timeZone: string | undefined | null):
 /**
  * Calendarios donde `userId` es ADMIN — ver `docs/modelo-de-datos.md`.
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: lanza
- * `DataLayerUnavailableError` en vez de devolver `[]` (hallazgo de
- * auditoría, ronda 1 — un array vacío aquí se leería como "no administras
- * ningún calendario todavía", un hecho falso, no "no se pudo consultar").
- * Quien llama debe usar `tryDataLayer` y mostrar un mensaje honesto de "no
- * disponible" — ver `src/app/admin/page.tsx`.
+ * TAL-12 — reconectada contra Convex (`calendars.listCalendarsForUserPublic`,
+ * `convex/calendars.ts`). Ya no lanza `DataLayerUnavailableError` — quien
+ * llama (`src/app/admin/page.tsx`) sigue envolviéndola en `tryDataLayer`
+ * para distinguir "no disponible" (Convex inalcanzable/mal configurado) de
+ * la lista vacía real, que ahora sí puede volver a darse honestamente.
  */
-export async function listAdminCalendars(userId: string): Promise<{ id: string; name: string; startDate: Date; endDate: Date; skin: { name: string } }[]> {
-  void userId;
-  throw new DataLayerUnavailableError("listAdminCalendars");
+export async function listAdminCalendars(
+  userId: string
+): Promise<{ id: string; name: string; startDate: Date; endDate: Date; skin: { name: string } }[]> {
+  const calendars = await fetchQuery(api.calendars.listCalendarsForUserPublic, {
+    serverSecret: convexAppServerSecret(),
+    userId: userId as Id<"users">,
+  });
+  return calendars.map((calendar) => ({
+    id: calendar._id,
+    name: calendar.name,
+    startDate: parseUtcDateOnly(calendar.startDate)!,
+    endDate: parseUtcDateOnly(calendar.endDate)!,
+    // `skin` puede ser `null` si la referencia está rota (defensivo, ver
+    // `convex/calendars.ts::listCalendarsForUserHandler`) — no debería
+    // pasar en la práctica; se etiqueta en vez de reventar el render.
+    skin: { name: calendar.skin?.name ?? "—" },
+  }));
 }
 
 /**
- * Crea un calendario con valores de partida razonables y, en la misma
- * transacción, la CalendarMembership del creador como ADMIN — así es como
+ * Crea un calendario con valores de partida razonables y, en la MISMA
+ * mutation, la `calendarMembership` del creador como ADMIN — así es como
  * alguien se convierte en Admin de su primer calendario (brief de TAL-5).
  * Ver `docs/modelo-de-datos.md`/`docs/calendarios.md` para el resto de
- * reglas (idempotencia por `creationKey`, etc.).
+ * reglas (idempotencia por `creationKey`, resolución del skin por defecto
+ * dentro de Convex, etc.).
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: escritura sin
- * representación de "vacío" razonable (el llamador espera un `Calendar`
- * real de vuelta, con su `id`, para redirigir a `/admin/{id}`) — falla
- * explícitamente, mismo criterio que el resto de escrituras de este
- * proyecto. Pendiente de reescribir contra Convex en TAL-12+.
+ * TAL-12 — reconectada contra Convex (`calendars.createCalendarPublic`).
+ * `name`/`coverTitle`/`startDate`/`endDate` siguen siendo los mismos
+ * valores de partida hardcodeados que la versión Prisma (el botón "+
+ * Nuevo calendario" no tiene formulario, solo `creationKey`) — el Admin
+ * los cambia después desde el formulario de edición
+ * (`updateCalendarAction`).
  */
 export async function createCalendarForAdmin(
   user: { id: string },
   creationKey: string
 ): Promise<{ id: string }> {
-  void user;
-  void creationKey;
-  throw new DataLayerUnavailableError("createCalendarForAdmin");
+  const { startDate, endDate } = defaultCalendarDateRange();
+  const calendarId = await fetchMutation(api.calendars.createCalendarPublic, {
+    serverSecret: convexAppServerSecret(),
+    userId: user.id as Id<"users">,
+    name: "Nuevo calendario",
+    coverTitle: "¡Feliz cuenta atrás, equipo! 🎄",
+    startDate: startDate.toISOString().slice(0, 10),
+    endDate: endDate.toISOString().slice(0, 10),
+    creationKey,
+  });
+  return { id: calendarId };
 }

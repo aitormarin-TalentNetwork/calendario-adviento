@@ -1,12 +1,16 @@
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { deleteCalendarAction, updateCalendarAction } from "@/app/admin/actions";
 import { DaysSection } from "@/app/admin/[calendarId]/days-section";
 import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SubmitButton } from "@/components/submit-button";
 import { signOut } from "@/lib/auth";
+import { parseUtcDateOnly } from "@/lib/calendars";
+import { convexAppServerSecret } from "@/lib/convex-server";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { DataLayerUnavailableError, tryDataLayer } from "@/lib/not-migrated";
 import { resolveCalendarAccess } from "@/lib/roles";
 
 type AdminCalendar = {
@@ -20,17 +24,36 @@ type AdminCalendar = {
 };
 
 /**
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: antes
- * `prisma.calendar.findUnique` + `prisma.skin.findMany` (para el
- * selector). Todo el formulario de esta página depende de estos dos datos
- * a la vez, así que se resuelven juntos — si cualquiera de los dos
- * fallara, no hay formulario parcial honesto que mostrar.
+ * TAL-12 — reconectada contra Convex (`calendars.getPublic` +
+ * `skins.listAllPublic`, en paralelo). `null` significa "este calendario
+ * no existe de verdad" (mismo hecho que `notFound()` representaba con
+ * Prisma) — distinto de un fallo de la capa de datos, que ahora se deja
+ * propagar tal cual (no hay ningún resultado parcial honesto que mostrar
+ * si Convex es inalcanzable, mismo criterio que la versión Prisma nunca
+ * tuvo un estado especial para "la base de datos está caída").
  */
 async function getCalendarForAdminPage(
   calendarId: string
-): Promise<{ calendar: AdminCalendar; skins: { id: string; name: string }[] }> {
-  void calendarId;
-  throw new DataLayerUnavailableError("AdminCalendarPage:calendar+skins");
+): Promise<{ calendar: AdminCalendar; skins: { id: string; name: string }[] } | null> {
+  const serverSecret = convexAppServerSecret();
+  const [calendar, skins] = await Promise.all([
+    fetchQuery(api.calendars.getPublic, { serverSecret, calendarId: calendarId as Id<"calendars"> }),
+    fetchQuery(api.skins.listAllPublic, { serverSecret }),
+  ]);
+  if (!calendar) return null;
+
+  return {
+    calendar: {
+      id: calendar._id,
+      name: calendar.name,
+      coverTitle: calendar.coverTitle,
+      startDate: parseUtcDateOnly(calendar.startDate)!,
+      endDate: parseUtcDateOnly(calendar.endDate)!,
+      skinId: calendar.skinId,
+      coverImageUrl: calendar.coverImageUrl ?? null,
+    },
+    skins: skins.map((skin) => ({ id: skin._id, name: skin.name })).sort((a, b) => a.name.localeCompare(b.name)),
+  };
 }
 
 export default async function AdminCalendarPage({
@@ -45,21 +68,9 @@ export default async function AdminCalendarPage({
   const isAdmin = access?.kind === "super-admin" || access?.role === "ADMIN";
   if (!isAdmin) redirect("/unauthorized");
 
-  // `notFound()` habría sido una mentira — "este calendario no existe" es
-  // un hecho distinto de "no se pudo consultar" (hallazgo de auditoría,
-  // ronda 1). El resto de la comprobación de acceso de arriba ya redirige
-  // a todo el mundo hoy (ver src/lib/current-user.ts), pero esta llamada
-  // tenía que dejar de ser un residuo real de Prisma para cuando TAL-12
-  // restaure la autorización.
-  const result = await tryDataLayer(() => getCalendarForAdminPage(calendarId));
-  if (!result.ok) {
-    return (
-      <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
-        <p style={{ color: "var(--accent)" }}>Este calendario no está disponible ahora mismo.</p>
-      </main>
-    );
-  }
-  const { calendar, skins } = result.data;
+  const data = await getCalendarForAdminPage(calendarId);
+  if (!data) notFound();
+  const { calendar, skins } = data;
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>

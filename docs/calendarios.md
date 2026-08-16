@@ -1,11 +1,28 @@
 # CRUD de calendario — Admin (TAL-5)
 
+> **Nota TAL-12**: este documento describe el diseño de TAL-5 sobre Prisma,
+> que sigue siendo la decisión vigente en cuanto a comportamiento observable
+> (valores por defecto, validación, idempotencia). Lo que cambió es la capa
+> de datos: TAL-10 retiró Prisma/Postgres (dejando estas funciones lanzando
+> `DataLayerUnavailableError`) y TAL-12 las reconecta contra Convex, vía la
+> frontera pública de secreto compartido de TAL-11
+> (`convex/calendars.ts`/`convex/skins.ts`, `docs/convex-diseno-tal12-crud-calendario.md`
+> para el diseño previo, `docs/convex-modelo-de-datos.md` para el resto del
+> modelo). Las menciones a transacciones `SERIALIZABLE`/`P2002`/`onDelete:
+> Cascade` de Postgres de abajo son ya solo históricas — ver las notas
+> puntuales añadidas en cada sección para el mecanismo actual.
+
 ## Cómo se llega a ser Admin de un calendario
 
 No hay un paso previo de aprovisionamiento: cualquier usuario autenticado que
 visita `/admin` puede pulsar "+ Nuevo calendario", y eso crea el `Calendar`
 **y** su `CalendarMembership` como `ADMIN` en la misma transacción (ver
-`src/lib/calendars.ts::createCalendarForAdmin`). Es la propia creación la que
+`src/lib/calendars.ts::createCalendarForAdmin`, que ahora llama a
+`calendars.createCalendarPublic` → `convex/calendars.ts::createCalendarHandler`
+— sigue siendo una única mutation, decisión ya cerrada por la Directora al
+diseñar TAL-12 precisamente para no reabrir la ventana de carrera "calendario
+sin ningún Admin todavía" que TAL-7 tardó 2 rondas en cerrar). Es la propia
+creación la que
 "da de alta" al Admin, no al revés — coherente con el brief de TAL-5 ("crear
 un calendario implica también crear la CalendarMembership del creador como
 Admin") y con que TAL-5 no está bloqueada por TAL-4 (Panel Super Admin): un
@@ -30,7 +47,9 @@ sin diálogo intermedio):
   año, usa el año siguiente).
 - Skin: `pine` (coincide con el comentario "skin por defecto" de
   `prisma/seed.ts`); si por lo que sea no existe, cae al primero que haya en
-  vez de bloquear la creación.
+  vez de bloquear la creación. **TAL-12**: esta resolución vive ahora dentro
+  de Convex (`resolveDefaultSkinId`, `convex/calendars.ts`) — la Server
+  Action de creación no manda ningún `skinId`, igual que antes con Prisma.
 
 ## Validación en las server actions, no solo en la UI
 
@@ -130,6 +149,18 @@ si el calendario ya no existe (P2025, "record not found" — un segundo
 envío del mismo borrado), se trata como éxito en vez de fallar; el estado
 que pedía el usuario (que el calendario no exista) ya se cumple.
 
+> **TAL-12**: el mecanismo concreto de arriba (índice único +
+> `try/catch(P2002)`) es específico de Prisma/Postgres. La versión Convex
+> (`convex/calendars.ts::createCalendarHandler`) no lo necesita: una
+> mutation de Convex ya corre con aislamiento serializable y reintento
+> automático ante conflicto (mismo mecanismo verificado con concurrencia
+> real en TAL-9), así que el check-then-insert por `creationKey` es seguro
+> tal cual. Igual con el borrado: `deleteCalendarHandler` trata un
+> `calendarId` que ya no existe como no-op (`if (!calendar) return;`),
+> mismo comportamiento observable que el `P2025` de Prisma, verificado
+> contra el deployment real (borrar dos veces el mismo calendario no
+> lanza).
+
 ## Fechas: por qué hay un `formatCalendarDate` en vez de `toLocaleDateString` a secas
 
 `Calendar.startDate`/`endDate` se guardan a medianoche UTC. Formatear con
@@ -145,13 +176,27 @@ sitio que necesite mostrar estas fechas (TAL-6/TAL-7 probablemente).
 
 ## Borrar calendario
 
-`onDelete: Cascade` en el schema (ya definido en TAL-3) se lleva por delante
-`Day`, `Invitation` y `CalendarMembership` de ese calendario — no hace falta
-borrarlos a mano. La UI pide confirmación con un diálogo nativo del
-navegador (`src/components/confirm-submit-button.tsx`, único componente
-cliente del proyecto hasta ahora) antes de enviar el formulario; es solo una
-salvaguarda de UX, la autorización real la comprueba la server action, no el
-diálogo.
+`onDelete: Cascade` en el schema de Prisma (ya definido en TAL-3) se llevaba
+por delante `Day`, `Invitation` y `CalendarMembership` de ese calendario —
+no hacía falta borrarlos a mano. La UI pide confirmación con un diálogo
+nativo del navegador (`src/components/confirm-submit-button.tsx`, único
+componente cliente del proyecto hasta ahora) antes de enviar el formulario;
+es solo una salvaguarda de UX, la autorización real la comprueba la server
+action, no el diálogo.
+
+> **TAL-12**: Convex no tiene cascade declarativo (ya lo dejó anotado TAL-9
+> como pendiente). `convex/calendars.ts::deleteCalendarHandler` hace el
+> borrado en cascada A MANO, completo, dentro de UNA sola mutation
+> transaccional: días del calendario → `dayViews` de esos días (consultados
+> por el índice `by_day_and_user` de `dayViews` usando solo `dayId` como
+> prefijo — confirmado que funciona así contra el deployment real, la duda
+> que dejó abierta el diseño de TAL-12) → `calendarMemberships` → `invitations`
+> → el propio `calendars`. Verificado con datos reales (días + vistas
+> creados de verdad, no solo razonado): tras borrar, ni el calendario ni
+> nada de lo anterior sigue existiendo. Coste de transacción: a la escala
+> del producto (un calendario de adviento, ~24 días como mucho) no es un
+> problema — anotado como posible revisión futura solo si el producto
+> llegara a admitir calendarios mucho más grandes.
 
 ## Nota: desfase de checksum en el historial de migraciones
 

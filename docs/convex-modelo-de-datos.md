@@ -327,6 +327,24 @@ otra función de Convex (`ctx.runMutation(internal.foo.bar, args)`) o desde
 la CLI ya autenticada como administrador (`npx convex run`, el mismo canal
 que usan las pruebas de concurrencia de este documento — ver "Evidencia").
 
+> **Nota TAL-11/TAL-12**: esto creó un bloqueante real para cuando Next.js
+> SÍ necesita invocar estas funciones de verdad (login, autorización, CRUD
+> de calendario) — una función `internal*` no es alcanzable ni siquiera
+> desde el propio servidor de Next.js vía `fetchQuery`/`fetchMutation`
+> (`convex/nextjs`), el mismo mecanismo base que `ConvexHttpClient`.
+> Resuelto en TAL-11 con un secreto compartido (`convex/serverAuth.ts`,
+> `docs/convex-auth-investigacion-tal11.md`): cada operación que Next.js
+> necesita invocar gana una versión pública "delgada" (sufijo `Public`, p.
+> ej. `users.getByIdPublic`, `calendars.createCalendarPublic`) que exige un
+> argumento `serverSecret` verificado en tiempo constante contra
+> `CONVEX_APP_SERVER_SECRET` antes de delegar en la lógica real — la
+> autorización/identidad de quién actúa sigue sin vivir en Convex en
+> ningún momento, sigue resuelta enteramente en Next.js
+> (`getAuthorizedUser`/`resolveCalendarAccess`). Las funciones `internal*`
+> de este documento siguen existiendo tal cual y siguen siendo
+> inalcanzables desde fuera — los wrappers `*Public` son la única puerta
+> nueva, y cada una comprueba el secreto explícitamente.
+
 **Por qué no añadir `ctx.auth`/comprobación de rol dentro de cada función
 en su lugar** (que sería la alternativa obvia): T2 investigó en paralelo
 cómo conectar Auth.js/NextAuth con Convex para TAL-11
