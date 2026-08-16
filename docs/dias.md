@@ -86,6 +86,28 @@ rejilla + el panel de la fecha seleccionada, ronda 2).
   fila del `Calendar` — bloquea esa fila hasta que termina la transacción,
   así que un `calendar.update()` concurrente sobre el mismo calendario
   espera en vez de intercalarse.
+  **Corrección de la ronda 3**: ese `FOR UPDATE` solo serializa frente a
+  OTRO `saveDayAction` concurrente — no impide que, una vez liberado el
+  lock, alguien llame a `updateCalendarAction` y reduzca el rango sin
+  comprobar los días ya guardados (el mismo problema, en otro orden:
+  guardar-y-luego-reducir en vez de reducir-a-mitad-de-guardar). En vez de
+  meter `updateCalendarAction` (`src/app/admin/actions.ts`, TAL-5, en
+  manos de T2 en paralelo) en el mismo protocolo de aplicación, la
+  invariante "todo `Day` está dentro del rango de su `Calendar`" se hace
+  cumplir a nivel de base de datos: un trigger `BEFORE UPDATE ON
+  "Calendar"` (migración
+  `20260816040000_calendar_range_day_guard`) que rechaza cualquier cambio
+  de `startDate`/`endDate` que dejaría algún `Day` existente fuera del
+  rango nuevo — venga de `saveDayAction`, de `updateCalendarAction`, o de
+  cualquier otro código futuro que actualice `Calendar` directamente. Más
+  fuerte que un acuerdo entre trozos de aplicación (no depende de que cada
+  sitio que toque `Calendar` recuerde comprobar los días), y no necesita
+  coordinación entre terminales para seguir siendo correcto según crezca
+  el código. Probado con el Prisma Client real: guardar un día, y luego
+  llamar a `prisma.calendar.update()` (la misma llamada que hace
+  `updateCalendarAction`) reduciendo el rango para dejarlo fuera → el
+  `UPDATE` es rechazado por Postgres (`P0001`) y el rango del calendario
+  queda sin tocar.
 - **`formNoValidate` en "Quitar vídeo"**: al compartir el mismo `<form>`
   que "Guardar día", el `required`/`type="url"` del campo de vídeo
   bloqueaba el envío del formulario aunque se pulsara "Quitar vídeo" si
