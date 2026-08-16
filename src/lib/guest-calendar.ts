@@ -40,7 +40,7 @@ export async function resolveDoors(calendarId: string, userId: string, today: Da
   throw new DataLayerUnavailableError("resolveDoors");
 }
 
-export type MarkViewedResult = { ok: true } | { ok: false; error: "not-found" | "locked" };
+export type MarkViewedResult = { ok: true } | { ok: false; error: "not-found" | "locked" | "unavailable" };
 
 /**
  * Marca un día como visto por un usuario — ver `docs/dias.md` para el

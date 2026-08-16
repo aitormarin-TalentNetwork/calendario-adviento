@@ -27,19 +27,22 @@ export async function markDayViewedAction(calendarId: string, dayId: string, tim
 
   const today = todayInTimeZone(new Date(), timeZone);
   // TAL-10 — Prisma/Postgres se retiran de la infraestructura:
-  // `markDayViewed` lanza `DataLayerUnavailableError` (hallazgo de
-  // auditoría, ronda 1 — antes devolvía `{ok:false, error:"not-found"}`
-  // directamente, que ya era honesto en este caso concreto porque el tipo
-  // de retorno no distingue el motivo en la UI, ver `door-grid.tsx`: solo
-  // mira `result.ok`). Se atrapa aquí para seguir devolviendo esa misma
-  // forma en vez de dejar la promesa rechazada sin gestionar — sin esto,
-  // `startTransition` en `door-grid.tsx` se comía el rechazo en silencio y
-  // `setMarkError` nunca se disparaba.
+  // `markDayViewed` lanza `DataLayerUnavailableError`. Se atrapa aquí para
+  // seguir devolviendo la forma tipada `MarkViewedResult` en vez de dejar
+  // la promesa rechazada sin gestionar (`startTransition` en
+  // `door-grid.tsx` se comía el rechazo en silencio y `setMarkError` nunca
+  // se disparaba) — pero el motivo se mapea a `"unavailable"`, no a
+  // `"not-found"` (hallazgo de auditoría, ronda 2: la capa de datos no
+  // determinó que el día no exista, solo que no se pudo consultar —
+  // devolver `"not-found"` aquí era exactamente la clasificación falsa que
+  // esta tarea pretendía eliminar en el resto de la app, aunque hoy
+  // `door-grid.tsx` solo mire `result.ok` y no el motivo concreto, un
+  // consumidor futuro que sí lo lea no debe encontrarse un dato inventado).
   try {
     return await markDayViewed(calendarId, dayId, user.id, today);
   } catch (err) {
     if (!(err instanceof DataLayerUnavailableError)) throw err;
-    return { ok: false as const, error: "not-found" as const };
+    return { ok: false as const, error: "unavailable" as const };
   }
 }
 
