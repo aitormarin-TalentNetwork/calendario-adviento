@@ -1,15 +1,19 @@
 # Autenticación y control de acceso (TAL-2)
 
-> **Nota TAL-10** (hallazgo de auditoría, ronda 1): este documento describe
-> el diseño de TAL-2, que sigue siendo la decisión vigente (Auth.js v5,
-> JWT, Google) — pero el `upsert` de `User` vía Prisma que menciona más
-> abajo (callback `jwt`) ya NO corre: Prisma/Postgres se retiraron de la
-> infraestructura en TAL-10 (migración a Convex, ver `docs/stack.md`), y
-> ese upsert todavía no tiene equivalente conectado a Convex (TAL-12+). El
-> login (Google y dev) completa igual, pero sin persistir el `User` — ver
-> `src/lib/auth.ts`/`src/lib/current-user.ts` para el estado actual exacto.
-> El resto de este documento (por qué JWT y no sesión en BD, middleware vs.
-> página, etc.) sigue describiendo la arquitectura real.
+> **Nota TAL-11**: este documento describe el diseño de TAL-2 (Auth.js v5,
+> JWT, Google), que sigue siendo la decisión vigente en cuanto a por qué
+> JWT y no sesión en BD, middleware vs. página, etc. Lo que SÍ cambió: el
+> `upsert` de `User`/lectura de `isSuperAdmin`/resolución de
+> `CalendarMembership` que este documento describe contra Prisma (TAL-10 los
+> dejó lanzando `DataLayerUnavailableError`, sin BD real detrás) vuelven a
+> funcionar de verdad en TAL-11, ahora contra Convex — ver la sección nueva
+> "Autenticación sobre Convex (TAL-11)" más abajo para el diseño actual, y
+> `src/lib/auth.ts`/`src/lib/current-user.ts`/`src/lib/roles.ts` para el
+> código. Las secciones de abajo sobre las correcciones de auditoría de
+> TAL-2 (por qué `isSuperAdmin` no vive en el JWT, búsqueda por id no por
+> email, invitación idempotente, normalización de email) siguen siendo la
+> razón de fondo de cada decisión — solo cambió el almacén de datos que las
+> implementa, no el razonamiento.
 
 ## Librería elegida
 
@@ -119,6 +123,15 @@ quien "pierde la carrera" solo necesita la fila que ya creó el otro, no es un
 error real. Repetido el mismo test tras esto: 8/8 peticiones en 200, una sola
 fila de membership creada.
 
+> **TAL-11**: el mecanismo concreto de arriba (`P2002`/`findUniqueOrThrow`)
+> es específico de Prisma/Postgres y ya no corre. La versión Convex
+> (`convex/access.ts::resolveMemberAccessHandler`) resuelve la misma carrera
+> de otra forma: una mutation de Convex ya se ejecuta con aislamiento
+> serializable y reintento automático ante conflicto (mismo mecanismo
+> verificado con concurrencia real en TAL-9 para altas idempotentes), así
+> que el check-then-insert de esa función es seguro sin necesitar ningún
+> try/catch de índice único — ver la sección nueva más abajo.
+
 ## Bootstrap del primer Super Admin
 
 No hay UI todavía para promover a alguien a Super Admin (llega con TAL-4). El
@@ -128,6 +141,16 @@ crear** el `User` (primer login de esa persona), se marca `isSuperAdmin:
 true`. Deliberadamente no se re-evalúa en logins siguientes ni sobre un
 `User` ya existente — una vez creado, promover/degradar Super Admin es cosa
 del panel (TAL-4) o de tocar la fila directamente, no de esta variable.
+
+> **TAL-11**: `SUPER_ADMIN_EMAILS` sigue viviendo solo en Next.js/Railway
+> (nunca en el deployment de Convex) — la comprobación de la allowlist
+> (`isBootstrapSuperAdmin`, `src/lib/auth.ts`) se sigue haciendo en Next.js,
+> igual que con Prisma, y su resultado (`true`/`false`) se manda como
+> argumento `isSuperAdminOnCreate` a la mutation de Convex
+> (`users.upsertUserOnLoginPublic`), que solo lo aplica si de verdad está
+> creando el `User` por primera vez — ver `convex/users.ts::createUserHandler`.
+> Verificado contra el deployment real de desarrollo: un email de la
+> allowlist crea el usuario con `isSuperAdmin: true` desde el primer login.
 
 ## Login real vs. simulado
 
@@ -164,6 +187,114 @@ vez el rebase traiga esa migración, la comprobación `mode: "insensitive"` de
 aquí pasa a ser redundante (no dañina, solo ya no imprescindible) — no hace
 falta quitarla, pero no hace falta añadir nada más tampoco.
 
+## Autenticación sobre Convex (TAL-11)
+
+TAL-9 volvió `internal*` todas las funciones de Convex (hallazgo de
+auditoría, ronda 1: cualquiera con la URL pública del deployment podía
+llamarlas sin control de acceso alguno). Eso resolvió ese hallazgo, pero
+creó uno nuevo para esta tarea: una función `internal*` **no es alcanzable
+en absoluto** desde `fetchQuery`/`fetchMutation`/`ConvexHttpClient`
+(verificado contra el deployment real — `Could not find public function`),
+así que Next.js no puede llamarlas tal cual para reconectar
+`getAuthorizedUser`/`resolveCalendarAccess`.
+
+Investigación completa (dos patrones de Auth.js↔Convex considerados y
+descartados, con sus motivos) en `docs/convex-auth-investigacion-tal11.md`
+— aquí solo la decisión cerrada y cómo quedó implementada.
+
+### Frontera pública: secreto compartido, no JWT/JWKS
+
+Se descartó el puente "oficial" de Convex (JWT asimétrico firmado por
+Next.js + endpoint JWKS + `ctx.auth.getUserIdentity()` dentro de Convex,
+`type: "customJwt"`) por dos motivos concretos: la propia documentación de
+Convex avisa textualmente que "the Convex team does not guarantee the
+security of this setup" para ese puente específico, y habría significado
+generar/rotar un par de claves asimétrico y mantener un endpoint JWKS
+propio — infraestructura real que este proyecto no necesita para lo que
+hace falta (que un servidor de confianza pueda invocar funciones hoy
+internas).
+
+En su lugar: cada función que Next.js necesita invocar gana una versión
+pública "delgada" (`convex/users.ts::getByIdPublic`/`upsertUserOnLoginPublic`,
+`convex/access.ts::resolveMemberAccessPublic`) que exige un argumento
+`serverSecret: v.string()` y lo compara — en tiempo constante, no `===`,
+ver `convex/serverAuth.ts::requireServerSecret` — contra
+`CONVEX_APP_SERVER_SECRET`, una variable de entorno **de este deployment de
+Convex** (`npx convex env set`). El mismo valor vive, por separado, como
+variable de **servidor** en Next.js/Railway (nunca `NEXT_PUBLIC_*`) — ver
+`.env.example`. Las dos variables son independientes; nada las sincroniza
+salvo ponerlas iguales a mano en cada sitio (rotarlo significa cambiar las
+dos).
+
+El secreto no dice "quién eres" — sigue sin haber ningún concepto de
+identidad dentro de Convex, ninguna función usa `ctx.auth`. Dice "esta
+llamada viene de nuestro servidor de confianza, no de un navegador
+cualquiera con la URL pública del deployment". La identidad de quién actúa
+(`userId`, `isSuperAdmin`, rol) se sigue resolviendo enteramente en
+Next.js, con el mismo modelo de confianza que con Prisma: `userId`/`email`
+viajan como argumentos explícitos, nunca se infieren dentro de Convex.
+
+**Riesgo que esto NO resuelve, a propósito**: si `CONVEX_APP_SERVER_SECRET`
+se filtra, cualquiera puede llamar a las funciones delgadas saltándose
+Next.js — mismo perfil de riesgo que cualquier secreto compartido de este
+tipo (comparable a un webhook secret, o a `AUTH_SECRET`), sin mitigación
+especial más allá de la disciplina habitual de gestión de secretos
+(Railway como único sitio que lo conoce del lado de Next.js).
+
+### `resolveCalendarAccess`: una sola mutation, no varias llamadas sueltas
+
+La documentación de Convex avisa que `fetchQuery`/`preloadQuery` (el
+cliente HTTP que usa `convex/nextjs` desde Server Components/Actions) **no
+da consistencia garantizada entre dos llamadas separadas** — a diferencia
+de `ConvexReactClient`, que sí la da. Si la lógica de "leer membership, leer
+invitación, crear si falta" (la misma que en Prisma necesitaba una
+transacción `SERIALIZABLE` con reintento, TAL-7 ronda 1, para que "aceptar
+invitación" no se entrelazara con "quitar invitado" dejando con acceso a
+alguien ya expulsado) se hubiera partido en varias llamadas de
+`fetchQuery`/`fetchMutation` desde `src/lib/roles.ts`, se habría reabierto
+exactamente ese hueco.
+
+En su lugar, TODA esa lógica vive dentro de **una única** mutation de
+Convex (`convex/access.ts::resolveMemberAccessHandler`), invocada una sola
+vez desde `resolveCalendarAccess` vía `fetchMutation`. Una mutation de
+Convex ya corre con aislamiento serializable y reintento automático ante
+conflicto (mismo mecanismo que TAL-9 verificó con concurrencia real) — el
+check-then-insert de esa función es seguro sin necesitar ningún nivel de
+aislamiento explícito.
+
+El atajo de Super Admin (`user.isSuperAdmin`) sigue resuelto enteramente en
+Next.js, sin tocar Convex — igual que nunca tocó Prisma.
+
+### Fail-closed sin excepción, verificado en runtime real
+
+`getAuthorizedUser()`/`resolveCalendarAccess()` atrapan CUALQUIER error de
+la llamada a Convex (secreto no configurado, deployment inalcanzable,
+secreto no coincide, id con forma inválida) y devuelven `null` — postura ya
+confirmada por el auditor en TAL-10 rondas 1-2 (`docs/modelo-de-datos.md`),
+sin cambios de criterio, solo de dónde vive el dato que puede fallar.
+
+Verificado contra el deployment real de desarrollo
+(`beloved-barracuda-617`), no solo razonado:
+- Secreto incorrecto en `getByIdPublic`/`resolveMemberAccessPublic` →
+  rechazado, sin tocar la base de datos.
+- Login de desarrollo real (flujo HTTP completo con cookies, `csrfToken`
+  incluido) con un email de `SUPER_ADMIN_EMAILS` → `getAuthorizedUser()`
+  resuelve `isSuperAdmin: true` desde Convex; `/superadmin` responde 200.
+- Login con un email cualquiera (no Super Admin) → `/superadmin` redirige a
+  `/unauthorized` (307).
+- **Revocación en caliente**: con una sesión de Super Admin ya abierta
+  (misma cookie, sin volver a iniciar sesión), se puso `isSuperAdmin: false`
+  directamente en Convex → la SIGUIENTE petición a `/superadmin` con esa
+  misma cookie ya redirige a `/unauthorized` — confirma que
+  `getAuthorizedUser()` relee Convex en fresco en cada petición, nunca
+  confía en el JWT para privilegios (mismo principio de TAL-2, ahora
+  verificado contra el almacén de datos real).
+- Aceptación de invitación de extremo a extremo: usuario sin membership +
+  invitación existente para su email → `resolveMemberAccessPublic` crea la
+  `calendarMembership` como `GUEST` y la devuelve; una segunda llamada
+  idéntica es idempotente (misma membership, no crea una segunda); un
+  usuario sin invitación en ese calendario recibe `null` (sin acceso).
+
 ## Pendiente (fuera de alcance de TAL-2)
 
 - Crear el proyecto de Google Cloud + pantalla de consentimiento OAuth y
@@ -178,5 +309,8 @@ falta quitarla, pero no hace falta añadir nada más tampoco.
 
 ## Variables de entorno relevantes
 
-Ver `.env.example`. En local, `.env` (no versionado) necesita al menos
-`DATABASE_URL` y `AUTH_SECRET`; `AUTH_DEV_LOGIN=true` para el login simulado.
+Ver `.env.example`. En local, `.env`/`.env.local` (no versionados) necesitan
+al menos `AUTH_SECRET`, `NEXT_PUBLIC_CONVEX_URL` (la genera `npx convex
+dev`) y `CONVEX_APP_SERVER_SECRET` (TAL-11 — debe coincidir con la misma
+variable puesta en el deployment de Convex vía `npx convex env set`);
+`AUTH_DEV_LOGIN=true` para el login simulado.
