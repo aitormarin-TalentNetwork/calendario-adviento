@@ -1,0 +1,111 @@
+// Prisma schema — modelo de datos base (TAL-3).
+// Entidades del PRD: Usuario (User), Calendario (Calendar), Día (Day),
+// Invitación (Invitation), Skin. Ver docs/modelo-de-datos.md para el porqué de
+// cada decisión de modelado.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  name         String?
+  // Flag global, independiente de cualquier Calendar concreto — gestiona todo
+  // el sistema (crea calendarios, etc.). El rol Admin/Guest, en cambio, es por
+  // relación con un Calendar (ver CalendarMembership), no un campo aquí.
+  isSuperAdmin Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  memberships CalendarMembership[]
+}
+
+enum CalendarRole {
+  ADMIN
+  GUEST
+}
+
+model Calendar {
+  id    String @id @default(uuid())
+  // Nombre interno, visible solo para quien administra el calendario.
+  name  String
+  // Título alegre mostrado en la portada pública a los invitados (PRD:
+  // "título alegre y una foto, configurable por calendario").
+  coverTitle    String
+  coverImageUrl String?
+  startDate     DateTime
+  endDate       DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  skinId String
+  skin   Skin @relation(fields: [skinId], references: [id])
+
+  memberships CalendarMembership[]
+  days        Day[]
+  invitations Invitation[]
+}
+
+// Lista de Admins e Invitados de un Calendar. El rol no es un atributo fijo
+// del User: la misma persona puede ser Admin de un calendario e Invitado de
+// otro, de ahí la tabla intermedia con el rol colgando de la relación.
+model CalendarMembership {
+  id         String       @id @default(uuid())
+  role       CalendarRole
+  createdAt  DateTime     @default(now())
+
+  calendarId String
+  calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, userId])
+}
+
+// Un día del calendario: el vídeo-regalo (subida o enlace — el backend de
+// almacenamiento concreto se decide aparte, ver docs/stack.md) y un mensaje
+// de texto opcional que lo acompaña.
+model Day {
+  id       String   @id @default(uuid())
+  date     DateTime
+  videoUrl String
+  message  String?
+
+  calendarId String
+  calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, date])
+}
+
+// Invitación por email a un Calendar. Sin distinción de estado (ver brief de
+// TAL-3): el Admin invita por email, y en cuanto esa persona entra con Gmail
+// se le crea/vincula su User y su CalendarMembership como GUEST — no hace
+// falta un campo de estado aquí para eso.
+model Invitation {
+  id        String   @id @default(uuid())
+  email     String
+  createdAt DateTime @default(now())
+
+  calendarId String
+  calendar   Calendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, email])
+}
+
+// Catálogo fijo de skins visuales (mockup: design/mockup-mvp.html, selector
+// de 4 swatches). Fijo = no lo crea el Admin desde la UI, se siembra con
+// prisma/seed.ts — añadir/renombrar un skin es solo tocar el seed, no el
+// schema.
+model Skin {
+  id          String  @id @default(uuid())
+  key         String  @unique
+  name        String
+  description String?
+
+  calendars Calendar[]
+}
