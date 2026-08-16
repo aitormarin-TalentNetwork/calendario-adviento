@@ -1,5 +1,16 @@
 # Autenticación y control de acceso (TAL-2)
 
+> **Nota TAL-10** (hallazgo de auditoría, ronda 1): este documento describe
+> el diseño de TAL-2, que sigue siendo la decisión vigente (Auth.js v5,
+> JWT, Google) — pero el `upsert` de `User` vía Prisma que menciona más
+> abajo (callback `jwt`) ya NO corre: Prisma/Postgres se retiraron de la
+> infraestructura en TAL-10 (migración a Convex, ver `docs/stack.md`), y
+> ese upsert todavía no tiene equivalente conectado a Convex (TAL-12+). El
+> login (Google y dev) completa igual, pero sin persistir el `User` — ver
+> `src/lib/auth.ts`/`src/lib/current-user.ts` para el estado actual exacto.
+> El resto de este documento (por qué JWT y no sesión en BD, middleware vs.
+> página, etc.) sigue describiendo la arquitectura real.
+
 ## Librería elegida
 
 **Auth.js v5** (`next-auth@beta`), con proveedor de **Google** — ya apuntado

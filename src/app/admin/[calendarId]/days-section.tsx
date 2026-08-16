@@ -1,6 +1,6 @@
 import { DaysGridEditor } from "@/app/admin/[calendarId]/days-grid-editor";
 import { formatCalendarDate } from "@/lib/calendars";
-import { prisma } from "@/lib/prisma";
+import { DataLayerUnavailableError, tryDataLayer } from "@/lib/not-migrated";
 
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -37,13 +37,35 @@ function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-export async function DaysSection({ calendarId }: { calendarId: string }) {
-  const calendar = await prisma.calendar.findUniqueOrThrow({
-    where: { id: calendarId },
-    select: { startDate: true, endDate: true },
-  });
+type DayRow = { date: Date; videoUrl: string; message: string | null };
 
-  const span = daySpan(calendar.startDate, calendar.endDate);
+/**
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: antes
+ * `prisma.calendar.findUniqueOrThrow` (rango) + `prisma.day.findMany`
+ * (días ya guardados). Se resuelven juntos, mismo motivo que
+ * `getCalendarForAdminPage` en la página que monta esta sección — no hay
+ * rejilla parcial honesta que mostrar si cualquiera de los dos falla.
+ */
+async function getDaysSectionData(
+  calendarId: string
+): Promise<{ startDate: Date; endDate: Date; days: DayRow[] }> {
+  void calendarId;
+  throw new DataLayerUnavailableError("DaysSection:calendar+days");
+}
+
+export async function DaysSection({ calendarId }: { calendarId: string }) {
+  const result = await tryDataLayer(() => getDaysSectionData(calendarId));
+  if (!result.ok) {
+    return (
+      <section style={{ marginTop: "2rem" }}>
+        <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
+        <p style={{ color: "var(--accent)" }}>Esta sección no está disponible ahora mismo.</p>
+      </section>
+    );
+  }
+  const { startDate, endDate, days } = result.data;
+
+  const span = daySpan(startDate, endDate);
 
   if (span > MAX_MANAGEABLE_DAYS) {
     return (
@@ -57,11 +79,8 @@ export async function DaysSection({ calendarId }: { calendarId: string }) {
     );
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.ts exporta `prisma` como `any` (TAL-10, Prisma se retira de la infraestructura); esta sección es inalcanzable hoy, ver comentario en la página que la monta.
-  const days: any[] = await prisma.day.findMany({ where: { calendarId } });
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver arriba.
-  const dayByDate = new Map(days.map((day: any) => [toDateInputValue(day.date), day]));
-  const dayInfos = datesInRange(calendar.startDate, calendar.endDate).map((date) => {
+  const dayByDate = new Map(days.map((day) => [toDateInputValue(day.date), day]));
+  const dayInfos = datesInRange(startDate, endDate).map((date) => {
     const dateStr = toDateInputValue(date);
     const day = dayByDate.get(dateStr);
     return {

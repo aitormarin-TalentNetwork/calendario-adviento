@@ -3,6 +3,7 @@
 import { todayInTimeZone } from "@/lib/calendars";
 import { markDayViewed, resolveDoors, type DoorGridResult } from "@/lib/guest-calendar";
 import { getAuthorizedUser } from "@/lib/current-user";
+import { DataLayerUnavailableError } from "@/lib/not-migrated";
 import { resolveCalendarAccess } from "@/lib/roles";
 
 /**
@@ -25,7 +26,21 @@ export async function markDayViewedAction(calendarId: string, dayId: string, tim
   if (!access) return { ok: false as const, error: "not-found" as const };
 
   const today = todayInTimeZone(new Date(), timeZone);
-  return markDayViewed(calendarId, dayId, user.id, today);
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura:
+  // `markDayViewed` lanza `DataLayerUnavailableError` (hallazgo de
+  // auditoría, ronda 1 — antes devolvía `{ok:false, error:"not-found"}`
+  // directamente, que ya era honesto en este caso concreto porque el tipo
+  // de retorno no distingue el motivo en la UI, ver `door-grid.tsx`: solo
+  // mira `result.ok`). Se atrapa aquí para seguir devolviendo esa misma
+  // forma en vez de dejar la promesa rechazada sin gestionar — sin esto,
+  // `startTransition` en `door-grid.tsx` se comía el rechazo en silencio y
+  // `setMarkError` nunca se disparaba.
+  try {
+    return await markDayViewed(calendarId, dayId, user.id, today);
+  } catch (err) {
+    if (!(err instanceof DataLayerUnavailableError)) throw err;
+    return { ok: false as const, error: "not-found" as const };
+  }
 }
 
 export type GetDoorsResult = DoorGridResult | { ok: false; reason: "unauthorized" | "network-error" };

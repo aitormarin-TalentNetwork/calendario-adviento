@@ -1,3 +1,5 @@
+import { DataLayerUnavailableError } from "@/lib/not-migrated";
+
 export type DoorState = "locked" | "unseen" | "watched";
 
 export type DoorInfo = {
@@ -23,18 +25,19 @@ export type DoorGridResult =
  * concreto — ver `docs/dias.md`/`docs/convex-modelo-de-datos.md` para las
  * reglas completas (bloqueado/sin ver/visto, límite de rango gestionable).
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: la consulta
- * real (`Calendar` + `Day` + `DayView` del usuario) todavía no tiene
- * equivalente conectado a Convex (TAL-12+). `{ok:true, doors:[]}` es la
- * degradación segura ya contemplada por el tipo de retorno — una rejilla
- * vacía, no un error inventado sobre el rango del calendario (`reason:
- * "range-too-long"` significaría algo que no es cierto).
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: lanza
+ * `DataLayerUnavailableError` en vez de `{ok:true, doors:[]}` (hallazgo de
+ * auditoría, ronda 1 — una rejilla vacía se leería como "este calendario
+ * no tiene ningún día desbloqueado todavía", un hecho falso, no "no se
+ * pudo consultar"; y `{ok:false, reason:"range-too-long"}` habría sido
+ * directamente mentira sobre el rango del calendario). Quien llama debe
+ * usar `tryDataLayer` y mostrar un mensaje honesto de "no disponible".
  */
 export async function resolveDoors(calendarId: string, userId: string, today: Date): Promise<DoorGridResult> {
   void calendarId;
   void userId;
   void today;
-  return { ok: true, doors: [] };
+  throw new DataLayerUnavailableError("resolveDoors");
 }
 
 export type MarkViewedResult = { ok: true } | { ok: false; error: "not-found" | "locked" };
@@ -43,12 +46,12 @@ export type MarkViewedResult = { ok: true } | { ok: false; error: "not-found" | 
  * Marca un día como visto por un usuario — ver `docs/dias.md` para el
  * resto de reglas (idempotencia, revalidación de rango en servidor).
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: la escritura
- * real (`DayView` upsert) todavía no tiene equivalente conectado a Convex
- * (TAL-12+). Se devuelve `{ok:false, error:"not-found"}` — degradación
- * segura ya contemplada por el tipo de retorno (la UI, `door-grid.tsx`, ya
- * sabe mostrar "no se ha podido guardar" ante cualquier `ok:false`) en vez
- * de fingir que se guardó.
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: lanza en vez
+ * de devolver `{ok:false, error:"not-found"}` (hallazgo de auditoría,
+ * ronda 1 — ese día casi seguro SÍ existe, solo que no se pudo comprobar;
+ * "not-found" sería un motivo inventado). Escritura sin representación de
+ * "vacío" razonable — falla explícitamente, mismo criterio que el resto de
+ * escrituras de este proyecto.
  */
 export async function markDayViewed(
   calendarId: string,
@@ -60,5 +63,5 @@ export async function markDayViewed(
   void dayId;
   void userId;
   void today;
-  return { ok: false, error: "not-found" };
+  throw new DataLayerUnavailableError("markDayViewed");
 }

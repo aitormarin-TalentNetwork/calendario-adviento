@@ -62,9 +62,15 @@ ella (no dada por hecha):
   los lleva Convex Inc.), consultas co-localizadas (~1ms), soporte
   oficial. Autoalojado: correría en un solo nodo sin soporte oficial,
   trasladando a nosotros toda la responsabilidad de uptime/backups/réplicas
-  — carga operativa que hoy no existe en ningún otro componente del stack
-  (ni Postgres gestionado se llegó a provisionar en producción durante el
-  MVP).
+  — carga operativa que hoy no existe en ningún otro componente del stack:
+  el plugin de Postgres de Railway (sí llegó a provisionarse y a usarse en
+  producción durante el MVP, `railway status` confirma un servicio
+  "Postgres" online en el proyecto real — corrección respecto a una
+  afirmación anterior de este documento, que decía lo contrario sin
+  haberlo comprobado) también es gestionado por la plataforma, no
+  autoalojado por nosotros. Autoalojar Convex sería la primera vez que
+  este proyecto asume esa carga operativa en cualquier componente del
+  stack.
 - Ningún requisito real del proyecto (residencia de datos, cumplimiento
   normativo, presupuesto ajustadísimo) pide autoalojamiento — el propio
   motivo que Convex da para recomendarlo no aplica a este proyecto.
@@ -82,8 +88,11 @@ Proyecto Convex: **`calendario-adviento`**, team **`aitor-marin-6a254`**
   (`abundant-badger-144.convex.cloud`) — se autocreó junto al proyecto
   (TAL-9) y recibió el primer `npx convex deploy` en TAL-10 (mismo
   schema/funciones que dev, cero datos todavía — no hay tráfico real
-  dependiendo de él, el MVP nunca llegó a provisionar Postgres de
-  producción tampoco, ver `docs/despliegue.md`).
+  dependiendo de él, porque el servicio de Next.js en producción sigue
+  apuntando a Postgres hasta que se ejecute el paso pendiente de más
+  abajo; a diferencia de lo que decía una versión anterior de este
+  documento, Postgres de producción sí está provisionado y en uso real
+  ahora mismo, `railway status` lo confirma).
 
 **Qué cambia en el despliegue de Railway** (Next.js sigue ahí, sin cambio
 de plataforma):

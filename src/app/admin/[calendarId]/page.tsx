@@ -1,4 +1,4 @@
-import { notFound, redirect } from "next/navigation";
+import { redirect } from "next/navigation";
 import { deleteCalendarAction, updateCalendarAction } from "@/app/admin/actions";
 import { DaysSection } from "@/app/admin/[calendarId]/days-section";
 import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
@@ -6,8 +6,32 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SubmitButton } from "@/components/submit-button";
 import { signOut } from "@/lib/auth";
 import { getAuthorizedUser } from "@/lib/current-user";
-import { prisma } from "@/lib/prisma";
+import { DataLayerUnavailableError, tryDataLayer } from "@/lib/not-migrated";
 import { resolveCalendarAccess } from "@/lib/roles";
+
+type AdminCalendar = {
+  id: string;
+  name: string;
+  coverTitle: string;
+  startDate: Date;
+  endDate: Date;
+  skinId: string;
+  coverImageUrl: string | null;
+};
+
+/**
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: antes
+ * `prisma.calendar.findUnique` + `prisma.skin.findMany` (para el
+ * selector). Todo el formulario de esta página depende de estos dos datos
+ * a la vez, así que se resuelven juntos — si cualquiera de los dos
+ * fallara, no hay formulario parcial honesto que mostrar.
+ */
+async function getCalendarForAdminPage(
+  calendarId: string
+): Promise<{ calendar: AdminCalendar; skins: { id: string; name: string }[] }> {
+  void calendarId;
+  throw new DataLayerUnavailableError("AdminCalendarPage:calendar+skins");
+}
 
 export default async function AdminCalendarPage({
   params,
@@ -17,15 +41,25 @@ export default async function AdminCalendarPage({
   const user = await getAuthorizedUser();
   if (!user) redirect(`/login?callbackUrl=/admin/${calendarId}`);
 
-  const calendar = await prisma.calendar.findUnique({ where: { id: calendarId } });
-  if (!calendar) notFound();
-
   const access = await resolveCalendarAccess(user, calendarId);
   const isAdmin = access?.kind === "super-admin" || access?.role === "ADMIN";
   if (!isAdmin) redirect("/unauthorized");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- prisma.ts exporta `prisma` como `any` (TAL-10, Prisma se retira de la infraestructura); esta página es inalcanzable hoy (getAuthorizedUser devuelve siempre null, ver src/lib/current-user.ts).
-  const skins: any[] = await prisma.skin.findMany({ orderBy: { key: "asc" } });
+  // `notFound()` habría sido una mentira — "este calendario no existe" es
+  // un hecho distinto de "no se pudo consultar" (hallazgo de auditoría,
+  // ronda 1). El resto de la comprobación de acceso de arriba ya redirige
+  // a todo el mundo hoy (ver src/lib/current-user.ts), pero esta llamada
+  // tenía que dejar de ser un residuo real de Prisma para cuando TAL-12
+  // restaure la autorización.
+  const result = await tryDataLayer(() => getCalendarForAdminPage(calendarId));
+  if (!result.ok) {
+    return (
+      <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
+        <p style={{ color: "var(--accent)" }}>Este calendario no está disponible ahora mismo.</p>
+      </main>
+    );
+  }
+  const { calendar, skins } = result.data;
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
@@ -72,8 +106,7 @@ export default async function AdminCalendarPage({
           Skin
           <br />
           <select name="skinId" defaultValue={calendar.skinId} required>
-            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver arriba. */}
-            {skins.map((skin: any) => (
+            {skins.map((skin) => (
               <option key={skin.id} value={skin.id}>
                 {skin.name}
               </option>

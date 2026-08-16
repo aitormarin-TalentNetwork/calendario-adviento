@@ -9,6 +9,7 @@ import { CopyLinkButton } from "@/components/copy-link-button";
 import { SubmitButton } from "@/components/submit-button";
 import { listCalendarGuests } from "@/lib/guests";
 import { resolveInvitationLink } from "@/lib/invitation-link";
+import { tryDataLayer } from "@/lib/not-migrated";
 
 /**
  * El link no lleva token por invitado — es el mismo para cualquiera al que
@@ -31,7 +32,15 @@ async function invitationLink(calendarId: string): Promise<string | null> {
 }
 
 export async function GuestsSection({ calendarId }: { calendarId: string }) {
-  const [guests, link] = await Promise.all([listCalendarGuests(calendarId), invitationLink(calendarId)]);
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura:
+  // `listCalendarGuests` lanza `DataLayerUnavailableError` (hallazgo de
+  // auditoría, ronda 1 — antes devolvía `[]`, que esta sección ya
+  // interpretaba como "todavía no hay invitados", un hecho falso).
+  const [guestsResult, link] = await Promise.all([
+    tryDataLayer(() => listCalendarGuests(calendarId)),
+    invitationLink(calendarId),
+  ]);
+  const guests = guestsResult.ok ? guestsResult.data : null;
 
   return (
     <section style={{ marginTop: "2.5rem" }}>
@@ -49,7 +58,9 @@ export async function GuestsSection({ calendarId }: { calendarId: string }) {
         </p>
       )}
 
-      {guests.length === 0 ? (
+      {guests === null ? (
+        <p style={{ color: "var(--accent)" }}>Los invitados no están disponibles ahora mismo.</p>
+      ) : guests.length === 0 ? (
         <p>Todavía no hay invitados.</p>
       ) : (
         <table style={{ width: "100%", marginTop: "1rem", borderCollapse: "collapse" }}>

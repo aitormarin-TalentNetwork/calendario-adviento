@@ -1,3 +1,5 @@
+import { DataLayerUnavailableError } from "@/lib/not-migrated";
+
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
@@ -96,18 +98,19 @@ export function todayInTimeZone(now: Date, timeZone: string | undefined | null):
   return new Date(Date.UTC(year, month - 1, day));
 }
 
-// TAL-10 — Prisma/Postgres se retiran de la infraestructura: la consulta
-// real (`prisma.calendar.findMany`, con sus calendarios+skin) todavía no
-// tiene equivalente conectado a Convex (TAL-12+). `[]` es la degradación
-// segura para una lista — la página de Admin ya sabe pintar "no tienes
-// calendarios todavía" con una lista vacía, así que no hace falta ningún
-// cambio ahí. Tipado `any[]` a propósito: no vale la pena reconstruir a
-// mano el tipo exacto de Prisma (Calendar + Skin) para un array que
-// siempre está vacío.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver comentario de arriba: `any[]` deliberado, siempre devuelve un array vacío.
-export function listAdminCalendars(userId: string): Promise<any[]> {
+/**
+ * Calendarios donde `userId` es ADMIN — ver `docs/modelo-de-datos.md`.
+ *
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: lanza
+ * `DataLayerUnavailableError` en vez de devolver `[]` (hallazgo de
+ * auditoría, ronda 1 — un array vacío aquí se leería como "no administras
+ * ningún calendario todavía", un hecho falso, no "no se pudo consultar").
+ * Quien llama debe usar `tryDataLayer` y mostrar un mensaje honesto de "no
+ * disponible" — ver `src/app/admin/page.tsx`.
+ */
+export async function listAdminCalendars(userId: string): Promise<{ id: string; name: string; startDate: Date; endDate: Date; skin: { name: string } }[]> {
   void userId;
-  return Promise.resolve([]);
+  throw new DataLayerUnavailableError("listAdminCalendars");
 }
 
 /**
@@ -117,20 +120,17 @@ export function listAdminCalendars(userId: string): Promise<any[]> {
  * Ver `docs/modelo-de-datos.md`/`docs/calendarios.md` para el resto de
  * reglas (idempotencia por `creationKey`, etc.).
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: a diferencia
- * de las funciones de solo lectura de este fichero, esta es una escritura
- * sin representación de "vacío" razonable (el llamador espera un
- * `Calendar` real de vuelta, con su `id`, para redirigir a
- * `/admin/{id}`) — no hay una degradación segura equivalente a devolver
- * `[]`/`null`, así que falla explícitamente en vez de fingir un
- * calendario que no se creó. Pendiente de reescribir contra Convex en
- * TAL-12+.
+ * TAL-10 — Prisma/Postgres se retiran de la infraestructura: escritura sin
+ * representación de "vacío" razonable (el llamador espera un `Calendar`
+ * real de vuelta, con su `id`, para redirigir a `/admin/{id}`) — falla
+ * explícitamente, mismo criterio que el resto de escrituras de este
+ * proyecto. Pendiente de reescribir contra Convex en TAL-12+.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- ver comentario de arriba: `any` deliberado, esta función siempre lanza.
-export async function createCalendarForAdmin(user: { id: string }, creationKey: string): Promise<any> {
+export async function createCalendarForAdmin(
+  user: { id: string },
+  creationKey: string
+): Promise<{ id: string }> {
   void user;
   void creationKey;
-  throw new Error(
-    "createCalendarForAdmin: Prisma/Postgres se retiraron de la infraestructura en TAL-10 (migración a Convex). Pendiente de reescribir contra Convex en TAL-12+."
-  );
+  throw new DataLayerUnavailableError("createCalendarForAdmin");
 }

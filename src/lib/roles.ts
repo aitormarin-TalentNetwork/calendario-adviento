@@ -19,12 +19,16 @@ export type CalendarAccess =
  * consultaba/creaba `CalendarMembership`/`Invitation` en una transacción
  * `SERIALIZABLE` (hallazgo de auditoría, TAL-7 ronda 1 — ver
  * `docs/invitados.md`) todavía no tiene equivalente conectado a Convex
- * (TAL-12+), así que esa rama devuelve `null` — "sin acceso" es una
- * degradación segura ya contemplada por el tipo de retorno (`| null`), no
- * un dato inventado. El atajo de Super Admin, que nunca tocó Prisma
- * (`user.isSuperAdmin` ya viene resuelto por `getAuthorizedUser`), se
- * mantiene sin cambios — aunque en la práctica no se alcanza hoy, porque
- * `getAuthorizedUser` (TAL-10) devuelve siempre `null` también.
+ * (TAL-12+), así que esa rama devuelve `null`. Mismo criterio que
+ * `getAuthorizedUser` (`src/lib/current-user.ts`, hallazgo de auditoría,
+ * ronda 1 de esta tarea): esto NO es una lectura de negocio como
+ * `listCalendarGuests` (que sí mentía con `[]`, y ahora lanza) — es una
+ * comprobación de autorización, "sin acceso" es fallar cerrado ante la
+ * incertidumbre, la postura de seguridad correcta, no un dato inventado.
+ * El atajo de Super Admin, que nunca tocó Prisma (`user.isSuperAdmin` ya
+ * viene resuelto por `getAuthorizedUser`), se mantiene sin cambios —
+ * aunque en la práctica no se alcanza hoy, porque `getAuthorizedUser`
+ * (TAL-10) devuelve siempre `null` también.
  */
 export async function resolveCalendarAccess(
   user: { id: string; email: string; isSuperAdmin: boolean },

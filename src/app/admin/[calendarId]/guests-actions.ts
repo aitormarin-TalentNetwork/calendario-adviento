@@ -28,11 +28,18 @@ export async function inviteGuestAction(calendarId: string, formData: FormData) 
   await requireCalendarAdmin(calendarId);
 
   const email = formData.get("email")?.toString() ?? "";
+  // TAL-10 — Prisma/Postgres se retiran de la infraestructura:
+  // `inviteGuest` sigue validando el formato de email de verdad (no toca
+  // Prisma), pero lanza `DataLayerUnavailableError` en la parte real de la
+  // escritura — antes de esta tarea, un `{ok:false, error:"calendar-not-
+  // found"}` inventado quedaba mapeado a "El calendario no existe."
+  // (hallazgo de auditoría, ronda 1: ese calendario casi seguro SÍ existe,
+  // era un motivo falso). Se deja que el error de invalid-email siga
+  // devuelto normalmente y que `DataLayerUnavailableError` se propague tal
+  // cual — su mensaje ya es honesto, no hace falta reescribirlo.
   const result = await inviteGuest(calendarId, email);
   if (!result.ok) {
-    throw new Error(
-      result.error === "invalid-email" ? "Introduce un email válido." : "El calendario no existe."
-    );
+    throw new Error("Introduce un email válido.");
   }
 
   revalidatePath(`/admin/${calendarId}`);
