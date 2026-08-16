@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { deleteCalendarAction, updateCalendarAction } from "@/app/admin/actions";
 import { DaysSection } from "@/app/admin/[calendarId]/days-section";
+import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SubmitButton } from "@/components/submit-button";
 import { signOut } from "@/lib/auth";
@@ -98,6 +99,8 @@ export default async function AdminCalendarPage({
           confirmText={`¿Seguro que quieres borrar "${calendar.name}"? Esto borra también sus días, invitaciones y membresías — no se puede deshacer.`}
         />
       </form>
+
+      <GuestsSection calendarId={calendar.id} />
 
       <form
         action={async () => {
