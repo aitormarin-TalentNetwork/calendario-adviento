@@ -1,0 +1,43 @@
+Salida real de `scripts/verify-tal12-delete-concurrency.mjs` — TAL-12
+ronda 3, commit ee0bb0c. Deployment de desarrollo: beloved-barracuda-617.
+Fecha: 2026-08-16.
+
+Comando:
+  set -a && source .env.local && set +a && node scripts/verify-tal12-delete-concurrency.mjs
+
+Salida (líneas de aviso de Node sobre el tipo de módulo, sin relación con
+el resultado, omitidas):
+
+trial 1: deleted=1 already-gone=5 unauthorized=0
+trial 2: deleted=1 already-gone=5 unauthorized=0
+trial 3: deleted=1 already-gone=5 unauthorized=0
+trial 4: deleted=1 already-gone=5 unauthorized=0
+trial 5: deleted=1 already-gone=5 unauthorized=0
+trial 6: deleted=1 already-gone=5 unauthorized=0
+trial 7: deleted=1 already-gone=5 unauthorized=0
+trial 8: deleted=1 already-gone=5 unauthorized=0
+OK: 8/8 rondas de concurrencia real (6 procesos por ronda) sin ningún "unauthorized" para el Admin real, exactamente 1 "deleted" por ronda
+stranger sobre calendario real: unauthorized
+OK: stranger correctamente rechazado, calendario de control intacto
+DONE
+
+Cada trial crea un calendario nuevo y lanza 6 llamadas verdaderamente
+concurrentes (procesos `npx convex run` separados, no promesas dentro de
+un mismo proceso Node) a `calendars:deleteCalendarAsUser` con el mismo
+Admin real. En las 8 rondas: exactamente 1 "deleted", el resto
+"already-gone", cero "unauthorized" — confirma que la ventana de carrera
+del hallazgo de la ronda 2 sigue cerrada. El control final (un stranger
+sin `calendarMembership` contra un calendario que sí existe) sigue
+recibiendo "unauthorized" sin afectarlo, confirmando que la autorización
+real no se debilitó.
+
+Verificación adicional de la ronda 3 (releer `isSuperAdmin` en vivo
+dentro de la mutation, en vez de aceptarlo como argumento), hecha aparte
+con una mutation interna temporal (`convex/tmpSetSuperAdmin.ts`,
+desplegada y borrada solo para esta comprobación puntual, no versionada —
+mismo criterio que la verificación de revocación en caliente de TAL-11):
+con `isSuperAdmin: true` puesto directamente en el documento `users` de
+un usuario SIN ninguna `calendarMembership`, `deleteCalendarAsUserPublic`
+devolvió `"deleted"` sobre un calendario real — confirma que la mutation
+relee el privilegio del propio documento en vez de depender de nada
+afirmado desde fuera.
