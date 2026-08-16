@@ -49,6 +49,15 @@ model Calendar {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
+  // Clave de idempotencia para "+ Nuevo calendario" (TAL-5, corrección de
+  // auditoría, ronda 1): un doble clic o un reenvío de formulario manda el
+  // mismo valor (generado una vez por render de /admin), y el índice único
+  // hace que el segundo intento devuelva el calendario ya creado en vez de
+  // duplicarlo. Nullable porque no aplica a filas que no vinieron de ese
+  // flujo (no debería haber ninguna en la práctica, pero no hace falta
+  // forzarlo).
+  creationKey String? @unique
+
   skinId String
   skin   Skin   @relation(fields: [skinId], references: [id])
 
