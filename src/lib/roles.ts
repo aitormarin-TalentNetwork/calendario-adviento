@@ -1,3 +1,8 @@
+import { fetchMutation } from "convex/nextjs";
+import { api } from "../../convex/_generated/api";
+import type { Id } from "../../convex/_generated/dataModel";
+import { convexAppServerSecret } from "@/lib/convex-server";
+
 // Antes venía de `@/generated/prisma/client` — TAL-10 retira Prisma de la
 // infraestructura, así que el tipo se declara localmente. Mismos dos
 // valores que el `enum CalendarRole` de prisma/schema.prisma y el
@@ -11,24 +16,37 @@ export type CalendarAccess =
   | { kind: "member"; role: CalendarRole };
 
 /**
- * Resuelve el acceso de un usuario autenticado a un calendario concreto —
- * ver el resto de reglas (Super Admin, CalendarMembership, aceptación de
- * Invitation) en `docs/modelo-de-datos.md` y `docs/invitados.md`.
+ * Resuelve el acceso de un usuario autenticado a un calendario concreto:
+ * - Super Admin: acceso global, sin necesidad de membership — resuelto
+ *   enteramente en Next.js (`user.isSuperAdmin` ya viene fresco de
+ *   `getAuthorizedUser`), nunca toca Convex para esta rama, igual que
+ *   nunca tocó Prisma.
+ * - Si no, delega en `access.resolveMemberAccessPublic` (`convex/access.ts`)
+ *   — la parte que en Prisma consultaba/creaba `CalendarMembership`/
+ *   `Invitation` dentro de una transacción `SERIALIZABLE` con reintento
+ *   (hallazgo de auditoría, TAL-7 ronda 1 — ver `docs/invitados.md`).
  *
- * TAL-10 — Prisma/Postgres se retiran de la infraestructura: la parte que
- * consultaba/creaba `CalendarMembership`/`Invitation` en una transacción
- * `SERIALIZABLE` (hallazgo de auditoría, TAL-7 ronda 1 — ver
- * `docs/invitados.md`) todavía no tiene equivalente conectado a Convex
- * (TAL-12+), así que esa rama devuelve `null`. Mismo criterio que
- * `getAuthorizedUser` (`src/lib/current-user.ts`, hallazgo de auditoría,
- * ronda 1 de esta tarea): esto NO es una lectura de negocio como
- * `listCalendarGuests` (que sí mentía con `[]`, y ahora lanza) — es una
- * comprobación de autorización, "sin acceso" es fallar cerrado ante la
- * incertidumbre, la postura de seguridad correcta, no un dato inventado.
- * El atajo de Super Admin, que nunca tocó Prisma (`user.isSuperAdmin` ya
- * viene resuelto por `getAuthorizedUser`), se mantiene sin cambios —
- * aunque en la práctica no se alcanza hoy, porque `getAuthorizedUser`
- * (TAL-10) devuelve siempre `null` también.
+ * TAL-11 — traducida a Convex con el secreto compartido
+ * (`docs/convex-auth-investigacion-tal11.md` § "Recomendación cerrada").
+ * Deliberadamente UNA sola llamada (`fetchMutation`, no varias
+ * `fetchQuery` sueltas combinadas aquí): la propia documentación de Convex
+ * avisa que `fetchQuery`/`preloadQuery` no da consistencia entre llamadas
+ * separadas (Gotcha 3 de la investigación) — repartir "leer membership,
+ * leer invitación, crear si falta" en varias llamadas desde este fichero
+ * reabriría la misma carrera expulsión-vs-aceptación que costó dos rondas
+ * de auditoría en TAL-7. Toda esa lógica vive en una única mutation de
+ * Convex, que ya corre con aislamiento serializable y reintento
+ * automático (mismo mecanismo verificado con concurrencia real en TAL-9).
+ *
+ * Esta función NO es una lectura de negocio (hallazgo de auditoría, TAL-10
+ * ronda 1: `listCalendarGuests` y similares SÍ mentían con `[]`, y ahora
+ * lanzan `DataLayerUnavailableError` — siguen sin reconectar, eso es
+ * TAL-12+). Es una comprobación de autorización: sigue fallando cerrado
+ * ante CUALQUIER error (Convex no configurado, red caída, secreto no
+ * coincide, calendarId con forma inválida) — `null` ("sin acceso") es la
+ * postura de seguridad correcta, no un dato inventado (mismo criterio ya
+ * confirmado por el auditor en TAL-10 rondas 1-2, ver
+ * `src/lib/current-user.ts`).
  */
 export async function resolveCalendarAccess(
   user: { id: string; email: string; isSuperAdmin: boolean },
@@ -36,6 +54,16 @@ export async function resolveCalendarAccess(
 ): Promise<CalendarAccess | null> {
   if (user.isSuperAdmin) return { kind: "super-admin" };
 
-  void calendarId;
-  return null;
+  try {
+    const result = await fetchMutation(api.access.resolveMemberAccessPublic, {
+      serverSecret: convexAppServerSecret(),
+      calendarId: calendarId as Id<"calendars">,
+      userId: user.id as Id<"users">,
+      userEmail: user.email,
+    });
+    if (!result) return null;
+    return { kind: "member", role: result.role };
+  } catch {
+    return null;
+  }
 }
