@@ -91,6 +91,10 @@ export type UpdateCalendarFieldValues = {
   endDate: string;
   skinId: string;
   coverImageUrl: string;
+  // TAL-39 — imagen de fondo del calendario, distinta de `coverImageUrl`
+  // (la foto redonda de portada, TAL-5/25) — se aplica en grid/modal/
+  // página del Invitado (TAL-24), no en /login.
+  backgroundImageUrl: string;
 };
 
 export type UpdateCalendarState = {
@@ -120,6 +124,7 @@ export async function updateCalendarAction(
   const endDateRaw = formData.get("endDate")?.toString() ?? "";
   const skinId = formData.get("skinId")?.toString() ?? "";
   const coverImageUrlRaw = formData.get("coverImageUrl")?.toString().trim() ?? "";
+  const backgroundImageUrlRaw = formData.get("backgroundImageUrl")?.toString().trim() ?? "";
 
   // Lo que el admin acababa de escribir se devuelve siempre junto al
   // resultado (éxito o error) — TAL-20, hallazgo de auditoría ronda 1:
@@ -140,6 +145,7 @@ export async function updateCalendarAction(
     endDate: endDateRaw,
     skinId,
     coverImageUrl: coverImageUrlRaw,
+    backgroundImageUrl: backgroundImageUrlRaw,
   };
 
   if (!name || !coverTitle || !coverIcon || !startDateRaw || !endDateRaw || !skinId) {
@@ -198,6 +204,25 @@ export async function updateCalendarAction(
     }
   }
 
+  // TAL-39 — mismo criterio y mismo motivo que `coverImageUrl` arriba
+  // (solo https:, sin comprobación HTTP real por el mismo riesgo de
+  // SSRF) para la imagen de fondo del calendario.
+  const backgroundImageUrl = backgroundImageUrlRaw || null;
+  if (backgroundImageUrl) {
+    let parsed: URL;
+    try {
+      parsed = new URL(backgroundImageUrl);
+    } catch {
+      return { error: "La imagen de fondo debe ser una URL válida.", values };
+    }
+    if (parsed.protocol !== "https:") {
+      return {
+        error: "La imagen de fondo debe ser una URL https:// — no se aceptan otros esquemas por seguridad.",
+        values,
+      };
+    }
+  }
+
   // TAL-12 — reconectada contra Convex (`calendars.updateCalendarPublic`).
   // La comprobación de que `skinId` es de verdad del catálogo fijo (límite
   // de seguridad — el selector de la UI ya limita al catálogo, esto es
@@ -232,6 +257,7 @@ export async function updateCalendarAction(
       coverTitle,
       coverIcon,
       coverImageUrl: coverImageUrl ?? undefined,
+      backgroundImageUrl: backgroundImageUrl ?? undefined,
       countdownLabel: countdownLabelRaw || undefined,
       startDate: startDateRaw,
       endDate: endDateRaw,

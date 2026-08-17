@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { deleteDayAction, saveDayAction } from "@/app/admin/[calendarId]/days-actions";
 import { SubmitButton } from "@/components/submit-button";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
-import { coverBackgroundCss } from "@/lib/skin-appearance";
+import { coverBackgroundStyle } from "@/lib/skin-appearance";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 
 export type DayInfo = {
@@ -106,15 +106,22 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
  * `door-grid.tsx` (ver el comentario completo ahí): no se toca el fondo de
  * las casillas individuales, que codifican los estados de este editor
  * (sin vídeo/con vídeo/hoy/diálogo abierto) ya auditados en TAL-21.
+ *
+ * TAL-39 — `backgroundImageUrl`, si el calendario tiene uno, sustituye ese
+ * mismo `background` del skin en la cabecera de mes (`coverBackgroundStyle`,
+ * `skin-appearance.ts`) — el resto de la cabecera (texto blanco + sombra)
+ * no cambia, sigue siendo legible con la misma capa de oscurecimiento.
  */
 export function DaysGridEditor({
   calendarId,
   days,
   background,
+  backgroundImageUrl,
 }: {
   calendarId: string;
   days: DayInfo[];
   background: string;
+  backgroundImageUrl: string | null;
 }) {
   // TAL-34 — ya no arranca con el primer día "seleccionado" por defecto (la
   // ronda anterior abría el panel del día 1 nada más cargar la página, sin
@@ -186,7 +193,10 @@ export function DaysGridEditor({
                   zIndex: 2,
                   // Corrección de auditoría, ronda 1 (TAL-24) — ver el
                   // comentario completo en `door-grid.tsx`, mismo motivo.
-                  background: coverBackgroundCss(background),
+                  // TAL-39: `coverBackgroundStyle` sustituye el color/
+                  // degradado del skin por `backgroundImageUrl` cuando el
+                  // calendario tiene uno puesto.
+                  ...coverBackgroundStyle(background, backgroundImageUrl),
                   color: "#fff",
                   textShadow: "0 1px 4px rgba(0,0,0,0.5)",
                   fontFamily: "var(--font-display)",

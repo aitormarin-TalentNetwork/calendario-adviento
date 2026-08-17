@@ -49,6 +49,28 @@ function assertSafeCoverImageUrl(url: string | undefined): void {
 }
 
 /**
+ * TAL-39 — mismo criterio que `assertSafeCoverImageUrl` (solo `https:`,
+ * mismo motivo de seguridad), pero campo propio en vez de compartir la
+ * función: son dos campos con semántica distinta (`coverImageUrl` es la
+ * foto redonda de portada, `backgroundImageUrl` el fondo del calendario
+ * entero) y el resto de validadores de este fichero ya siguen el mismo
+ * patrón de una función por campo con su propio mensaje de error
+ * (`assertValidCoverIcon`, `assertValidCountdownLabel`).
+ */
+function assertSafeBackgroundImageUrl(url: string | undefined): void {
+  if (url === undefined) return;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("La imagen de fondo debe ser una URL válida.");
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error("La imagen de fondo debe ser una URL https:// — no se aceptan otros esquemas por seguridad.");
+  }
+}
+
+/**
  * Deliberadamente NO valida contra el catálogo de `src/lib/cover-icons.ts`
  * (brief de TAL-23: "catálogo sin límite fijo en la lógica", mismo
  * criterio que ya se aplicó a la validación de email en `inviteGuest`,
@@ -204,6 +226,7 @@ async function createCalendarHandler(
     coverTitle: string;
     coverIcon?: string;
     coverImageUrl?: string;
+    backgroundImageUrl?: string;
     countdownLabel?: string;
     startDate: string;
     endDate: string;
@@ -233,6 +256,7 @@ async function createCalendarHandler(
   assertValidCalendarDate(args.endDate);
   assertRangeNotInverted(args.startDate, args.endDate);
   assertSafeCoverImageUrl(args.coverImageUrl);
+  assertSafeBackgroundImageUrl(args.backgroundImageUrl);
   assertValidCoverIcon(args.coverIcon);
   assertValidCountdownLabel(args.countdownLabel);
 
@@ -241,6 +265,7 @@ async function createCalendarHandler(
     coverTitle: args.coverTitle,
     coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,
+    backgroundImageUrl: args.backgroundImageUrl,
     countdownLabel: args.countdownLabel,
     startDate: args.startDate,
     endDate: args.endDate,
@@ -259,6 +284,7 @@ export const createCalendar = internalMutation({
     coverTitle: v.string(),
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    backgroundImageUrl: v.optional(v.string()),
     countdownLabel: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -285,6 +311,7 @@ async function updateCalendarHandler(
     coverTitle: string;
     coverIcon?: string;
     coverImageUrl?: string;
+    backgroundImageUrl?: string;
     countdownLabel?: string;
     startDate: string;
     endDate: string;
@@ -302,6 +329,7 @@ async function updateCalendarHandler(
   assertRangeNotInverted(args.startDate, args.endDate);
   await assertNoDayOutsideRange(ctx, args.calendarId, args.startDate, args.endDate);
   assertSafeCoverImageUrl(args.coverImageUrl);
+  assertSafeBackgroundImageUrl(args.backgroundImageUrl);
   assertValidCoverIcon(args.coverIcon);
   assertValidCountdownLabel(args.countdownLabel);
 
@@ -310,6 +338,7 @@ async function updateCalendarHandler(
     coverTitle: args.coverTitle,
     coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,
+    backgroundImageUrl: args.backgroundImageUrl,
     countdownLabel: args.countdownLabel,
     startDate: args.startDate,
     endDate: args.endDate,
@@ -325,6 +354,7 @@ export const updateCalendar = internalMutation({
     coverTitle: v.string(),
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    backgroundImageUrl: v.optional(v.string()),
     countdownLabel: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -613,6 +643,7 @@ export const createCalendarPublic = mutation({
     coverTitle: v.string(),
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    backgroundImageUrl: v.optional(v.string()),
     countdownLabel: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -627,6 +658,7 @@ export const createCalendarPublic = mutation({
       coverTitle: args.coverTitle,
       coverIcon: args.coverIcon,
       coverImageUrl: args.coverImageUrl,
+      backgroundImageUrl: args.backgroundImageUrl,
       countdownLabel: args.countdownLabel,
       startDate: args.startDate,
       endDate: args.endDate,
@@ -644,6 +676,7 @@ export const updateCalendarPublic = mutation({
     coverTitle: v.string(),
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    backgroundImageUrl: v.optional(v.string()),
     countdownLabel: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -657,6 +690,7 @@ export const updateCalendarPublic = mutation({
       coverTitle: args.coverTitle,
       coverIcon: args.coverIcon,
       coverImageUrl: args.coverImageUrl,
+      backgroundImageUrl: args.backgroundImageUrl,
       countdownLabel: args.countdownLabel,
       startDate: args.startDate,
       endDate: args.endDate,

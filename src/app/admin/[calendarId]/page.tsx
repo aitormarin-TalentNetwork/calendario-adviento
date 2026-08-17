@@ -27,6 +27,7 @@ type AdminCalendar = {
   endDate: Date;
   skinId: string;
   coverImageUrl: string | null;
+  backgroundImageUrl: string | null;
 };
 
 /**
@@ -68,6 +69,7 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
       endDate: parseUtcDateOnly(calendar.endDate)!,
       skinId: calendar.skinId,
       coverImageUrl: calendar.coverImageUrl ?? null,
+      backgroundImageUrl: calendar.backgroundImageUrl ?? null,
     },
     // TAL-37 — `background`/`accent` se propagan tal cual (pueden venir
     // `undefined`, `v.optional` en el schema) para que `SkinPicker` pinte
@@ -116,7 +118,12 @@ export default async function AdminCalendarPage({
 
       <EditCalendarForm calendar={calendar} skins={skins} />
 
-      <DaysSection calendarId={calendar.id} skinAccent={skinAccent} skinBackground={skinBackground} />
+      <DaysSection
+        calendarId={calendar.id}
+        skinAccent={skinAccent}
+        skinBackground={skinBackground}
+        backgroundImageUrl={calendar.backgroundImageUrl}
+      />
 
       <GuestsSection calendarId={calendar.id} />
 
