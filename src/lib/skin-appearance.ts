@@ -14,32 +14,50 @@
  * alcance de esta tarea, ver brief).
  */
 
-export type SkinAppearance = { background: string; accent: string };
+export type SkinAppearance = {
+  background: string;
+  accent: string;
+  // TAL-47 — color de texto propio del skin (sustituye la capa de
+  // oscurecimiento + `text-shadow` fijos de TAL-24). `textPill` marca los
+  // 6 skins cuyo rango de degradado/rayas es demasiado amplio para un
+  // color plano — llevan una píldora de fondo semitransparente detrás
+  // del texto en vez de aplicarlo directo. Ver `resolveCoverTextTreatment`
+  // más abajo, el consumidor real de estos dos campos.
+  textColor: string;
+  textPill: boolean;
+};
 
 export type SkinLike = {
   _id: string;
   background?: string;
   accent?: string;
+  textColor?: string;
+  textPill?: boolean;
 };
 
 /**
  * Respaldo cuando el skin referenciado no existe (calendario huérfano,
  * no debería pasar — `skinId` es requerido desde TAL-9) o todavía no
- * tiene `background`/`accent` (`v.optional` desde TAL-22, mientras el
- * catálogo compartido no se confirme migrado del todo — ver
- * `docs/skins.md` § "Migración segura"). Los tokens del Design System
- * (`--pine`/`--gold`) en vez de un hex fijo: si algún día cambian de
- * valor, este respaldo los sigue automáticamente sin tocar código.
+ * tiene `background`/`accent`/`textColor` (`v.optional` desde TAL-22/
+ * TAL-47, mientras el catálogo compartido no se confirme migrado del
+ * todo — ver `docs/skins.md` § "Migración segura"). Los tokens del
+ * Design System (`--pine`/`--gold`/`--paper`) en vez de un hex fijo: si
+ * algún día cambian de valor, este respaldo los sigue automáticamente
+ * sin tocar código. `textPill: false` — el respaldo es un fondo oscuro
+ * (`--pine`) con texto claro (`--paper`), combinación que ya tiene
+ * contraste de sobra sin necesitar píldora.
  */
 export const DEFAULT_SKIN_APPEARANCE: SkinAppearance = {
   background: "var(--pine)",
   accent: "var(--gold)",
+  textColor: "var(--paper)",
+  textPill: false,
 };
 
 export function resolveSkinAppearance(skinId: string, skins: SkinLike[]): SkinAppearance {
   const skin = skins.find((candidate) => candidate._id === skinId);
-  if (!skin?.background || !skin.accent) return DEFAULT_SKIN_APPEARANCE;
-  return { background: skin.background, accent: skin.accent };
+  if (!skin?.background || !skin.accent || !skin.textColor) return DEFAULT_SKIN_APPEARANCE;
+  return { background: skin.background, accent: skin.accent, textColor: skin.textColor, textPill: skin.textPill ?? false };
 }
 
 /**
@@ -126,4 +144,84 @@ export function coverBackgroundStyle(background: string, backgroundImageUrl?: st
     };
   }
   return { background: coverBackgroundCss(background) };
+}
+
+/**
+ * TAL-47 — reemplaza a `coverBackgroundStyle` (arriba) en las superficies
+ * que ya adoptaron `textColor`/`textPill`: portada del Invitado, cabecera
+ * de mes del grid (Invitado y editor de Admin), modal de vídeo, y el
+ * fondo a pantalla completa (TAL-46/47 núcleo). Diferencia clave: SIN la
+ * capa de oscurecimiento cuando no hay `backgroundImageUrl` — el
+ * contraste ya lo garantiza `textColor`, verificado matemáticamente por
+ * skin (`scripts/verify-tal47-textcolor-wcag.mjs`), así que esa capa ya
+ * no hace falta ahí y solo apagaba los colores reales del skin (motivo
+ * original del cambio, pedido de Aitor probando en real). CON
+ * `backgroundImageUrl` (foto arbitraria subida por el Admin, sin
+ * `textColor` propio verificado) SÍ mantiene la misma capa de
+ * oscurecimiento que antes — sigue siendo necesaria ahí; ese caso queda
+ * fuera de alcance de TAL-47 (que es sobre el color de texto del SKIN,
+ * no sobre fotos arbitrarias sin verificar).
+ *
+ * `coverBackgroundStyle` (arriba) se queda TAL CUAL, sin tocar — sigue en
+ * uso por `calendar-preview.tsx` (TAL-29, vista previa del editor de
+ * Admin), que todavía no ha adoptado `textColor` (fuera de alcance de
+ * esta ronda de TAL-47) y necesita seguir garantizando contraste con
+ * texto blanco fijo — de ahí que esta sea una función NUEVA en vez de
+ * modificar la existente: cambiar `coverBackgroundStyle` in-place habría
+ * roto silenciosamente el contraste de esa vista previa (sigue mostrando
+ * texto blanco fijo, sin capa oscura, sobre skins claros).
+ */
+export function skinBackgroundStyle(background: string, backgroundImageUrl?: string | null): CoverBackgroundStyle {
+  if (backgroundImageUrl) {
+    return {
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("${backgroundImageUrl}")`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+    };
+  }
+  return { background };
+}
+
+export type CoverTextTreatment =
+  | { kind: "photo"; color: string; textShadow: string }
+  | { kind: "flat"; color: string }
+  | { kind: "pill"; color: string; pillBackground: string };
+
+// 0.7, NO 0.6 (la píldora de "visto" del grid, la referencia original del
+// brief de TAL-47) — subida tras un hallazgo real de
+// `scripts/verify-tal47-textcolor-wcag.mjs`: "rojiblanco" (rayas
+// verticales rojo/blanco puro) fallaba WCAG AA en su parada blanca con
+// 0.6 (4.20:1); con 0.7 pasa con margen (5.96:1) sin perjudicar a los
+// otros 5 skins con píldora. Ver `docs/skins.md` § "textColor" para el
+// detalle completo.
+const TEXT_PILL_BACKGROUND = "rgba(15,24,18,0.7)";
+
+/**
+ * TAL-47 — decide CÓMO mostrar el texto (título/número/marcador) sobre el
+ * fondo resuelto por `skinBackgroundStyle`: tres casos.
+ *
+ * - `backgroundImageUrl` puesto ("photo"): mismo tratamiento de siempre
+ *   (blanco + `text-shadow`) — una foto arbitraria no tiene `textColor`
+ *   verificado, así que se mantiene el mecanismo que SÍ garantiza
+ *   contraste sin conocer los colores de antemano.
+ * - Sin foto, `textPill: true` ("pill"): el color de texto del skin
+ *   sobre una píldora de fondo semitransparente (`TEXT_PILL_BACKGROUND`)
+ *   en vez de directo sobre el degradado — 6 de 24 skins, los que un
+ *   color plano no cubre en todo su rango (ver `docs/skins.md`).
+ * - Sin foto, `textPill: false` ("flat"): el color de texto del skin
+ *   directo, sin capa ni sombra ni píldora — el caso normal, 18 de 24
+ *   skins, ya verificado WCAG AA contra el peor caso real de su
+ *   degradado/rayas.
+ */
+export function resolveCoverTextTreatment(
+  appearance: Pick<SkinAppearance, "textColor" | "textPill">,
+  hasBackgroundImage: boolean
+): CoverTextTreatment {
+  if (hasBackgroundImage) {
+    return { kind: "photo", color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.5)" };
+  }
+  if (appearance.textPill) {
+    return { kind: "pill", color: appearance.textColor, pillBackground: TEXT_PILL_BACKGROUND };
+  }
+  return { kind: "flat", color: appearance.textColor };
 }

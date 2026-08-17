@@ -88,19 +88,28 @@ async function fetchCalendarDays(calendarId: string) {
  * ahí de por qué no se toca el fondo de las casillas individuales).
  *
  * `backgroundImageUrl` (TAL-39) se pasa igual que `skinBackground` —
- * `DaysGridEditor` decide ahí (`coverBackgroundStyle`) si sustituye el
+ * `DaysGridEditor` decide ahí (`skinBackgroundStyle`) si sustituye el
  * color/degradado del skin por la imagen en esa misma cabecera de mes.
+ *
+ * `skinTextColor`/`skinTextPill` (TAL-47) — mismo `appearance` que ya
+ * resuelve `skinAccent`/`skinBackground` en `page.tsx`, se pasan igual a
+ * `DaysGridEditor`, que decide con ellos el color de texto de esa cabecera
+ * (`resolveCoverTextTreatment`, `skin-appearance.ts`).
  */
 export async function DaysSection({
   calendarId,
   skinAccent,
   skinBackground,
   backgroundImageUrl,
+  skinTextColor,
+  skinTextPill,
 }: {
   calendarId: string;
   skinAccent: string;
   skinBackground: string;
   backgroundImageUrl: string | null;
+  skinTextColor: string;
+  skinTextPill: boolean;
 }) {
   // Solo se atrapa el fallo de la propia llamada (Convex no disponible,
   // secreto mal configurado, red caída) — un mensaje de "no disponible"
@@ -178,6 +187,8 @@ export async function DaysSection({
         days={dayInfos}
         background={skinBackground}
         backgroundImageUrl={backgroundImageUrl}
+        textColor={skinTextColor}
+        textPill={skinTextPill}
       />
     </section>
   );
