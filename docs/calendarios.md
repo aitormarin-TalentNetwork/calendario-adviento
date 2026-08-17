@@ -709,6 +709,78 @@ línea), en mobile se envuelve.
 fichero de Convex (schema/mutations/queries) tocado — tarea puramente de
 presentación, tal como confirmaba la investigación previa del ticket.
 
+## Selector visual de skin en el editor (TAL-37)
+
+Brief (design/design-system.md § "Skins", design/propuesta-editor-
+calendario.html — fila "Skin" con píldoras de color): sustituye el
+`<select>` de texto de la fila "Skin" (`edit-calendar-form.tsx`, dentro de
+la columna derecha de "Datos del calendario", TAL-33) por una galería de
+muestras — una píldora por skin con su color/degradado real de fondo,
+nombre visible, borde `--gold` en la seleccionada. Sigue siendo dinámico
+(`skins.listAllPublic()`, cero catálogo fijo en frontend) — solo cambia
+cómo se pinta cada opción, no de dónde sale la lista.
+
+Cambios:
+- Nuevo `src/app/admin/[calendarId]/skin-picker.tsx` (`SkinPicker`): un
+  botón por skin (píldora: cuadrado de color + nombre), `aria-pressed` +
+  anillo `--gold` en la seleccionada, `title` con el nombre como redundancia
+  accesible. El `background` de cada muestra es el valor CSS real del skin
+  tal cual lo guarda Convex (color sólido o degradado), pasado directo a
+  `style` — mismo criterio ya establecido en `door-grid.tsx`/`days-grid-
+  editor.tsx`/`skin-appearance.ts` (nunca se "parsea" ese string, se aplica
+  tal cual). Respaldo `DEFAULT_SKIN_APPEARANCE` (`skin-appearance.ts`) para
+  skins sin `background`/`accent` todavía (`v.optional` desde TAL-22) —
+  verificado en vivo con el skin real "Verde pino" del catálogo semilla
+  original, que no tiene esos campos.
+- `page.tsx`: la proyección de `skins` para el formulario pasa de
+  `{id, name}` a incluir también `background`/`accent` (tipo `SkinOption`,
+  exportado desde `skin-picker.tsx` y reutilizado en `edit-calendar-
+  form.tsx` para no duplicar el tipo en tres sitios).
+- `edit-calendar-form.tsx`: la fila "Skin" pasa de `<select>` a
+  `<SkinPicker>` + `<input type="hidden" name="skinId">` (mismo patrón que
+  `coverIcon`/`CoverIconPicker`, TAL-23/33 — el picker no es un `<input>`
+  nativo). Nueva clase `.editor-field-skin` para alinear la etiqueta arriba
+  en vez de centrada verticalmente (la galería puede envolver a varias
+  líneas con 22+ skins, más alta que una fila de texto normal) — ver nota
+  siguiente sobre por qué es una clase y no un `style` inline.
+- `globals.css`: nuevas clases `.skin-picker-gallery` (`flex-wrap` +
+  `max-height`/`overflow-y` como límite de seguridad si el catálogo crece
+  mucho más de 22), `.skin-swatch`/`.skin-swatch-color` (+
+  `:hover`/`:focus-visible`), y `.editor-field-skin` (+ su reset dentro del
+  `@media` mobile ya existente de `.editor-field`).
+
+**Decisión técnica de bajo riesgo, no escalada:** `.editor-field-skin` usa
+una clase de CSS, no un `style={{alignItems: "flex-start"}}` inline —
+probado primero con el inline y descartado: un `style` inline de React
+siempre gana sobre CUALQUIER regla de la hoja de estilos, incluida la que
+ya existe dentro de `@media (max-width: 640px)` para volver a
+`align-items: stretch` en mobile (necesaria para que la fila se apile
+correctamente por debajo del breakpoint). Con el inline, esa regla mobile
+quedaría sin efecto para este campo. La clase, en cambio, se puede
+resetear dentro del mismo bloque `@media` ya existente — mismo mecanismo,
+sin el problema de especificidad.
+
+**Evidencia:** verificado en navegador real (super-admin, calendario de
+prueba "Test TAL-13", 22 skins reales del catálogo). Confirmado
+visualmente: las 22 muestras se pintan con su color/degradado real
+(gradientes incluidos, no solo colores sólidos), envuelven en varias
+líneas dentro de una galería con scroll propio, la seleccionada
+("Verde pino", el skin original de esta fila de prueba) lleva el anillo
+`--gold`. Cambio real de skin (a "Dorado Real") + "Guardar cambios" +
+confirmación directa contra Convex (`npx convex data calendars`) de que
+`skinId` persiste el id correcto — revertido después a la selección
+original para dejar el dato de prueba como estaba. Mobile (~605px real) y
+desktop (~896px, iframe inyectado — `resize_window` sigue sin reproducir
+un viewport ancho fiable en este entorno) verificados sin regresión: en
+mobile la etiqueta se apila arriba de la galería (regla general de
+`.editor-field`); en desktop la etiqueta queda alineada arriba de la
+galería, no centrada verticalmente contra su altura.
+
+`npx eslint .`/`npx tsc --noEmit` limpios; `AGENTS.md` intacto. Ningún
+fichero de Convex (schema/mutations/queries) tocado — `skins.listAllPublic`
+ya devolvía todo lo necesario (`background`/`accent` incluidos), esta tarea
+es puramente de presentación.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma

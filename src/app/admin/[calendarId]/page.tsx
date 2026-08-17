@@ -6,6 +6,7 @@ import { deleteCalendarAction } from "@/app/admin/actions";
 import { DaysSection } from "@/app/admin/[calendarId]/days-section";
 import { EditCalendarForm } from "@/app/admin/[calendarId]/edit-calendar-form";
 import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
+import type { SkinOption } from "@/app/admin/[calendarId]/skin-picker";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly } from "@/lib/calendars";
@@ -39,7 +40,7 @@ type AdminCalendar = {
  */
 async function getCalendarForAdminPage(calendarId: string): Promise<{
   calendar: AdminCalendar;
-  skins: { id: string; name: string }[];
+  skins: SkinOption[];
   skinAccent: string;
   skinBackground: string;
 } | null> {
@@ -68,7 +69,13 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
       skinId: calendar.skinId,
       coverImageUrl: calendar.coverImageUrl ?? null,
     },
-    skins: skins.map((skin) => ({ id: skin._id, name: skin.name })).sort((a, b) => a.name.localeCompare(b.name)),
+    // TAL-37 — `background`/`accent` se propagan tal cual (pueden venir
+    // `undefined`, `v.optional` en el schema) para que `SkinPicker` pinte
+    // cada muestra con su color real; el respaldo de ambos vive en el
+    // propio `SkinPicker`/`DEFAULT_SKIN_APPEARANCE`, no aquí.
+    skins: skins
+      .map((skin) => ({ id: skin._id, name: skin.name, background: skin.background, accent: skin.accent }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     // TAL-24 — a diferencia de la portada de Invitado, esta página es un
     // formulario de edición (no una "portada"), así que el brief solo
     // pide que el GRID de días refleje el skin, no toda la página — ver

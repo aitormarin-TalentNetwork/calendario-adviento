@@ -276,6 +276,22 @@ a {
   color: var(--text);
 }
 
+/* TAL-37 — la fila "Skin" reemplaza `align-items: center` de
+   `.editor-field` por `flex-start`: `SkinPicker` puede envolver a varias
+   líneas con 22+ skins, más alto que una fila de texto normal, así que la
+   etiqueta se alinea arriba en vez de quedar centrada contra esa altura
+   variable. Clase aparte (no un `style` inline) para poder resetearla
+   dentro del propio `@media` de mobile, más abajo — un `style` inline
+   ganaría siempre, incluso en mobile, y rompería el `align-items: stretch`
+   que ese breakpoint necesita para las demás filas. */
+.editor-field-skin {
+  align-items: flex-start;
+}
+
+.editor-field-skin > label {
+  padding-top: 8px;
+}
+
 @media (max-width: 640px) {
   .editor-columns {
     grid-template-columns: 1fr;
@@ -291,6 +307,10 @@ a {
   .editor-field > label {
     flex: none;
     text-align: left;
+  }
+
+  .editor-field-skin > label {
+    padding-top: 0;
   }
 }
 
@@ -423,4 +443,51 @@ a {
 .toast.show {
   opacity: 1;
   transform: translateX(-50%) translateY(-6px);
+}
+
+/* TAL-37 — galería de muestras de skin (design/design-system.md § "Skins",
+   design/propuesta-editor-calendario.html — fila "Skin"). `flex-wrap` deja
+   que envuelva a varias líneas con 22+ skins en vez de forzar una sola
+   fila; `max-height`/`overflow-y` es un límite de seguridad para cuando el
+   catálogo (sin tope fijo, TAL-22) crezca mucho más allá de eso. Necesita
+   `:hover`/`:focus-visible`, que un `style` inline de React no puede
+   expresar. */
+.skin-picker-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.skin-swatch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.skin-swatch:hover {
+  border-color: var(--gold);
+}
+
+.skin-swatch:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.skin-swatch-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
 }
