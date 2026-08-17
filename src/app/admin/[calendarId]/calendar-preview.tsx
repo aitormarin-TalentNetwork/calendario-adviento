@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CalendarCoverHeader } from "@/components/calendar-cover-header";
 import { CoverText } from "@/components/cover-text";
 import { parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { daysUntil, formatCountdownMessage } from "@/lib/countdown";
-import { resolveCoverTextTreatment, skinBackgroundStyle } from "@/lib/skin-appearance";
 
 export type CalendarPreviewProps = {
   coverIcon: string;
@@ -54,17 +54,23 @@ function useCountdownText(endDate: string, countdownLabel: string): string {
  * miniatura abre un diálogo con el mismo contenido a tamaño de
  * producción (3:4, ancho máx. 420px).
  *
- * Fondo (miniatura y diálogo, mismo criterio): `skinBackgroundStyle`
- * (`src/lib/skin-appearance.ts`, ya usado por `door-grid.tsx`/
- * `c/[calendarId]/page.tsx`) — imagen de fondo con capa de oscurecimiento
- * si `backgroundImageUrl` está puesto, si no el color/degradado del skin
- * SIN esa capa (TAL-47 — reconciliación, ronda 3: réplica en miniatura de
- * la portada real, así que reutiliza el mismo `resolveCoverTextTreatment`/
- * `CoverText` que ya aplican portada/cabecera de mes/modal, en vez del
- * `var(--paper)` fijo que tenía esta vista previa desde TAL-29 — icono y
- * título/countdown ya no dependen de una capa oscura fija para su
- * contraste). Un solo cálculo compartido entre miniatura y diálogo (no dos
- * implementaciones del mismo fondo).
+ * TAL-49 — miniatura y diálogo renderizan su icono/título/countdown/fondo
+ * a través de `CalendarCoverHeader` (`src/components/calendar-cover-header.tsx`),
+ * el mismo componente que usa la portada real del Invitado
+ * (`c/[calendarId]/page.tsx`) — mismo `skinBackgroundStyle`/
+ * `resolveCoverTextTreatment`/`CoverText` en las tres superficies, sin
+ * que cada una repita su propia llamada (motivo original del ticket:
+ * TAL-47 tuvo que reconciliar esta vista previa a mano tras dejarla
+ * desincronizada dos rondas seguidas). El layout SIGUE siendo propio de
+ * cada superficie (centrado/compacto aquí, bloque simple en la portada
+ * real) — `CalendarCoverHeader` no lo fuerza, ver el comentario completo
+ * ahí de por qué eso es deliberado.
+ *
+ * La vista previa sigue alimentada por el estado del formulario SIN
+ * GUARDAR (`fieldValues.skinId`/`endDate` en `edit-calendar-form.tsx`,
+ * `useCountdownText` más abajo) — `CalendarCoverHeader` no hace ningún
+ * fetch propio, solo recibe los datos ya resueltos, así que la
+ * actualización en vivo (TAL-29) no se rompe.
  *
  * Patrón de diálogo (backdrop cierra al clicar fuera, Escape cierra, foco
  * inicial en el botón de cerrar, foco devuelto al disparador al cerrar) —
@@ -84,8 +90,6 @@ export function CalendarPreview({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const countdownText = useCountdownText(endDate, countdownLabel);
-  const backgroundStyle = skinBackgroundStyle(background, backgroundImageUrl);
-  const textTreatment = resolveCoverTextTreatment({ textColor, textPill }, !!backgroundImageUrl);
 
   function closeDialog() {
     setOpen(false);
@@ -110,49 +114,55 @@ export function CalendarPreview({
         onClick={() => setOpen(true)}
         aria-label="Ver vista previa a tamaño completo"
         style={{
+          display: "block",
+          width: "100%",
           flex: 1,
           borderRadius: "12px",
           overflow: "hidden",
           boxShadow: "var(--shadow)",
           border: "none",
+          padding: 0,
           aspectRatio: "16/9",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "3px",
-          padding: "8px",
-          textAlign: "center",
           cursor: "pointer",
-          ...backgroundStyle,
         }}
       >
-        <span aria-hidden="true" style={{ fontSize: "1.1rem", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.35))" }}>
-          {coverIcon}
-        </span>
-        <span
-          style={{
-            fontFamily: "var(--font-display)",
-            fontSize: "0.58rem",
-            lineHeight: 1.15,
-            textWrap: "balance",
+        <CalendarCoverHeader
+          background={background}
+          backgroundImageUrl={backgroundImageUrl}
+          textColor={textColor}
+          textPill={textPill}
+          containerStyle={{
+            width: "100%",
+            height: "100%",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "3px",
+            padding: "8px",
+            textAlign: "center",
+          }}
+          titleTagStyle={{
             display: "-webkit-box",
             WebkitLineClamp: 2,
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
           }}
+          titleStyle={{ fontFamily: "var(--font-display)", fontSize: "0.58rem", lineHeight: 1.15, textWrap: "balance" }}
+          title={coverTitle}
+          countdown={(treatment) => (
+            <CoverText
+              treatment={treatment}
+              style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", letterSpacing: "0.02em", whiteSpace: "nowrap" }}
+            >
+              {countdownText}
+            </CoverText>
+          )}
         >
-          {/* CoverText anidado, no como elemento externo — su rama "pill"
-              fuerza `display: inline-block`, que rompería el clamp de 2
-              líneas de este `span` si se lo aplicáramos directo a él. */}
-          <CoverText treatment={textTreatment}>{coverTitle}</CoverText>
-        </span>
-        <CoverText
-          treatment={textTreatment}
-          style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", letterSpacing: "0.02em", whiteSpace: "nowrap" }}
-        >
-          {countdownText}
-        </CoverText>
+          <span aria-hidden="true" style={{ fontSize: "1.1rem", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.35))" }}>
+            {coverIcon}
+          </span>
+        </CalendarCoverHeader>
       </button>
 
       {open && (
@@ -172,25 +182,49 @@ export function CalendarPreview({
             zIndex: 50,
           }}
         >
-          <div
-            onClick={(event) => event.stopPropagation()}
-            style={{
-              maxWidth: "420px",
-              width: "100%",
-              borderRadius: "16px",
-              overflow: "hidden",
-              position: "relative",
-              aspectRatio: "3/4",
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              textAlign: "center",
-              padding: "40px 32px",
-              gap: "22px",
-              ...backgroundStyle,
-            }}
-          >
+          <div onClick={(event) => event.stopPropagation()} style={{ maxWidth: "420px", width: "100%", position: "relative" }}>
+            <CalendarCoverHeader
+              background={background}
+              backgroundImageUrl={backgroundImageUrl}
+              textColor={textColor}
+              textPill={textPill}
+              containerStyle={{
+                borderRadius: "16px",
+                overflow: "hidden",
+                aspectRatio: "3/4",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                textAlign: "center",
+                padding: "40px 32px",
+                gap: "22px",
+              }}
+              titleStyle={{ fontFamily: "var(--font-display)", fontSize: "1.9rem", lineHeight: 1.25, textWrap: "balance" }}
+              title={coverTitle}
+              countdown={(treatment) => (
+                <CoverText treatment={treatment} style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", letterSpacing: "0.03em" }}>
+                  {countdownText}
+                </CoverText>
+              )}
+            >
+              <div
+                aria-hidden="true"
+                style={{
+                  width: "84px",
+                  height: "84px",
+                  borderRadius: "999px",
+                  background: "rgba(246,241,228,0.16)",
+                  border: "1px solid rgba(246,241,228,0.4)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "2.4rem",
+                }}
+              >
+                {coverIcon}
+              </div>
+            </CalendarCoverHeader>
             <button
               ref={closeButtonRef}
               type="button"
@@ -212,32 +246,6 @@ export function CalendarPreview({
             >
               ✕
             </button>
-            <div
-              aria-hidden="true"
-              style={{
-                width: "84px",
-                height: "84px",
-                borderRadius: "999px",
-                background: "rgba(246,241,228,0.16)",
-                border: "1px solid rgba(246,241,228,0.4)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "2.4rem",
-              }}
-            >
-              {coverIcon}
-            </div>
-            <CoverText as="div" treatment={textTreatment} style={{ fontFamily: "var(--font-display)", fontSize: "1.9rem", lineHeight: 1.25, textWrap: "balance" }}>
-              {coverTitle}
-            </CoverText>
-            <CoverText
-              as="div"
-              treatment={textTreatment}
-              style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", letterSpacing: "0.03em" }}
-            >
-              {countdownText}
-            </CoverText>
           </div>
         </div>
       )}
