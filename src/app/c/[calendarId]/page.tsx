@@ -14,7 +14,7 @@ import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { resolveCalendarAccess } from "@/lib/roles";
-import { coverBackgroundCss, resolveSkinAppearance, type SkinAppearance } from "@/lib/skin-appearance";
+import { coverBackgroundStyle, resolveSkinAppearance, type SkinAppearance } from "@/lib/skin-appearance";
 
 /**
  * TAL-14 — reconectada contra Convex (`calendars.getPublic`, TAL-12, ya
@@ -40,6 +40,7 @@ async function getCalendarForGuestPage(
   endDate: Date;
   countdownLabel: string;
   appearance: SkinAppearance;
+  backgroundImageUrl: string | null;
 } | null> {
   const serverSecret = convexAppServerSecret();
   const [calendar, skins] = await Promise.all([
@@ -57,6 +58,11 @@ async function getCalendarForGuestPage(
     // convex/schema.ts § countdownLabel.
     countdownLabel: calendar.countdownLabel ?? DEFAULT_COUNTDOWN_LABEL,
     appearance: resolveSkinAppearance(calendar.skinId, skins),
+    // TAL-39 — deliberadamente NO llega a /login (página sin autenticar,
+    // restricción de seguridad de TAL-25 que esta tarea no ensancha); esta
+    // página SÍ está autenticada, mismo criterio ya establecido para
+    // `appearance` arriba.
+    backgroundImageUrl: calendar.backgroundImageUrl ?? null,
   };
 }
 
@@ -74,7 +80,7 @@ export default async function GuestCalendarPage({
   // tenga acceso a él.
   const calendar = await getCalendarForGuestPage(calendarId);
   if (!calendar) notFound();
-  const { appearance, endDate, countdownLabel } = calendar;
+  const { appearance, endDate, countdownLabel, backgroundImageUrl } = calendar;
 
   // Cualquier rol (Guest, Admin o Super Admin) puede ver el calendario; para
   // un Guest sin membership todavía, resolveCalendarAccess la crea aquí
@@ -117,11 +123,12 @@ export default async function GuestCalendarPage({
   // TAL-24 — corrección de auditoría, ronda 1: texto blanco + sombra SOLO
   // no bastaba (el skin "Nieve" llega a `#ffffff` puro, blanco sobre
   // blanco). Ahora el fondo de la cabecera lleva una capa de
-  // oscurecimiento uniforme antes del `background` del skin
-  // (`coverBackgroundCss`, `src/lib/skin-appearance.ts` — ahí el cálculo
-  // completo de por qué garantiza contraste ≥4.5:1 incluso en ese caso
-  // límite), así que el texto blanco + sombra sigue siendo legible de
-  // verdad en vez de "normalmente".
+  // oscurecimiento uniforme antes del `background` del skin (o de
+  // `backgroundImageUrl`, TAL-39 — `coverBackgroundStyle`,
+  // `src/lib/skin-appearance.ts` — ahí el cálculo completo de por qué
+  // garantiza contraste ≥4.5:1 incluso en ese caso límite), así que el
+  // texto blanco + sombra sigue siendo legible de verdad en vez de
+  // "normalmente".
   const coverTextStyle = { color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.5)" };
 
   return (
@@ -164,7 +171,11 @@ export default async function GuestCalendarPage({
       <div
         style={{
           marginBottom: "1.5rem",
-          background: coverBackgroundCss(appearance.background),
+          // TAL-39 — `coverBackgroundStyle` sustituye el color/degradado
+          // del skin por `backgroundImageUrl` cuando el calendario tiene
+          // uno puesto (misma capa de oscurecimiento de contraste que
+          // antes, ver `skin-appearance.ts`).
+          ...coverBackgroundStyle(appearance.background, backgroundImageUrl),
           borderRadius: "0.75rem",
           padding: "1.25rem 1.5rem",
         }}
@@ -194,9 +205,15 @@ export default async function GuestCalendarPage({
       </div>
 
       {tz ? (
-        <ServerResolvedDoors calendarId={calendarId} userId={user.id} timeZone={tz} background={appearance.background} />
+        <ServerResolvedDoors
+          calendarId={calendarId}
+          userId={user.id}
+          timeZone={tz}
+          background={appearance.background}
+          backgroundImageUrl={backgroundImageUrl}
+        />
       ) : (
-        <DoorGridLoader calendarId={calendarId} background={appearance.background} />
+        <DoorGridLoader calendarId={calendarId} background={appearance.background} backgroundImageUrl={backgroundImageUrl} />
       )}
     </main>
   );
@@ -207,11 +224,13 @@ async function ServerResolvedDoors({
   userId,
   timeZone,
   background,
+  backgroundImageUrl,
 }: {
   calendarId: string;
   userId: string;
   timeZone: string;
   background: string;
+  backgroundImageUrl: string | null;
 }) {
   const today = todayInTimeZone(new Date(), timeZone);
   const result = await resolveDoors(calendarId, userId, today);
@@ -224,5 +243,7 @@ async function ServerResolvedDoors({
       </p>
     );
   }
-  return <DoorGrid calendarId={calendarId} doors={result.doors} background={background} />;
+  return (
+    <DoorGrid calendarId={calendarId} doors={result.doors} background={background} backgroundImageUrl={backgroundImageUrl} />
+  );
 }

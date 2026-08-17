@@ -25,6 +25,7 @@ type EditCalendarFormProps = {
     endDate: Date;
     skinId: string;
     coverImageUrl: string | null;
+    backgroundImageUrl: string | null;
   };
   skins: SkinOption[];
 };
@@ -45,6 +46,7 @@ function initialValues(calendar: EditCalendarFormProps["calendar"]): UpdateCalen
     endDate: calendar.endDate.toISOString().slice(0, 10),
     skinId: calendar.skinId,
     coverImageUrl: calendar.coverImageUrl ?? "",
+    backgroundImageUrl: calendar.backgroundImageUrl ?? "",
   };
 }
 
@@ -112,6 +114,11 @@ function useTodayStr(): string | null {
  * comentario en `globals.css`) — en desktop alinea la etiqueta arriba en
  * vez de centrada, porque la galería puede envolver a varias líneas con
  * 22+ skins, más alta que una fila de texto normal.
+ *
+ * TAL-39 — "Imagen de fondo (URL, opcional)" justo debajo de "Skin"
+ * (brief: "junto al selector de skin"), campo propio e independiente de
+ * `coverImageUrl` (esa es la foto redonda de portada; esta se aplica
+ * como fondo en grid/modal/página del Invitado, ver `skin-appearance.ts`).
  */
 function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();
@@ -207,6 +214,18 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
               explícitamente — mismo criterio que `coverIcon` (CoverIconPicker)
               más arriba. */}
           <input type="hidden" name="skinId" value={fieldValues.skinId} />
+        </div>
+        <div className="editor-field">
+          <label htmlFor="calendar-backgroundImageUrl">Imagen de fondo (URL, opcional)</label>
+          <input
+            id="calendar-backgroundImageUrl"
+            name="backgroundImageUrl"
+            type="url"
+            value={fieldValues.backgroundImageUrl}
+            onChange={(e) => setField("backgroundImageUrl", e.target.value)}
+            disabled={pending}
+            placeholder="https://…"
+          />
         </div>
         <div className="editor-field">
           <label htmlFor="calendar-countdownLabel">Marcador de cuenta atrás</label>

@@ -781,6 +781,113 @@ fichero de Convex (schema/mutations/queries) tocado — `skins.listAllPublic`
 ya devolvía todo lo necesario (`background`/`accent` incluidos), esta tarea
 es puramente de presentación.
 
+## Imagen de fondo del calendario (TAL-39)
+
+Brief (Linear TAL-39, ahora también `design/design-system.md` § "Imagen de
+fondo del calendario (nuevo campo, distinto de 'Foto de portada')" —
+sección añadida por el PM el mismo día, ya con la corrección de alcance
+que salió de esta misma tarea, ver más abajo): campo nuevo e independiente
+`backgroundImageUrl` en `calendars`, distinto de `coverImageUrl` (la foto
+redonda de `/login`, TAL-25) y del `skinId` (que sigue siendo obligatorio
+siempre). La imagen sustituye el color/degradado del skin como base
+visual; el acento del skin sigue gobernando puertas/casillas/bordes/
+"hoy"/píldoras sin relación con este campo. Primera tarea de esta tanda
+que toca Convex de verdad (schema + mutations), no solo presentación.
+
+**Duda real resuelta antes de implementar, no decidida unilateralmente:**
+el brief original decía "Renderizado en las 3 pantallas: portada de
+login, grid, modal" — pero "portada" tiene DOS significados distintos en
+este proyecto (`/login`, página pública sin autenticar, vs. `/c/
+[calendarId]`, la página del calendario del Invitado ya autenticado) y
+TAL-24 (la tarea que primero aplicó skins visualmente) nunca tocó
+`/login`. Consulté con la Directora antes de tocar nada: `/login` tiene
+una lista blanca deliberadamente mínima en Convex por seguridad
+(`getPublicCoverInfoForLogin`, TAL-25 — solo `coverTitle`/`coverIcon`/
+`coverImageUrl`, ni fechas ni skin ni nada más, para una página alcanzable
+sin sesión) — ensancharla para `backgroundImageUrl` es una decisión de
+producto/seguridad, no una implementación directa. Confirmado por la
+Directora y el PM: `/login` queda FUERA de esta tarea (igual que `skinId`
+ya quedaba fuera de facto); solo `/c/[calendarId]/page.tsx` (autenticada)
++ grid (Invitado y Admin) + modal. El propio `design-system.md` se
+actualizó para reflejar esta corrección, citando el hallazgo.
+
+Cambios:
+
+- **`convex/schema.ts`**: `backgroundImageUrl: v.optional(v.string())` en
+  `calendars`, junto a `coverImageUrl`.
+- **`convex/calendars.ts`**: nueva `assertSafeBackgroundImageUrl` (mismo
+  criterio que `assertSafeCoverImageUrl` — solo `https:`, función propia
+  con su propio mensaje en vez de compartir la existente, mismo patrón ya
+  establecido en este fichero de un validador por campo). Enhebrado por
+  `createCalendarHandler`/`updateCalendarHandler` y sus mutations
+  (`createCalendar`/`updateCalendar`/`createCalendarPublic`/
+  `updateCalendarPublic`) — sin tocar `getPublic` (ya devuelve el
+  documento completo) ni `getPublicCoverInfoForLogin` (deliberadamente,
+  ver arriba).
+- **`src/app/admin/actions.ts`** (`updateCalendarAction`): mismo bloque de
+  validación https que ya tenía `coverImageUrl`, replicado para
+  `backgroundImageUrl`.
+- **`src/lib/skin-appearance.ts`**: nueva `coverBackgroundStyle(background,
+  backgroundImageUrl)` — cuando hay imagen, la antepone con la MISMA capa
+  de oscurecimiento uniforme que `coverBackgroundCss` (mismo cálculo de
+  contraste ya verificado en TAL-24) en vez del color/degradado del skin,
+  y añade `backgroundSize: cover`/`backgroundPosition: center` como
+  propiedades aparte del `background` shorthand (mismo criterio que las
+  miniaturas "visto" de `door-grid.tsx`/`days-grid-editor.tsx`, que ya
+  usan ese mismo patrón). Sin imagen, se comporta exactamente igual que
+  `coverBackgroundCss` antes de esta tarea — cero cambio de comportamiento
+  para calendarios sin `backgroundImageUrl`.
+- **Editor** (`edit-calendar-form.tsx`): campo "Imagen de fondo (URL,
+  opcional)" justo debajo de "Skin" (brief: "junto al selector de skin"),
+  mismo patrón `.editor-field` que el resto del formulario — sin CSS
+  nueva, a diferencia de TAL-33/37.
+- **`page.tsx` (Admin)** → `days-section.tsx` → `days-grid-editor.tsx`:
+  `backgroundImageUrl` se propaga igual que `skinBackground`, sustituye el
+  color/degradado del skin en la cabecera de mes cuando está presente.
+- **`c/[calendarId]/page.tsx`** (Invitado, autenticado) → `door-grid-
+  loader.tsx`/`door-grid.tsx`: mismo criterio en la cabecera de portada
+  (antes fondo fijo del skin), la cabecera de mes del grid, Y el modal de
+  vídeo — el modal antes tenía un fondo FIJO (`var(--background)`, sin
+  relación con el skin en absoluto, decisión deliberada de TAL-24 de no
+  tocarlo); ahora gana el mismo tratamiento que las otras dos superficies,
+  necesario para que `backgroundImageUrl` tenga algún sitio donde
+  mostrarse en el modal, tal como pedía el brief.
+
+**Hallazgo de contraste, corregido antes de darlo por bueno (mismo tipo de
+problema que el NO-GO de auditoría de TAL-24, ronda 1, pero en la
+dirección contraria):** el modal nunca había necesitado un tratamiento de
+texto especial porque su fondo era fijo y neutro. Al pasar a
+`coverBackgroundStyle` (siempre con la capa de oscurecimiento al 60%
+encima), el texto por defecto (`color: var(--text)`, casi negro en modo
+claro) hubiera quedado prácticamente ilegible sobre ese fondo ahora
+siempre oscurecido. Corregido aplicando el mismo `{ color: "#fff",
+textShadow: "0 1px 4px rgba(0,0,0,0.5)" }` que ya usa la cabecera de
+portada (`page.tsx::coverTextStyle`) a TODO el contenido de texto del
+modal (título del día, botón de cerrar, aviso de "sin vídeo todavía",
+enlace de vídeo no embebible, mensaje del día) — el aviso de error rojo
+(`markError`, `#e35b5b`) se dejó sin tocar a propósito, ya tenía contraste
+razonable sobre fondo oscuro y no forma parte de este hallazgo.
+
+**Evidencia:** verificado en navegador real (super-admin, calendario de
+prueba "Test TAL-13") con una imagen real (`picsum.photos`, imagen
+genérica de prueba, no una URL de producto). Confirmado directamente
+contra Convex que `backgroundImageUrl` persiste al guardar y se BORRA por
+completo (no queda como cadena vacía) al vaciar el campo y guardar — mismo
+comportamiento que `coverImageUrl` ya tenía. Verificado visualmente: la
+cabecera de mes del editor de Admin, la cabecera de portada del Invitado,
+la cabecera de mes del grid del Invitado, Y el modal de vídeo (abierto de
+verdad, con su propio día de prueba temporal con vídeo asignado) muestran
+la imagen con la capa de oscurecimiento y texto legible — el acento del
+skin (borde de "hoy", borde del modal) siguió intacto en todo momento, sin
+relación con la imagen. Mobile (~371px, iframe inyectado — `resize_window`
+sigue sin reproducir un viewport estrecho fiable en este entorno) sin
+overflow ni regresión. Datos de prueba (rango de fechas, día temporal,
+`backgroundImageUrl`) restaurados a su estado original exacto tras la
+verificación, confirmado campo a campo contra Convex.
+
+`npx eslint .`/`npx tsc --noEmit`/`npx convex dev --once --typecheck=enable`
+limpios; `AGENTS.md` intacto.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma

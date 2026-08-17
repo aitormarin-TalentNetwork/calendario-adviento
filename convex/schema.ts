@@ -54,6 +54,21 @@ export default defineSchema({
     // migradas (idempotente).
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    // Imagen de fondo del calendario (TAL-39) — DISTINTO de `coverImageUrl`
+    // (la foto redonda de `/login`, TAL-25): esta se aplica como base
+    // visual en las pantallas ya skineadas (grid de días, modal de vídeo,
+    // TAL-24) allí donde esté disponible, sustituyendo el color/degradado
+    // del skin — el acento del skin (`skinId`) sigue gobernando puertas/
+    // casillas/bordes/"hoy" igual que siempre; `skinId` sigue siendo
+    // obligatorio incluso con esta imagen puesta. `v.optional()` porque la
+    // mayoría de calendarios no la tendrán — el skin solo sigue siendo
+    // suficiente por defecto. Deliberadamente NO llega a `/login` (página
+    // sin autenticar) — ver `getPublicCoverInfoForLogin` más abajo,
+    // restricción de seguridad ya existente desde TAL-25 que esta tarea no
+    // ensancha. Confirmado como decisión final (no provisional) por la
+    // Directora y el PM el mismo día — design-system.md § "Imagen de fondo
+    // del calendario" ya lo refleja así.
+    backgroundImageUrl: v.optional(v.string()),
     // Marcador de cuenta atrás (TAL-27) — la frase/palabra Y de "Faltan X
     // días para Y" en la vista del Invitado, texto libre configurable por
     // el Admin. `v.optional()` con respaldo de lectura, mismo criterio que
