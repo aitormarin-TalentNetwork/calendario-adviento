@@ -160,6 +160,12 @@ insertar un registro, no tocar código. Hoy el alta de un skin nuevo se hace por
 script/CLI (no hay UI de gestión en la app todavía — Aitor confirmó que esto es
 suficiente por ahora, no hace falta una pantalla de Super Admin para ello).
 
+**Selector de skin en el editor (TAL-37):** galería de píldoras, no un `<select>` de
+texto — cada píldora lleva el color/degradado real del skin **más su nombre visible al
+lado** (no solo como `title` al hacer hover, aunque también lo lleva de respaldo
+accesible), y un anillo `--gold` en la seleccionada. Envuelve en varias líneas con 22+
+filas (`flex-wrap`), sin forzar una sola fila ni alargar el resto del formulario.
+
 **Skin #23 — "Tira Cómica"** (pedido 2026-08-17): colores compatibles con una imagen
 que Aitor va a subir él mismo como foto de portada (personaje de cómic con derechos de
 autor — Aitor sube su propio asset con licencia/derecho para ello, nosotros no lo
@@ -225,11 +231,12 @@ galería completa.
 
 **Ajuste 2026-08-17 (segunda vuelta), pedido explícito de Aitor:** ya NO hay un botón de
 texto "Cambiar icono" aparte — **el propio icono ES el botón**, clicable directamente
-(cursor pointer, borde `--gold` al hover/focus). Etiqueta del campo renombrada de "Icono
-de portada" a **"Selecciona un icono"**. **Ajuste 2026-08-17 (tercera vuelta):** la
-casilla del icono ya NO lleva fondo relleno (`--paper-2`/`--pine-2`) — fondo
+(cursor pointer, borde `--gold` al hover/focus). **Ajuste 2026-08-17 (tercera vuelta):**
+la casilla del icono ya NO lleva fondo relleno (`--paper-2`/`--pine-2`) — fondo
 **transparente**, solo el borde (`--border`, pasa a `--gold` en hover/focus) indica que
-es un elemento clicable.
+es un elemento clicable. **Ajuste 2026-08-17 (cuarta vuelta):** etiqueta del campo
+renombrada de "Icono de portada" a "Selecciona un icono" y después, acortada de nuevo, a
+simplemente **"Icono"**.
 
 Contenido del diálogo (sin cambios respecto a lo ya validado):
 - Buscador arriba (`🔍 Buscar icono…`).

@@ -89,6 +89,19 @@
   }
   .field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 
+  /* ---- selector de skin (ajuste 2026-08-17: coincide con SkinPicker real,
+     src/app/admin/[calendarId]/skin-picker.tsx, TAL-37 — nombre visible junto
+     al color, no solo en el title del hover) ---- */
+  .skin-picker-gallery { display: flex; flex-wrap: wrap; gap: 8px; }
+  .skin-swatch {
+    display: flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--bg-raised); cursor: pointer;
+    font-family: var(--font-body); font-size: 0.78rem; color: var(--text);
+  }
+  .skin-swatch:hover { border-color: var(--gold); }
+  .skin-swatch.selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,154,61,0.25); }
+  .skin-swatch-color { width: 20px; height: 20px; border-radius: 999px; flex-shrink: 0; }
+
   /* ---- selector de icono (ajuste 2026-08-17: el propio icono ES el botón de
      "cambiar icono", no hay un botón de texto aparte — la galería vive en un
      diálogo, igual que antes) ---- */
@@ -252,15 +265,25 @@
           </button>
         </div>
         <div class="field"><label>Título de portada</label><input id="fieldTitle" type="text" value="¡Feliz cuenta atrás, equipo! 🎄" oninput="updatePreview()" /></div>
-        <div class="field"><label>Selecciona un icono</label>
+        <div class="field"><label>Icono</label>
           <button class="icon-current" id="fieldIcon" onclick="document.getElementById('iconDialog').classList.add('open')" aria-label="Cambiar icono de portada">🎁</button>
         </div>
         <div class="field"><label>Skin</label>
-          <div style="display:flex; gap:8px;" id="skinSwatches">
-            <span class="skin-swatch selected" data-bg="linear-gradient(155deg,#7a5a1e,#1b3a2f)" style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#7a5a1e,#1b3a2f);box-shadow:0 0 0 2px var(--gold);"></span>
-            <span class="skin-swatch" data-bg="linear-gradient(155deg,#8c2f39,#2b3f22)" style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#8c2f39,#2b3f22);"></span>
-            <span class="skin-swatch" data-bg="linear-gradient(155deg,#2b3f6b,#6b3f2b)" style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#2b3f6b,#6b3f2b);"></span>
+          <div class="skin-picker-gallery" id="skinSwatches">
+            <button type="button" class="skin-swatch selected" data-bg="linear-gradient(155deg,#7a5a1e,#1b3a2f)" title="Dorado">
+              <span class="skin-swatch-color" style="background:linear-gradient(155deg,#7a5a1e,#1b3a2f);"></span>
+              <span>Dorado</span>
+            </button>
+            <button type="button" class="skin-swatch" data-bg="linear-gradient(155deg,#8c2f39,#2b3f22)" title="Nochebuena">
+              <span class="skin-swatch-color" style="background:linear-gradient(155deg,#8c2f39,#2b3f22);"></span>
+              <span>Nochebuena</span>
+            </button>
+            <button type="button" class="skin-swatch" data-bg="linear-gradient(155deg,#2b3f6b,#6b3f2b)" title="Bosque Nórdico">
+              <span class="skin-swatch-color" style="background:linear-gradient(155deg,#2b3f6b,#6b3f2b);"></span>
+              <span>Bosque Nórdico</span>
+            </button>
           </div>
+          <p class="helptext" style="margin:2px 0 0;">Solo 3 de ejemplo aquí — el real son 23 (ver Design System, sección "Skins").</p>
         </div>
         <div class="field"><label>Marcador de cuenta atrás</label><input id="fieldCountdownLabel" type="text" placeholder="la Navidad" value="la Navidad" oninput="updatePreview()" /></div>
         <div class="field"><label>Imagen de fondo</label><input id="fieldBgImage" type="text" placeholder="https://… (opcional)" oninput="updatePreview()" /></div>
@@ -437,9 +460,8 @@
   // ---------------------------------------------------------------
   document.querySelectorAll(".skin-swatch").forEach((sw) => {
     sw.addEventListener("click", () => {
-      document.querySelectorAll(".skin-swatch").forEach((s) => { s.classList.remove("selected"); s.style.boxShadow = "none"; });
+      document.querySelectorAll(".skin-swatch").forEach((s) => s.classList.remove("selected"));
       sw.classList.add("selected");
-      sw.style.boxShadow = "0 0 0 2px var(--gold)";
       updatePreview();
     });
   });
