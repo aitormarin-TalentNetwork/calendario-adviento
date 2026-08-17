@@ -72,9 +72,29 @@ mismas relaciones. Diferencias de traducción, tabla por tabla:
   `DayView` nunca se actualiza tras crearse (el `upsert` de la versión Prisma
   tampoco tocaba nada en su rama `update`, ver `src/lib/guest-calendar.ts`).
 - **invitations** — `email`/`calendarId` igual.
-- **skins** — `key`/`name`/`description` igual.
+- **skins** — `key`/`name`/`description` igual. **TAL-22** añade
+  `background` (`v.optional(v.string())`, valor CSS completo de la
+  propiedad `background` — color sólido o cualquier `*-gradient(...)`,
+  sin modelar stops por separado) y `accent` (`v.optional(v.string())`,
+  un color hex) — campos que no existían ni en la versión Prisma ni en el
+  schema original de TAL-9, exigidos por `design/design-system.md` §
+  "Skins" ("cada skin es, como mínimo, un color/degradado de fondo + un
+  color de acento"), no una traducción de algo que ya hubiera antes.
+  **`v.optional`, no requeridos** (corrección de auditoría, ronda 1):
+  Convex valida todos los documentos existentes contra el schema nuevo
+  antes de aceptar un `push` — declararlos requeridos habría podido
+  romper el deploy contra cualquier fila `skins` ya existente de antes de
+  esta tarea (los 4 originales, "hoy no los tienen"). Ver `docs/skins.md`
+  § "Migración segura" para la secuencia completa (opcional → backfill →
+  verificar → recién entonces requerido, ese último paso queda como
+  seguimiento explícito fuera de esta tarea) y el resto del catálogo,
+  fuentes de cada valor, y por qué los 4 originales (Dorado/Grosella/
+  Medianoche/Pino, sin fuente de color en ningún documento) se derivan de
+  los tokens del Design System que ya llevan su nombre.
 
-Ninguna entidad ni relación nueva ni omitida respecto a Prisma.
+Ninguna entidad ni relación nueva ni omitida respecto a Prisma (salvo los
+dos campos de `skins` de arriba, que tampoco existían en Prisma — no son
+"omitidos", son enteramente nuevos de TAL-22).
 
 ## Índices nuevos tras TAL-9
 
