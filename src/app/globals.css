@@ -1,15 +1,117 @@
+/* ============================================================
+   TOKENS DEL DESIGN SYSTEM — ver design/design-system.md § "Tokens"
+   (normativo) y design/mockup-mvp.html (fuente exacta de los valores de
+   cada token en modo oscuro, citada explícitamente por el documento
+   normativo para esto).
+
+   La paleta cruda (pine/paper/gold/berry/ink/mist) NO cambia entre modo
+   claro/oscuro — son los colores base del catálogo. Los tokens
+   SEMÁNTICOS (--bg, --text, --accent, --border, etc.) sí cambian: son
+   los que debe usar el resto del código (nunca los crudos directamente
+   en un componente), así que solo estos se redefinen en los bloques de
+   modo oscuro más abajo.
+   ============================================================ */
 :root {
-  --background: #f6f1e4;
-  --foreground: #16211c;
-  --accent: #c99a3d;
+  /* --- Color: paleta cruda (design-system.md § Tokens > Color) --- */
+  --pine: #1b3a2f;
+  --pine-2: #234a3b;
+  --paper: #f6f1e4;
+  --paper-2: #efe7d4;
+  --gold: #c99a3d;
+  --gold-2: #e3bb63;
+  --berry: #8c2f39;
+  --ink: #16211c;
+  --mist: #d9e0d6;
+
+  /* --- Color: tokens semánticos, valores de modo claro (por defecto) --- */
+  --bg: var(--paper);
+  --bg-raised: #ffffff;
+  --bg-sunken: var(--paper-2);
+  --text: var(--ink);
+  --text-dim: #57604f;
+  --accent: var(--gold);
+  --accent-ink: #3c2c0c;
+  --border: #ded3ba;
+  --nav-bg: var(--pine);
+  --nav-text: var(--paper);
+  --nav-text-dim: #b9c9bf;
+  --door-locked: linear-gradient(160deg, #26473a, #1b3a2f);
+  --door-open: linear-gradient(160deg, #2d5544, #234a3b);
+  --danger: var(--berry);
+  --shadow: 0 1px 2px rgba(20, 30, 20, 0.06), 0 8px 24px rgba(20, 30, 20, 0.08);
+
+  /* --- Tipografía (design-system.md § Tokens > Tipografía) --- */
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+
+  /* --- Espaciado y forma (design-system.md § Tokens > Espaciado y forma)
+     — el documento da un rango para tarjetas/paneles (10-14px) sin fijar
+     un único valor por caso de uso; se nombran los dos extremos
+     realmente usados en mockup-mvp.html (10px botones, 14px
+     tarjetas/paneles) como tokens separados en vez de inventar un valor
+     intermedio sin fuente. --- */
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* --- Compatibilidad con el esquema previo del MVP (--background/
+     --foreground/--accent, 3 variables, hallazgo de esta tarea) — se
+     mapean a los tokens SEMÁNTICOS nuevos (`--bg`/`--text`), no a los
+     crudos (`--paper`/`--ink`): los crudos no cambian en modo oscuro, así
+     que mapear ahí rompería el fondo casi negro que ya tenía este
+     esquema en dark mode. `--accent` no necesita una línea de mapeo
+     aparte — ya coincide 1:1 con el token semántico nuevo del mismo
+     nombre (mismo valor en claro y oscuro). Nada del resto del código
+     tiene que cambiar mientras cada página migra a los tokens nuevos por
+     su cuenta (fuera de esta tarea, ver brief). --- */
+  --background: var(--bg);
+  --foreground: var(--text);
 }
 
+/* Modo oscuro por preferencia del sistema — mismo patrón que
+   mockup-mvp.html: el guard `:not([data-theme="light"])` deja que un
+   futuro selector manual de tema pueda forzar claro incluso con el
+   sistema en oscuro. Todavía no hay ningún componente que ponga
+   `data-theme` (fuera de alcance de esta tarea) — este bloque y el
+   siguiente quedan listos, sin efecto visible hasta que exista uno. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0f1e17;
-    --foreground: #ece6d6;
-    --accent: #e3bb63;
+  :root:not([data-theme="light"]) {
+    --bg: #0f1e17;
+    --bg-raised: #16281f;
+    --bg-sunken: #0b1712;
+    --text: #ece6d6;
+    --text-dim: #a9b6a9;
+    --accent: var(--gold-2);
+    --accent-ink: #2a1e07;
+    --border: #2a4436;
+    --nav-bg: #0b1712;
+    --nav-text: #ece6d6;
+    --nav-text-dim: #7f9186;
+    --door-locked: linear-gradient(160deg, #16281f, #0f1e17);
+    --door-open: linear-gradient(160deg, #234a3b, #16281f);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
   }
+}
+
+/* Modo oscuro forzado manualmente (`data-theme="dark"`) — mismos valores
+   que el bloque de arriba, para cuando exista un selector de tema real. */
+:root[data-theme="dark"] {
+  --bg: #0f1e17;
+  --bg-raised: #16281f;
+  --bg-sunken: #0b1712;
+  --text: #ece6d6;
+  --text-dim: #a9b6a9;
+  --accent: var(--gold-2);
+  --accent-ink: #2a1e07;
+  --border: #2a4436;
+  --nav-bg: #0b1712;
+  --nav-text: #ece6d6;
+  --nav-text-dim: #7f9186;
+  --door-locked: linear-gradient(160deg, #16281f, #0f1e17);
+  --door-open: linear-gradient(160deg, #234a3b, #16281f);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
 }
 
 html {
@@ -28,7 +130,7 @@ body {
   flex-direction: column;
   color: var(--foreground);
   background: var(--background);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--font-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
