@@ -578,3 +578,59 @@ desplazar para verla entera, deja de cumplir su propósito.
   vistas por título, la instrucción explícita de esta tarea concreta
   prevalece; queda pendiente para una tarea futura si el PM decide
   extenderlo a Admin.
+
+## Efecto de "primera apertura" — confeti + sonido (TAL-40)
+
+Solo vista de Invitado (`door-grid.tsx`) — el editor de Admin no tiene
+noción de "visto por primera vez", así que no aplica ahí. Portado del
+prototipo funcional `design/propuesta-grid-calendario.html` (ya
+aprobado por Aitor, con el código de referencia listo para portar), no
+diseñado desde cero.
+
+- **`src/lib/confetti-canvas.ts`** (nuevo): motor de partículas en
+  canvas, deliberadamente FUERA de React (sin estado, sin hooks) — un
+  `requestAnimationFrame` propio que mueve/dibuja las partículas
+  directamente sobre el `<canvas>`, en vez de un render de React por
+  frame (60/s por partícula sería mucho más caro que dejar que el canvas
+  se pinte solo, que es justo para lo que existe). `createConfettiEngine(canvas)`
+  devuelve `{ burst(x,y), destroy() }` — un motor por `<canvas>` montado,
+  creado una vez en un `useEffect` de `DoorGrid`, destruido al desmontar.
+- **`src/lib/reward-sound.ts`** (nuevo): sonido sintetizado con Web Audio
+  API (ruido filtrado para el "crac" + arpegio ascendente + brillo
+  final), sin ningún fichero de audio — pedido explícito del brief
+  ("evita añadir un asset y problemas de licencia/tamaño"). `AudioContext`
+  como singleton perezoso a nivel de módulo: crearlo antes del primer
+  gesto real del usuario lo deja "suspended" en la mayoría de
+  navegadores, así que solo se instancia la primera vez que de verdad
+  suena algo (siempre dentro de un `onClick`, ya es un gesto válido).
+- **Orquestación en `DoorGrid`**: `handleOpen` se dividió en
+  `completeOpen` (lo que hacía antes — marca "visto" en el servidor si
+  aplica, abre el modal) y `triggerFirstOpenEffect` (nuevo, solo para
+  `door.state === "unseen"`): dispara el pop de la casilla (clase CSS
+  `dg-bursting`, con las mismas curvas/tiempos del prototipo), el primer
+  estallido de confeti en el centro de la casilla pinchada
+  (`getBoundingClientRect`), el sonido, una segunda oleada de confeti a
+  los 260ms ("para que se sienta más grande", portado tal cual del
+  prototipo), y llama a `completeOpen` a los 620ms — el modal NO se abre
+  hasta que el efecto termina, tal como pide el brief. Los estados
+  "bloqueado" (corta antes, en `handleOpen`) y "visto" (reabre directo
+  vía `completeOpen`, sin pasar por el efecto) quedan fuera a propósito.
+- **`prefers-reduced-motion`**: comprobado con
+  `window.matchMedia("(prefers-reduced-motion: reduce)").matches` justo
+  al pinchar — si está activo, salta directo a `completeOpen` sin pop,
+  confeti NI sonido. El brief deja el sonido "a discreción" por no ser
+  visual, pero se decidió tratar el ajuste como "todo o nada": una
+  fanfarria sonora sin ningún acompañamiento visual puede sentirse igual
+  de "estímulo inesperado" para alguien que pidió explícitamente menos
+  movimiento — más simple de razonar y de auditar que separar los dos
+  casos.
+- **Limpieza de timeouts al desmontar**: los dos `window.setTimeout` del
+  efecto (260ms/620ms) se guardan en un ref y se cancelan en el cleanup
+  de un `useEffect` si el componente se desmonta a mitad del efecto
+  (pinchar un día y navegar fuera muy rápido) — evita un `setState`
+  tardío sobre un componente ya desmontado.
+- **Número oculto durante el pop**: `.dg-bursting .dg-num { opacity: 0 }`
+  — con el confeti/sonido ya comunicando "premio", el número
+  reduciéndose de tamaño a la vez sería ruido visual de más; reaparece
+  solo cuando `completeOpen` ya cambió el estado a "visto" (pasa a
+  `dg-num-pill`, la píldora pequeña habitual).
