@@ -78,7 +78,7 @@ export default async function AdminCalendarPage({
   const { calendar, skins } = data;
 
   return (
-    <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
+    <main style={{ flex: 1, padding: "2rem", maxWidth: "900px" }}>
       <h1>Editar calendario</h1>
       <p style={{ color: "var(--accent)" }}>
         Sesión: {user.email} ({access?.kind === "super-admin" ? "Super Admin" : "Admin"})

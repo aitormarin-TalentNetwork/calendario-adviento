@@ -20,6 +20,7 @@
   --gold: #c99a3d;
   --gold-2: #e3bb63;
   --berry: #8c2f39;
+  --berry-2: #e08a92;
   --ink: #16211c;
   --mist: #d9e0d6;
 
@@ -39,6 +40,18 @@
   --door-open: linear-gradient(160deg, #2d5544, #234a3b);
   --danger: var(--berry);
   --shadow: 0 1px 2px rgba(20, 30, 20, 0.06), 0 8px 24px rgba(20, 30, 20, 0.08);
+  /* TAL-21 — casilla "abierto, sin ver" del grid de días (design-system.md
+     § "Grid de días": "fondo --paper-2 (claro) / --pine-2 (oscuro)").
+     --paper-2/--pine-2 son paleta cruda, no cambian de valor por modo — a
+     diferencia de --bg-sunken (que sí es semántico pero apunta a un tono
+     distinto, casi negro, pensado para otro uso), este token elige entre
+     los dos crudos según el modo, específicamente para el grid. */
+  --day-open-bg: var(--paper-2);
+  /* TAL-21 — fin de semana del grid de días en `--berry`, con la variante
+     más clara `--berry-2` (añadida por el PM tras esta misma tarea, mismo
+     criterio que --gold/--gold-2) para mantener contraste sobre fondo
+     oscuro. */
+  --weekend-text: var(--berry);
 
   /* --- Tipografía (design-system.md § Tokens > Tipografía) --- */
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
@@ -92,6 +105,8 @@
     --door-locked: linear-gradient(160deg, #16281f, #0f1e17);
     --door-open: linear-gradient(160deg, #234a3b, #16281f);
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
+    --day-open-bg: var(--pine-2);
+    --weekend-text: var(--berry-2);
   }
 }
 
@@ -112,6 +127,8 @@
   --door-locked: linear-gradient(160deg, #16281f, #0f1e17);
   --door-open: linear-gradient(160deg, #234a3b, #16281f);
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
+  --day-open-bg: var(--pine-2);
+  --weekend-text: var(--berry-2);
 }
 
 html {
