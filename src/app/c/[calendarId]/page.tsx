@@ -14,8 +14,9 @@ import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { resolveCalendarAccess } from "@/lib/roles";
-import { resolveCoverTextTreatment, resolveSkinAppearance, skinBackgroundStyle, type SkinAppearance } from "@/lib/skin-appearance";
+import { resolveSkinAppearance, skinBackgroundStyle, type SkinAppearance } from "@/lib/skin-appearance";
 import { CoverText } from "@/components/cover-text";
+import { CalendarCoverHeader } from "@/components/calendar-cover-header";
 
 /**
  * TAL-14 — reconectada contra Convex (`calendars.getPublic`, TAL-12, ya
@@ -121,16 +122,6 @@ export default async function GuestCalendarPage({
     ? formatCountdownMessage(daysUntil(todayInTimeZone(new Date(), tz), endDate), countdownLabel)
     : null;
 
-  // TAL-47 — reemplaza la capa de oscurecimiento + `text-shadow` fijos de
-  // TAL-24: `resolveCoverTextTreatment` decide, según el skin y si hay
-  // `backgroundImageUrl`, si el texto va con el `textColor` propio del
-  // skin (plano o en píldora) o con el tratamiento antiguo (blanco +
-  // sombra, todavía necesario cuando hay una foto arbitraria sin
-  // `textColor` verificado — ver el comentario completo en
-  // `skin-appearance.ts`). `CoverText` (`src/components/cover-text.tsx`)
-  // es el envoltorio compartido que renderiza cualquiera de los 3 casos.
-  const textTreatment = resolveCoverTextTreatment(appearance, !!backgroundImageUrl);
-
   // TAL-47 — resuelto en una variable propia (tipada como
   // `React.CSSProperties`, no con un `as` inline) antes de mezclarla con
   // `"--accent"` más abajo: `skinBackgroundStyle` devuelve una unión
@@ -216,33 +207,37 @@ export default async function GuestCalendarPage({
         image={user.image}
         roleLabel={access.kind === "super-admin" ? "Super Admin" : access.role}
       />
-      <div
-        style={{
-          marginBottom: "1.5rem",
-          // Mismo fondo que `<main>` (misma llamada, mismos argumentos) —
-          // un único cálculo compartido, no dos implementaciones del
-          // mismo fondo (ver comentario completo junto a
-          // `mainBackgroundStyle` más arriba).
-          ...mainBackgroundStyle,
-          borderRadius: "0.75rem",
-          padding: "1.25rem 1.5rem",
-        }}
-      >
-        <h1>
-          <CoverText treatment={textTreatment}>
+      {/* TAL-49 — cabecera compartida con la vista previa en vivo del editor
+          de Admin (`calendar-preview.tsx`), ver `calendar-cover-header.tsx`.
+          El fondo NO es `mainBackgroundStyle` reutilizado (a diferencia de
+          antes de esta tarea) — `CalendarCoverHeader` calcula el suyo
+          propio internamente, mismos argumentos, mismo resultado (función
+          pura), solo que ahora es dueño de ese cálculo en vez de que
+          `page.tsx` se lo pase ya hecho. */}
+      <CalendarCoverHeader
+        background={appearance.background}
+        backgroundImageUrl={backgroundImageUrl}
+        textColor={appearance.textColor}
+        textPill={appearance.textPill}
+        titleTag="h1"
+        containerStyle={{ marginBottom: "1.5rem", borderRadius: "0.75rem", padding: "1.25rem 1.5rem" }}
+        title={
+          <>
             <span aria-hidden="true">{calendar.coverIcon}</span> {calendar.coverTitle}
-          </CoverText>
-        </h1>
-        {countdownMessage ? (
-          <p style={{ marginTop: "0.5rem" }}>
-            <CoverText treatment={textTreatment} style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 700 }}>
-              {countdownMessage}
-            </CoverText>
-          </p>
-        ) : (
-          <CountdownMarkerLoader endDate={endDate.toISOString().slice(0, 10)} label={countdownLabel} treatment={textTreatment} />
-        )}
-      </div>
+          </>
+        }
+        countdown={(treatment) =>
+          countdownMessage ? (
+            <p style={{ marginTop: "0.5rem" }}>
+              <CoverText treatment={treatment} style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 700 }}>
+                {countdownMessage}
+              </CoverText>
+            </p>
+          ) : (
+            <CountdownMarkerLoader endDate={endDate.toISOString().slice(0, 10)} label={countdownLabel} treatment={treatment} />
+          )
+        }
+      />
 
       {tz ? (
         <ServerResolvedDoors
