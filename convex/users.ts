@@ -4,6 +4,27 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { requireServerSecret } from "./serverAuth";
 
 /**
+ * TAL-28 — mismo criterio que `assertSafeCoverImageUrl` (`convex/calendars.ts`,
+ * TAL-5/TAL-12): solo `https:`. `image` llega del perfil OAuth de Google en
+ * el flujo normal (nunca texto libre tecleado por nadie), pero esta función
+ * pública sigue siendo alcanzable con el secreto compartido sin pasar por
+ * el flujo OAuth real — invariante de escritura real, no solo de UI, mismo
+ * motivo que el resto de URLs externas de este proyecto.
+ */
+function assertSafeUserImageUrl(url: string | undefined): void {
+  if (url === undefined) return;
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error("La foto de perfil debe ser una URL válida.");
+  }
+  if (parsed.protocol !== "https:") {
+    throw new Error("La foto de perfil debe ser una URL https:// — no se aceptan otros esquemas por seguridad.");
+  }
+}
+
+/**
  * Alta/actualización idempotente por email normalizado — el equivalente
  * Convex al `citext` + `@unique` de Prisma (ver
  * docs/convex-modelo-de-datos.md § "Email insensible a mayúsculas"). No
@@ -36,28 +57,41 @@ import { requireServerSecret } from "./serverAuth";
  */
 async function createUserHandler(
   ctx: MutationCtx,
-  args: { email: string; name?: string; isSuperAdminOnCreate?: boolean }
+  args: { email: string; name?: string; image?: string; isSuperAdminOnCreate?: boolean }
 ): Promise<Id<"users">> {
+  assertSafeUserImageUrl(args.image);
   const email = args.email.trim().toLowerCase();
   const existing = await ctx.db
     .query("users")
     .withIndex("by_email", (q) => q.eq("email", email))
     .unique();
   if (existing) {
-    if (args.name !== undefined && args.name !== existing.name) {
-      await ctx.db.patch(existing._id, { name: args.name });
-    }
+    const patch: Partial<Pick<Doc<"users">, "name" | "image">> = {};
+    if (args.name !== undefined && args.name !== existing.name) patch.name = args.name;
+    // TAL-28 — mismo criterio que `name`: se refresca en cada login si
+    // Google manda un valor distinto (el usuario cambió su avatar), nunca
+    // se borra por su cuenta si esta llamada concreta no trae `image`
+    // (dev-login, por ejemplo — no debe borrar la foto real de un login
+    // anterior con Google).
+    if (args.image !== undefined && args.image !== existing.image) patch.image = args.image;
+    if (Object.keys(patch).length > 0) await ctx.db.patch(existing._id, patch);
     return existing._id;
   }
   return await ctx.db.insert("users", {
     email,
     name: args.name,
+    image: args.image,
     isSuperAdmin: args.isSuperAdminOnCreate ?? false,
   });
 }
 
 export const createUser = internalMutation({
-  args: { email: v.string(), name: v.optional(v.string()), isSuperAdminOnCreate: v.optional(v.boolean()) },
+  args: {
+    email: v.string(),
+    name: v.optional(v.string()),
+    image: v.optional(v.string()),
+    isSuperAdminOnCreate: v.optional(v.boolean()),
+  },
   handler: createUserHandler,
 });
 
@@ -107,6 +141,7 @@ export const upsertUserOnLoginPublic = mutation({
     serverSecret: v.string(),
     email: v.string(),
     name: v.optional(v.string()),
+    image: v.optional(v.string()),
     isSuperAdminOnCreate: v.optional(v.boolean()),
   },
   handler: async (ctx, args) => {
@@ -114,6 +149,7 @@ export const upsertUserOnLoginPublic = mutation({
     return await createUserHandler(ctx, {
       email: args.email,
       name: args.name,
+      image: args.image,
       isSuperAdminOnCreate: args.isSuperAdminOnCreate,
     });
   },

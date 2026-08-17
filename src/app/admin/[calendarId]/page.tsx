@@ -7,7 +7,7 @@ import { DaysSection } from "@/app/admin/[calendarId]/days-section";
 import { EditCalendarForm } from "@/app/admin/[calendarId]/edit-calendar-form";
 import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { signOut } from "@/lib/auth";
+import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
@@ -79,10 +79,12 @@ export default async function AdminCalendarPage({
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "900px" }}>
+      <SessionIndicator
+        email={user.email}
+        image={user.image}
+        roleLabel={access?.kind === "super-admin" ? "Super Admin" : "Admin"}
+      />
       <h1>Editar calendario</h1>
-      <p style={{ color: "var(--accent)" }}>
-        Sesión: {user.email} ({access?.kind === "super-admin" ? "Super Admin" : "Admin"})
-      </p>
 
       <EditCalendarForm calendar={calendar} skins={skins} />
 
@@ -96,16 +98,6 @@ export default async function AdminCalendarPage({
       </form>
 
       <GuestsSection calendarId={calendar.id} />
-
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/login" });
-        }}
-        style={{ marginTop: "1.5rem" }}
-      >
-        <button type="submit">Cerrar sesión</button>
-      </form>
     </main>
   );
 }
