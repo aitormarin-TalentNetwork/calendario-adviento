@@ -1,0 +1,591 @@
+<title>Propuesta de Skins</title>
+<style>
+  :root {
+    --pine: #1b3a2f;
+    --paper: #f6f1e4;
+    --paper-2: #efe7d4;
+    --gold: #c99a3d;
+    --ink: #16211c;
+    --text-dim: #57604f;
+    --border: #ded3ba;
+    --bg: var(--paper);
+    --bg-raised: #ffffff;
+    --text: var(--ink);
+    --shadow: 0 1px 2px rgba(20,30,20,0.06), 0 8px 24px rgba(20,30,20,0.08);
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 28px rgba(0,0,0,0.35);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 12px 28px rgba(0,0,0,0.35);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+  h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 48px 28px 90px; }
+  .intro { max-width: 62ch; margin-bottom: 44px; }
+  .intro h1 { font-size: 1.9rem; margin-bottom: 10px; }
+  .intro p { color: var(--text-dim); line-height: 1.55; }
+  .section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 48px 0 18px; }
+
+  .skins-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  @media (max-width: 860px) { .skins-grid { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .skins-grid { grid-template-columns: 1fr; } }
+
+  .skin-card {
+    border-radius: 16px; overflow: hidden; box-shadow: var(--shadow);
+    border: 1px solid var(--border); background: var(--bg-raised);
+  }
+  .skin-preview {
+    aspect-ratio: 1.2; position: relative; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; text-align: center; padding: 20px;
+    overflow: hidden;
+  }
+  .skin-preview .badge {
+    position: absolute; top: 14px; left: 14px; font-size: 1.6rem; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.35));
+  }
+  .skin-preview h3 {
+    position: relative; z-index: 1; font-size: 1.25rem; text-wrap: balance;
+  }
+  .skin-preview .tagline {
+    position: relative; z-index: 1; font-size: 0.78rem; margin-top: 6px; opacity: 0.85;
+  }
+  .skin-preview .doors { position: relative; z-index: 1; display: flex; gap: 6px; margin-top: 16px; }
+  .skin-preview .door { width: 20px; height: 24px; border-radius: 4px; opacity: 0.9; }
+
+  .skin-meta { padding: 14px 16px 18px; }
+  .skin-meta .name { font-family: var(--font-display); font-size: 1.02rem; margin-bottom: 4px; }
+  .skin-meta .desc { font-size: 0.82rem; color: var(--text-dim); line-height: 1.45; }
+  .skin-meta .best-for {
+    margin-top: 10px; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--gold);
+  }
+
+  /* ---- skin 1: Nochebuena ---- */
+  .p-nochebuena { background: radial-gradient(ellipse at 30% 20%, rgba(201,154,61,0.25), transparent 55%), linear-gradient(160deg, #4a1319 0%, #1b3a2f 100%); color: #f6f1e4; }
+  .p-nochebuena .door:nth-child(1) { background: #c99a3d; } .p-nochebuena .door:nth-child(2) { background: #8c2f39; } .p-nochebuena .door:nth-child(3) { background: #234a3b; } .p-nochebuena .door:nth-child(4) { background: #e3bb63; }
+
+  /* ---- skin 2: Nieve ---- */
+  .p-nieve { background: linear-gradient(160deg, #cfe3ee 0%, #eef5f8 55%, #ffffff 100%); color: #1c3a4a; }
+  .p-nieve .door:nth-child(1) { background: #6fa8c4; } .p-nieve .door:nth-child(2) { background: #9fc6da; } .p-nieve .door:nth-child(3) { background: #cfe3ee; border: 1px solid #a9c5d4; } .p-nieve .door:nth-child(4) { background: #4a7f9c; }
+
+  /* ---- skin 3: Confeti ---- */
+  .p-confeti {
+    background:
+      conic-gradient(from 0deg at 20% 15%, #f2a6d8 0deg 40deg, #7c5cbf 40deg 80deg, #f4805c 80deg 120deg, #7c5cbf 120deg 160deg, #f4c542 160deg 200deg, #7c5cbf 200deg 240deg, #f2a6d8 240deg 280deg, #7c5cbf 280deg 320deg, #f4805c 320deg 360deg),
+      #7c5cbf;
+    color: #241a1a;
+  }
+  .p-confeti .sticker-card {
+    position: relative; z-index: 1; background: #fff; border-radius: 14px; padding: 10px 16px;
+    box-shadow: 0 6px 14px rgba(0,0,0,0.25); transform: rotate(-2deg);
+  }
+  .p-confeti .month-tag {
+    position: relative; z-index: 1; background: #f4c542; color: #241a1a; font-family: var(--font-display);
+    font-weight: 800; padding: 3px 14px; border-radius: 999px; transform: rotate(-4deg);
+    margin-bottom: -6px; font-size: 0.95rem;
+  }
+  .p-confeti .door:nth-child(1) { background: #fff; } .p-confeti .door:nth-child(2) { background: #241a1a; opacity:0.75; } .p-confeti .door:nth-child(3) { background: #fff; } .p-confeti .door:nth-child(4) { background: #241a1a; opacity:0.75; }
+
+  /* ---- skin 4: Dorado Real ---- */
+  .p-dorado-real { background: linear-gradient(160deg, #0c0c0c 0%, #1a1512 100%); color: #e9d9ae; }
+  .p-dorado-real .door { background: linear-gradient(160deg, #e3bb63, #9c7a2e); }
+
+  /* ---- skin 5: Bosque Nórdico ---- */
+  .p-bosque { background: linear-gradient(160deg, #e7e0cf 0%, #d8cdaf 100%); color: #3c3423; }
+  .p-bosque .door:nth-child(1) { background: #6b7a5e; } .p-bosque .door:nth-child(2) { background: #a9714a; } .p-bosque .door:nth-child(3) { background: #cabf9d; border:1px solid #a89b74;} .p-bosque .door:nth-child(4) { background: #6b7a5e; }
+
+  /* ---- skin 6: Neon Fiesta ---- */
+  .p-neon { background: linear-gradient(160deg, #0d0221 0%, #1a0b3d 100%); color: #f4e9ff; }
+  .p-neon .door:nth-child(1) { background: #ff2e88; box-shadow: 0 0 10px #ff2e8899; } .p-neon .door:nth-child(2) { background: #00e5ff; box-shadow: 0 0 10px #00e5ff99; } .p-neon .door:nth-child(3) { background: #b967ff; box-shadow: 0 0 10px #b967ff99; } .p-neon .door:nth-child(4) { background: #ffe94e; box-shadow: 0 0 10px #ffe94e99; }
+
+  /* ---- skin 7: Historieta (cómic clásico, sin personajes con copyright) ---- */
+  .p-historieta {
+    background:
+      radial-gradient(circle, #1a1a1a 1.2px, transparent 1.2px) 0 0 / 10px 10px,
+      #ffd23f;
+    color: #1a1a1a;
+  }
+  .p-historieta .comic-badge {
+    position: relative; z-index: 1; background: #e63946; color: #fff; font-family: var(--font-display);
+    font-weight: 800; padding: 6px 16px; border-radius: 999px; border: 3px solid #1a1a1a;
+    transform: rotate(-3deg); font-size: 0.9rem;
+  }
+  .p-historieta .comic-card {
+    position: relative; z-index: 1; background: #fff; border: 3px solid #1a1a1a; border-radius: 10px;
+    padding: 8px 14px; margin-top: 12px; box-shadow: 4px 4px 0 #1a1a1a;
+  }
+  .p-historieta .door:nth-child(1) { background: #e63946; border: 2px solid #1a1a1a; }
+  .p-historieta .door:nth-child(2) { background: #1d4ed8; border: 2px solid #1a1a1a; }
+  .p-historieta .door:nth-child(3) { background: #ffd23f; border: 2px solid #1a1a1a; }
+  .p-historieta .door:nth-child(4) { background: #2a9d5c; border: 2px solid #1a1a1a; }
+
+  /* ---- skin 8: Enamorados ---- */
+  .p-enamorados { background: radial-gradient(ellipse at 70% 20%, rgba(255,255,255,0.3), transparent 55%), linear-gradient(160deg, #d94f6b 0%, #f7c9d4 100%); color: #4a1320; }
+  .p-enamorados .door:nth-child(1) { background: #fff; } .p-enamorados .door:nth-child(2) { background: #8c2f39; } .p-enamorados .door:nth-child(3) { background: #f2a6b8; } .p-enamorados .door:nth-child(4) { background: #fff; }
+
+  /* ---- skin 9: Oficina (genérico, sin marca de ninguna serie) ---- */
+  .p-oficina { background: linear-gradient(160deg, #d9d2bd 0%, #b9ae90 100%); color: #3a3424; }
+  .p-oficina .door { background: #fff8e0; border: 1px solid #a89b74; box-shadow: 1px 1px 3px rgba(0,0,0,0.15); }
+  .p-oficina .door:nth-child(2), .p-oficina .door:nth-child(4) { transform: rotate(-3deg); }
+
+  /* ---- skin 10: Superhéroe (genérico, sin personaje con copyright) ---- */
+  .p-superheroe { background: linear-gradient(160deg, #1a3ba8 0%, #0b1b4a 100%); color: #fff; }
+  .p-superheroe .door:nth-child(1) { background: #e63946; } .p-superheroe .door:nth-child(2) { background: #ffd23f; } .p-superheroe .door:nth-child(3) { background: #e63946; } .p-superheroe .door:nth-child(4) { background: #ffd23f; }
+
+  /* ---- skin 11: Bebé ---- */
+  .p-bebe { background: linear-gradient(160deg, #dff0f7 0%, #fde7ef 100%); color: #3c4a52; }
+  .p-bebe .door:nth-child(1) { background: #aed9e8; } .p-bebe .door:nth-child(2) { background: #f6c6d8; } .p-bebe .door:nth-child(3) { background: #fff6d9; } .p-bebe .door:nth-child(4) { background: #aed9e8; }
+
+  /* ---- skin 12: Adolescente ---- */
+  .p-adolescente { background: linear-gradient(150deg, #6d28d9 0%, #db2777 55%, #f97316 100%); color: #fff; }
+  .p-adolescente .door:nth-child(1) { background: rgba(255,255,255,0.85); } .p-adolescente .door:nth-child(2) { background: rgba(0,0,0,0.35); } .p-adolescente .door:nth-child(3) { background: rgba(255,255,255,0.85); } .p-adolescente .door:nth-child(4) { background: rgba(0,0,0,0.35); }
+
+  /* ---- skin 13: Memorias de Familia ---- */
+  .p-memorias { background: linear-gradient(160deg, #e8dcc4 0%, #c9b78f 100%); color: #4a3b22; }
+  .p-memorias .door { background: #fff8ec; border: 4px solid #fff; box-shadow: 0 2px 6px rgba(0,0,0,0.25); }
+
+  /* ---- skin 14: Amigas ---- */
+  .p-amigas { background: linear-gradient(135deg, #ffb3c6 0%, #c9a7f5 50%, #a0e7d4 100%); color: #33253f; }
+  .p-amigas .door:nth-child(1) { background: #fff; } .p-amigas .door:nth-child(2) { background: #ffb3c6; } .p-amigas .door:nth-child(3) { background: #a0e7d4; } .p-amigas .door:nth-child(4) { background: #c9a7f5; }
+
+  /* ---- skin 15: K-pop ---- */
+  .p-kpop {
+    background: linear-gradient(120deg, #ff9ecf 0%, #b19cff 30%, #7ee8fa 60%, #ffd1ff 100%);
+    background-size: 200% 200%; color: #2a1a3d;
+  }
+  .p-kpop .door { background: rgba(255,255,255,0.55); backdrop-filter: blur(2px); border: 1px solid rgba(255,255,255,0.7); }
+
+  /* ---- skin 16: Gótico ---- */
+  .p-gotico { background: linear-gradient(160deg, #0a0a0c 0%, #1c1622 100%); color: #d8c9e0; }
+  .p-gotico .door { background: #17121c; border: 1px solid #4a2e5c; }
+  .p-gotico .door:nth-child(2), .p-gotico .door:nth-child(4) { border-color: #8c2f39; }
+
+  /* ---- skin 17: Baloncesto (genérico, sin marca de liga/equipo) ---- */
+  .p-baloncesto { background: linear-gradient(160deg, #b3541e 0%, #7a3610 100%); color: #fff2e0; }
+  .p-baloncesto .door { background: #1a1a1a; border: 2px solid #f2f2f2; }
+  .p-baloncesto .door:nth-child(2), .p-baloncesto .door:nth-child(4) { background: #f2f2f2; border-color: #1a1a1a; }
+
+  /* ---- skin 18: Fútbol (colores azulgrana genéricos, sin escudo ni nombre de club) ---- */
+  .p-futbol { background: repeating-linear-gradient(90deg, #1a2a6c 0 22px, #8c2f39 22px 44px); color: #fff; }
+  .p-futbol .door { background: rgba(255,255,255,0.92); border: 2px solid #1a2a6c; }
+
+  /* ---- background image feature note ---- */
+  .feature-note {
+    margin-top: 48px; padding: 22px 24px; border-radius: 14px; background: var(--bg-raised);
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .feature-note h3 { font-size: 1.1rem; margin-bottom: 8px; }
+  .feature-note p { color: var(--text-dim); font-size: 0.9rem; line-height: 1.55; max-width: 68ch; }
+  .bg-demo {
+    margin-top: 16px; border-radius: 12px; overflow: hidden; aspect-ratio: 3/1;
+    background:
+      linear-gradient(rgba(10,16,12,0.55), rgba(10,16,12,0.55)),
+      radial-gradient(circle at 20% 30%, #2d5544, transparent 40%),
+      radial-gradient(circle at 80% 70%, #8c2f39, transparent 45%),
+      linear-gradient(160deg, #1b3a2f, #0f1e17);
+    display: flex; align-items: center; justify-content: center;
+    color: #f6f1e4; font-family: var(--font-display); font-size: 1.1rem; text-align: center; padding: 20px;
+  }
+
+  /* ---- icon picker mockup ---- */
+  .icon-picker {
+    margin-top: 16px; padding: 20px; border-radius: 14px; background: var(--bg-raised);
+    border: 1px solid var(--border); box-shadow: var(--shadow);
+  }
+  .icon-picker .current {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 18px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .icon-picker .current .preview {
+    width: 52px; height: 52px; border-radius: 12px; background: var(--pine); color: var(--paper);
+    display: flex; align-items: center; justify-content: center; font-size: 1.6rem;
+  }
+  .icon-picker .current .label { font-size: 0.78rem; color: var(--text-dim); }
+  .icon-picker .current .label strong { display: block; color: var(--text); font-size: 0.95rem; }
+  .icon-search {
+    display: flex; align-items: center; gap: 8px; padding: 9px 14px; margin-bottom: 18px;
+    border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--text-dim);
+    font-size: 0.85rem;
+  }
+  .icon-cat { margin-bottom: 18px; }
+  .icon-cat:last-child { margin-bottom: 0; }
+  .icon-cat .cat-label {
+    font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .icon-gallery { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; }
+  @media (max-width: 640px) { .icon-gallery { grid-template-columns: repeat(6, 1fr); } }
+  .icon-gallery button {
+    aspect-ratio: 1; border-radius: 10px; border: 1px solid var(--border); background: var(--bg);
+    font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.1s ease, border-color 0.1s ease;
+  }
+  .icon-gallery button:hover { transform: scale(1.08); border-color: var(--gold); }
+  .icon-gallery button.selected { border-color: var(--gold); background: var(--paper-2); box-shadow: 0 0 0 2px rgba(201,154,61,0.35); }
+
+  .footnote { margin-top: 40px; color: var(--text-dim); font-size: 0.85rem; max-width: 62ch; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Propuesta de skins — Calendario de Adviento</h1>
+    <p>18 opciones nuevas en total, más las 4 actuales (Dorado/Grosella/Medianoche/Pino) — un catálogo amplio para elegir de ahí, no la lista final. Las que referenciaban una marca registrada (Turma da Mônica, The Office, NBA, F.C. Barcelona) se hicieron genéricas — mismo espíritu visual, sin logos, nombres ni personajes protegidos.</p>
+  </div>
+
+  <div class="section-title">Opciones de skin</div>
+  <div class="skins-grid">
+
+    <div class="skin-card">
+      <div class="skin-preview p-nochebuena">
+        <span class="badge">🎄</span>
+        <h3>Nochebuena</h3>
+        <div class="tagline">Rojo profundo + oro + pino</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Nochebuena</div>
+        <div class="desc">El clásico navideño, pero elegante — no rojo/verde puro, sino profundo y cálido, con acentos de oro.</div>
+        <div class="best-for">Navidad clásica</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-nieve">
+        <span class="badge">❄️</span>
+        <h3>Nieve</h3>
+        <div class="tagline">Azul hielo + blanco + plata</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Nieve</div>
+        <div class="desc">Invierno genérico, luminoso — no depende de "Navidad" en concreto, sirve para cualquier cuenta atrás de invierno.</div>
+        <div class="best-for">Invierno / neutro</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-confeti">
+        <div class="month-tag">Confeti</div>
+        <div class="sticker-card">
+          <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+        </div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Confeti</div>
+        <div class="desc">Retro y desenfadado — patrón de rayos tipo sunburst, tarjeta blanca "pegatina" ligeramente girada. Inspirado en el ejemplo de calendario de gatitos de Aitor. Sin tema fijo, para cumpleaños/aniversarios.</div>
+        <div class="best-for">Cumpleaños / aniversario</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-dorado-real">
+        <span class="badge">✨</span>
+        <h3>Dorado Real</h3>
+        <div class="tagline">Negro + oro foil, elegante</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Dorado Real</div>
+        <div class="desc">Serio y elegante — bodas, aniversarios de empresa, algo con más gala que "fiesta".</div>
+        <div class="best-for">Aniversario / gala</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-bosque">
+        <span class="badge">🌲</span>
+        <h3>Bosque Nórdico</h3>
+        <div class="tagline">Salvia + terracota + crudo</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Bosque Nórdico</div>
+        <div class="desc">Acogedor, artesanal, tipo papel/madera — la opción "calentita" para algo íntimo (familia, amigos).</div>
+        <div class="best-for">Acogedor / familiar</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-neon">
+        <span class="badge">🎊</span>
+        <h3>Neón Fiesta</h3>
+        <div class="tagline">Morado oscuro + neones</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Neón Fiesta</div>
+        <div class="desc">Moderno y gamberro — Fin de Año, cumpleaños de equipo, algo con más energía y menos "clásico".</div>
+        <div class="best-for">Fiesta / Fin de Año</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-historieta">
+        <div class="comic-badge">¡Pum!</div>
+        <div class="comic-card">
+          <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+        </div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Historieta</div>
+        <div class="desc">Cómic clásico — contorno grueso negro, tramado de puntos, colores primarios. Inspirado en el estilo de historieta que pediste (sin usar personajes con copyright, esos no se pueden reproducir).</div>
+        <div class="best-for">Infantil / cómic</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-enamorados">
+        <span class="badge">💕</span>
+        <h3>Enamorados</h3>
+        <div class="tagline">Rosa + rojo, romántico</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Enamorados</div>
+        <div class="desc">San Valentín, aniversario de pareja, declaración — rosa suave con acentos rojos.</div>
+        <div class="best-for">Pareja / San Valentín</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-oficina">
+        <span class="badge">📎</span>
+        <h3>Oficina</h3>
+        <div class="tagline">Estética de despacho, genérica</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Oficina</div>
+        <div class="desc">Humor de oficina genérico (tonos caqui/beige, notas adhesivas) — sin branding de ninguna serie concreta.</div>
+        <div class="best-for">Compañeros de trabajo</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-superheroe">
+        <span class="badge">💥</span>
+        <h3>Superhéroe</h3>
+        <div class="tagline">Azul + rojo + amarillo, genérico</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Superhéroe</div>
+        <div class="desc">Energético, colores primarios de cómic de acción — sin ningún personaje con copyright.</div>
+        <div class="best-for">Infantil / fan de cómics</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-bebe">
+        <span class="badge">🍼</span>
+        <h3>Bebé</h3>
+        <div class="tagline">Pasteles suaves</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Bebé</div>
+        <div class="desc">Primer año, cuenta atrás de embarazo, baby shower — celeste/rosa/crema muy suaves.</div>
+        <div class="best-for">Bebé / familia nueva</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-adolescente">
+        <span class="badge">📱</span>
+        <h3>Adolescente</h3>
+        <div class="tagline">Morado-rosa-naranja, Y2K</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Adolescente</div>
+        <div class="desc">Degradado atrevido tipo Y2K/sticker — para quinceañeras, cumpleaños de instituto.</div>
+        <div class="best-for">Adolescentes</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-memorias">
+        <span class="badge">📷</span>
+        <h3>Memorias de Familia</h3>
+        <div class="tagline">Álbum vintage, sepia</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Memorias de Familia</div>
+        <div class="desc">Tonos cálidos de álbum de fotos antiguo, marcos tipo polaroid — para recuerdos compartidos.</div>
+        <div class="best-for">Familia / recuerdos</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-amigas">
+        <span class="badge">💫</span>
+        <h3>Amigas</h3>
+        <div class="tagline">Pastel arcoíris, divertido</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Amigas</div>
+        <div class="desc">Colorido y desenfadado — despedidas, viajes de amigas, cumpleaños de grupo.</div>
+        <div class="best-for">Grupo de amigas</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-kpop">
+        <span class="badge">✨</span>
+        <h3>K-pop</h3>
+        <div class="tagline">Holográfico, photocard</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">K-pop</div>
+        <div class="desc">Degradado holográfico tipo "photocard" — sin logos ni imágenes de grupos concretos.</div>
+        <div class="best-for">Fan de k-pop</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-gotico">
+        <span class="badge">🖤</span>
+        <h3>Gótico</h3>
+        <div class="tagline">Negro + morado oscuro</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Gótico</div>
+        <div class="desc">Oscuro y dramático — para quien quiere algo bien distinto de "festivo alegre".</div>
+        <div class="best-for">Estética alternativa</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-baloncesto">
+        <span class="badge">🏀</span>
+        <h3>Baloncesto</h3>
+        <div class="tagline">Naranja cancha, genérico</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Baloncesto</div>
+        <div class="desc">Colores de cancha (naranja/negro/blanco) — sin logos de liga ni equipo concreto.</div>
+        <div class="best-for">Fan de baloncesto</div>
+      </div>
+    </div>
+
+    <div class="skin-card">
+      <div class="skin-preview p-futbol">
+        <span class="badge">⚽</span>
+        <h3>Fútbol</h3>
+        <div class="tagline">Rayas azulgrana, genérico</div>
+        <div class="doors"><div class="door"></div><div class="door"></div><div class="door"></div><div class="door"></div></div>
+      </div>
+      <div class="skin-meta">
+        <div class="name">Fútbol</div>
+        <div class="desc">Rayas de colores de equipo (sin escudo ni nombre de club) — inspirado libremente, no oficial.</div>
+        <div class="best-for">Fan de fútbol</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="feature-note">
+    <h3>🖼️ Foto de fondo personalizada</h3>
+    <p>Además del skin, el Admin podrá subir (o enlazar) una imagen de fondo propia para su calendario — se aplica detrás del skin elegido, con una capa de oscurecimiento para que los días y el texto se sigan leyendo bien. Ejemplo:</p>
+    <div class="bg-demo">"¡Feliz cumple, Marta!" — con foto de fondo propia</div>
+  </div>
+
+  <div class="section-title">Selector de icono de portada (Admin)</div>
+  <div class="icon-picker">
+    <div class="current">
+      <div class="preview">🎄</div>
+      <div class="label">Icono actual — hoy fijo en el código<strong>Se sustituye por un selector</strong></div>
+    </div>
+    <div class="icon-search">🔍 Buscar icono…</div>
+
+    <div class="icon-cat">
+      <div class="cat-label">Navidad</div>
+      <div class="icon-gallery">
+        <button class="selected">🎄</button>
+        <button>🎁</button>
+        <button>❄️</button>
+        <button>☃️</button>
+        <button>🔔</button>
+        <button>🕯️</button>
+        <button>🧑‍🎄</button>
+        <button>🦌</button>
+        <button>🍪</button>
+      </div>
+    </div>
+
+    <div class="icon-cat">
+      <div class="cat-label">Fiesta</div>
+      <div class="icon-gallery">
+        <button>🎉</button>
+        <button>🎊</button>
+        <button>🥳</button>
+        <button>🎈</button>
+        <button>🍾</button>
+        <button>🥂</button>
+        <button>🪩</button>
+        <button>🎂</button>
+        <button>🎆</button>
+      </div>
+    </div>
+
+    <div class="icon-cat">
+      <div class="cat-label">Cariño</div>
+      <div class="icon-gallery">
+        <button>❤️</button>
+        <button>💕</button>
+        <button>💖</button>
+        <button>💐</button>
+        <button>🌹</button>
+        <button>😍</button>
+        <button>🤗</button>
+        <button>💌</button>
+        <button>😻</button>
+      </div>
+    </div>
+
+    <div class="icon-cat">
+      <div class="cat-label">Naturaleza y cielo</div>
+      <div class="icon-gallery">
+        <button>⭐</button>
+        <button>🌟</button>
+        <button>💫</button>
+        <button>✨</button>
+        <button>🌈</button>
+        <button>☀️</button>
+        <button>🌙</button>
+        <button>🌸</button>
+        <button>🌻</button>
+      </div>
+    </div>
+
+    <div class="icon-cat">
+      <div class="cat-label">Animales y fantasía</div>
+      <div class="icon-gallery">
+        <button>🦄</button>
+        <button>🐱</button>
+        <button>🐶</button>
+        <button>🐰</button>
+        <button>🐻</button>
+        <button>🦋</button>
+        <button>🐼</button>
+        <button>🐧</button>
+        <button>🦊</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">Dime qué skins te gustan (puedes quedarte con varios, no hace falta elegir solo uno — el catálogo puede tener 6-8 opciones), y si el icono va por galería de emoji (como aquí) o prefieres subir icono propio también.</p>
+</div>

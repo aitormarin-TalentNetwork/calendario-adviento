@@ -1,0 +1,161 @@
+<title>Propuesta Grid Calendario</title>
+<style>
+  :root {
+    --pine: #1b3a2f; --pine-2: #234a3b; --paper: #f6f1e4; --paper-2: #efe7d4;
+    --gold: #c99a3d; --gold-2: #e3bb63; --berry: #8c2f39; --ink: #16211c;
+    --text-dim: #57604f; --border: #ded3ba; --bg: var(--paper); --bg-raised: #ffffff;
+    --text: var(--ink); --shadow: 0 1px 2px rgba(20,30,20,0.06), 0 8px 24px rgba(20,30,20,0.08);
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436; --gold: var(--gold-2); }
+  }
+  :root[data-theme="dark"] { --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436; --gold: var(--gold-2); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+  h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+  .wrap { max-width: 900px; margin: 0 auto; padding: 44px 24px 90px; }
+  .intro h1 { font-size: 1.7rem; margin-bottom: 8px; }
+  .intro p { color: var(--text-dim); max-width: 62ch; line-height: 1.55; }
+  .section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 40px 0 14px; }
+
+  .cal-frame {
+    border: 1px solid var(--border); border-radius: 16px; box-shadow: var(--shadow);
+    background: var(--bg-raised); overflow: hidden;
+  }
+  .cal-scroll { max-height: 560px; overflow-y: auto; }
+  .month-header {
+    position: sticky; top: 0; z-index: 2; background: var(--pine); color: var(--paper);
+    font-family: var(--font-display); font-size: 1.15rem; padding: 10px 20px;
+  }
+  .weekday-row {
+    display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px;
+    background: var(--border); font-family: var(--font-mono); font-size: 0.68rem;
+    text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim);
+  }
+  .weekday-row span { background: var(--bg-raised); text-align: center; padding: 6px 0; }
+  .week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); }
+
+  .day {
+    aspect-ratio: 1; background: var(--bg); position: relative; display: flex;
+    align-items: center; justify-content: center; overflow: hidden;
+  }
+  .day.empty { background: var(--bg-raised); }
+  .day .num {
+    font-family: var(--font-body); font-size: 1.9rem; font-weight: 800; color: var(--text);
+    transition: all 0.15s ease;
+  }
+  .day.weekend .num { color: var(--berry); }
+  :root[data-theme="dark"] .day.weekend .num, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .day.weekend .num { color: #e08a92; } }
+  .weekday-row span.weekend { color: var(--berry); font-weight: 700; }
+  .day.locked { opacity: 0.4; cursor: default; }
+  .day.locked .num { font-size: 1.45rem; }
+  .day.locked .lock { position: absolute; bottom: 6px; right: 8px; font-size: 0.7rem; }
+  .day.open-unseen { cursor: pointer; background: var(--paper-2); }
+  :root[data-theme="dark"] .day.open-unseen, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .day.open-unseen { background: var(--pine-2); } }
+  .day.open-unseen:hover { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .day.today .num { color: var(--gold); }
+  .day.today::after {
+    content: ""; position: absolute; inset: 4px; border: 1.5px dashed var(--gold); border-radius: 6px; pointer-events: none;
+  }
+  .day.watched { cursor: pointer; background-size: cover; background-position: center; }
+  .day.watched .num {
+    position: absolute; bottom: 5px; right: 8px; font-size: 0.82rem; font-weight: 600;
+    background: rgba(15,24,18,0.6); color: var(--paper); padding: 1px 6px; border-radius: 999px;
+    font-family: var(--font-mono);
+  }
+  .day.watched::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%); }
+  .f1 { background-image: linear-gradient(155deg, #7a5a1e, #1b3a2f); }
+  .f2 { background-image: linear-gradient(155deg, #8c2f39, #2b3f22); }
+  .f3 { background-image: linear-gradient(155deg, #2b3f6b, #6b3f2b); }
+
+  .footnote { margin-top: 20px; color: var(--text-dim); font-size: 0.85rem; max-width: 62ch; }
+  .legend { display: flex; gap: 18px; margin-top: 14px; flex-wrap: wrap; font-size: 0.8rem; color: var(--text-dim); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .sw { width: 14px; height: 14px; border-radius: 4px; display: inline-block; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Grid de calendario — "calendario de pared"</h1>
+    <p>Filas de 7 días (lunes a domingo), mes destacado como cabecera fija, número grande y centrado por defecto. Al ver el vídeo, el número se reduce y baja a la esquina, sobre el fotograma. Scroll vertical para pasar de un mes a otro — esto es lo mismo tanto en la vista del Invitado como en el editor de días del Admin.</p>
+  </div>
+
+  <div class="section-title">Vista del Invitado (con scroll)</div>
+  <div class="cal-frame">
+    <div class="cal-scroll" id="scrollArea"></div>
+  </div>
+  <div class="legend">
+    <span><span class="sw" style="background:var(--paper-2); border:1px solid var(--border);"></span> Abierto, sin ver</span>
+    <span><span class="sw" style="background:var(--bg); opacity:0.5; border:1px solid var(--border);"></span> Bloqueado (candado)</span>
+    <span><span class="sw f1"></span> Ya visto (fotograma de fondo)</span>
+    <span><span class="sw" style="border:1.5px dashed var(--gold);"></span> Hoy</span>
+  </div>
+
+  <p class="footnote">¿Esto es lo que tenías en mente? Si lo apruebas así, lo convierto ya en Design System normativo y lo entrego a la Directora para repartir.</p>
+</div>
+
+<script>
+  const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  const scrollArea = document.getElementById("scrollArea");
+  const TODAY = new Date(2026, 7, 16); // 16 ago 2026, fecha real del sistema
+
+  function buildMonth(year, monthIdx, watchedSet, frameClasses) {
+    const first = new Date(year, monthIdx, 1);
+    const startOffset = (first.getDay() + 6) % 7; // lunes=0
+    const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+    const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+    const section = document.createElement("div");
+    const header = document.createElement("div");
+    header.className = "month-header";
+    header.textContent = MONTHS[monthIdx].toUpperCase() + " " + year;
+    section.appendChild(header);
+
+    const weekdayRow = document.createElement("div");
+    weekdayRow.className = "weekday-row";
+    ["L","M","X","J","V","S","D"].forEach((d, i) => { const s = document.createElement("span"); s.textContent = d; if (i >= 5) s.className = "weekend"; weekdayRow.appendChild(s); });
+    section.appendChild(weekdayRow);
+
+    for (let w = 0; w < totalCells / 7; w++) {
+      const row = document.createElement("div");
+      row.className = "week-row";
+      for (let d = 0; d < 7; d++) {
+        const cellIdx = w * 7 + d;
+        const dayNum = cellIdx - startOffset + 1;
+        const cell = document.createElement("div");
+        if (dayNum < 1 || dayNum > daysInMonth) {
+          cell.className = "day empty";
+        } else {
+          const date = new Date(year, monthIdx, dayNum);
+          const isToday = date.toDateString() === TODAY.toDateString();
+          const isPast = date < TODAY && !isToday;
+          const isWeekend = d >= 5;
+          const key = year + "-" + monthIdx + "-" + dayNum;
+          const weekendCls = isWeekend ? " weekend" : "";
+          if (watchedSet.has(key)) {
+            cell.className = "day watched " + frameClasses[dayNum % frameClasses.length];
+            cell.innerHTML = '<span class="num">' + dayNum + "</span>";
+          } else if (isPast || isToday) {
+            cell.className = "day open-unseen" + (isToday ? " today" : "") + weekendCls;
+            cell.innerHTML = '<span class="num">' + dayNum + "</span>";
+          } else {
+            cell.className = "day locked" + weekendCls;
+            cell.innerHTML = '<span class="num">' + dayNum + '</span><span class="lock">🔒</span>';
+          }
+        }
+        row.appendChild(cell);
+      }
+      section.appendChild(row);
+    }
+    return section;
+  }
+
+  const watched = new Set(["2026-7-9","2026-7-10","2026-7-11","2026-7-12","2026-7-13","2026-7-14","2026-7-15"]);
+  const frames = ["f1","f2","f3"];
+  scrollArea.appendChild(buildMonth(2026, 7, watched, frames));   // agosto
+  scrollArea.appendChild(buildMonth(2026, 8, watched, frames));   // septiembre
+  scrollArea.appendChild(buildMonth(2026, 11, watched, frames));  // diciembre
+</script>
