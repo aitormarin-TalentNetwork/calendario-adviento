@@ -581,6 +581,69 @@ jsonLines`).
 `npx next build`/`npx eslint .` limpios; `npx convex dev --once --typecheck=enable`
 limpio; `AGENTS.md` intacto.
 
+## Días del calendario — diálogo para subir el vídeo (TAL-34)
+
+Brief (design/design-system.md § "Editor de calendario"/"Grid de días",
+design/propuesta-editor-calendario.html): el clic en un día del grid del
+editor de Admin (`days-grid-editor.tsx`) ya no abre un panel inline debajo
+del grid — abre un **diálogo** (modal), mismo patrón ya establecido en
+`door-grid.tsx` (vídeo del Invitado) y reutilizado en `cover-icon-picker.tsx`
+(TAL-33): foco inicial en el botón de cerrar, Escape cierra, clic en el
+fondo cierra, foco devuelto a la casilla que abrió el diálogo
+(`lastTriggerRef`, mismo mecanismo que `door-grid.tsx` — el disparador aquí
+es una de muchas casillas del grid, no un botón fijo como en
+`cover-icon-picker.tsx`).
+
+Además:
+- Texto explicativo fijo encima del grid ("Selecciona el día para subir el
+  vídeo…") — añadido en `days-section.tsx`, sección server component (texto
+  estático, no necesita ser cliente).
+- El tratamiento visual de "con vídeo" (fotograma de fondo, número reducido
+  en píldora) ya existía desde TAL-21 y no se ha tocado — el brief pedía
+  confirmar que el editor lo usa igual que el Invitado, no un componente
+  nuevo.
+- Ya no hay un día "seleccionado" por defecto al cargar la página (antes,
+  `selectedDate` arrancaba en `days[0]?.dateStr`, abriendo el panel del
+  primer día sin que nadie hubiera hecho clic) — el diálogo solo se abre
+  tras un clic real.
+
+**Decisión de diseño de bajo riesgo, documentada aquí (no escalada al PM):**
+el brief pide un segmentado "Link externo"/"Subir archivo" dentro del
+diálogo, pero es explícito en que la tarea es solo de presentación, sin
+tocar lógica de guardado/Convex — y no existe ninguna mutation ni
+almacenamiento para subir un archivo de vídeo real
+(`days-actions.ts::saveDayAction` solo acepta una URL `https://` externa).
+En vez de renderizar un campo de subida que no manda nada a ningún sitio
+(UI que aparenta funcionar pero no hace nada), la pestaña "Subir archivo"
+muestra un aviso ("Subida de archivos: todavía no disponible…") y
+deshabilita el botón "Guardar día" mientras está activa — la única fuente
+de vídeo funcional hoy sigue siendo "Link externo", que reutiliza el mismo
+campo/validación que ya existía. `SubmitButton` (`src/components/
+submit-button.tsx`) ganó una prop opcional `disabled` para esto, combinada
+con su `pending` interno, sin afectar a sus otros usos (`edit-calendar-
+form.tsx`, `guests-section.tsx`), que no la pasan.
+
+**Evidencia:** verificado en un navegador real, autenticado como
+super-admin (`tal28-superadmin@example.com`, login de desarrollo) contra el
+calendario de prueba `Test TAL-13`. A ~605px real (por debajo del
+breakpoint 640px, ancho real de la ventana en el momento de probar, sin
+necesitar el iframe inyectado): diálogo abre al pulsar un día con vídeo
+(datos pre-cargados) y uno sin vídeo (campo vacío, sin botón "Quitar
+vídeo"); segmentado cambia de pestaña y deshabilita "Guardar día" en
+"Subir archivo"; Escape cierra y devuelve el foco a la casilla que abrió el
+diálogo (confirmado con `document.activeElement`). Guardado de una URL
+nueva en un día sin vídeo y posterior "Quitar vídeo" confirmados
+directamente contra Convex (`npx convex data days --format jsonLines`), no
+solo en la UI — datos de prueba restaurados a su estado original tras la
+verificación. A ~896px real (iframe inyectado — `resize_window` sigue sin
+reproducir un viewport ancho fiable en este entorno): confirmado que
+"Datos del calendario" sigue en 2 columnas (TAL-33, sin regresión) y que el
+diálogo se centra igual de bien a ese ancho.
+
+`npx eslint .`/`npx tsc --noEmit` limpios; `AGENTS.md` intacto. Ningún
+fichero de Convex (schema/mutations/queries) tocado — tarea puramente de
+presentación, tal como pedía el brief.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
