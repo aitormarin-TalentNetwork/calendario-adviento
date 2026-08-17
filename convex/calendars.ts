@@ -45,6 +45,31 @@ function assertSafeCoverImageUrl(url: string | undefined): void {
   }
 }
 
+// Límite defensivo, no de producto — ver src/lib/cover-icons.ts
+// (MAX_COVER_ICON_LENGTH), fichero compartido sin dependencias de runtime
+// de Convex (mismo motivo que calendarErrorMessages.ts): el valor no
+// puede importarse desde ahí sin arrastrar el resto de ese módulo a este
+// bundle, así que se repite el número aquí — coordinado a mano, no un
+// import, porque `src/lib/*` no es alcanzable desde `convex/*.ts` (rutas
+// de bundling distintas).
+const MAX_COVER_ICON_LENGTH = 16;
+
+/**
+ * Deliberadamente NO valida contra el catálogo de `src/lib/cover-icons.ts`
+ * (brief de TAL-23: "catálogo sin límite fijo en la lógica", mismo
+ * criterio que ya se aplicó a la validación de email en `inviteGuest`,
+ * TAL-16 — aquí ni siquiera existe un catálogo fijo del lado de Convex).
+ * Solo la cota de longitud defensiva, igual que `videoUrl`/`message`
+ * (TAL-13).
+ */
+function assertValidCoverIcon(icon: string | undefined): void {
+  if (icon === undefined) return;
+  if (icon.length === 0) throw new Error("El icono de portada no puede estar vacío.");
+  if (icon.length > MAX_COVER_ICON_LENGTH) {
+    throw new Error(`El icono de portada no puede superar los ${MAX_COVER_ICON_LENGTH} caracteres.`);
+  }
+}
+
 /**
  * Equivalente Convex al trigger `BEFORE UPDATE ON "Calendar"` de Postgres
  * (TAL-6 ronda 3, docs/dias.md) que impedía reducir el rango del
@@ -129,6 +154,7 @@ async function createCalendarHandler(
     userId: Id<"users">;
     name: string;
     coverTitle: string;
+    coverIcon?: string;
     coverImageUrl?: string;
     startDate: string;
     endDate: string;
@@ -156,10 +182,12 @@ async function createCalendarHandler(
   assertValidCalendarDate(args.endDate);
   assertRangeNotInverted(args.startDate, args.endDate);
   assertSafeCoverImageUrl(args.coverImageUrl);
+  assertValidCoverIcon(args.coverIcon);
 
   const calendarId = await ctx.db.insert("calendars", {
     name: args.name,
     coverTitle: args.coverTitle,
+    coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,
     startDate: args.startDate,
     endDate: args.endDate,
@@ -176,6 +204,7 @@ export const createCalendar = internalMutation({
     userId: v.id("users"),
     name: v.string(),
     coverTitle: v.string(),
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -200,6 +229,7 @@ async function updateCalendarHandler(
     calendarId: Id<"calendars">;
     name: string;
     coverTitle: string;
+    coverIcon?: string;
     coverImageUrl?: string;
     startDate: string;
     endDate: string;
@@ -217,10 +247,12 @@ async function updateCalendarHandler(
   assertRangeNotInverted(args.startDate, args.endDate);
   await assertNoDayOutsideRange(ctx, args.calendarId, args.startDate, args.endDate);
   assertSafeCoverImageUrl(args.coverImageUrl);
+  assertValidCoverIcon(args.coverIcon);
 
   await ctx.db.patch(args.calendarId, {
     name: args.name,
     coverTitle: args.coverTitle,
+    coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,
     startDate: args.startDate,
     endDate: args.endDate,
@@ -234,6 +266,7 @@ export const updateCalendar = internalMutation({
     calendarId: v.id("calendars"),
     name: v.string(),
     coverTitle: v.string(),
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -437,6 +470,7 @@ export const createCalendarPublic = mutation({
     userId: v.id("users"),
     name: v.string(),
     coverTitle: v.string(),
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -449,6 +483,7 @@ export const createCalendarPublic = mutation({
       userId: args.userId,
       name: args.name,
       coverTitle: args.coverTitle,
+      coverIcon: args.coverIcon,
       coverImageUrl: args.coverImageUrl,
       startDate: args.startDate,
       endDate: args.endDate,
@@ -464,6 +499,7 @@ export const updateCalendarPublic = mutation({
     calendarId: v.id("calendars"),
     name: v.string(),
     coverTitle: v.string(),
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -475,6 +511,7 @@ export const updateCalendarPublic = mutation({
       calendarId: args.calendarId,
       name: args.name,
       coverTitle: args.coverTitle,
+      coverIcon: args.coverIcon,
       coverImageUrl: args.coverImageUrl,
       startDate: args.startDate,
       endDate: args.endDate,

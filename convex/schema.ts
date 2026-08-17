@@ -23,6 +23,20 @@ export default defineSchema({
   calendars: defineTable({
     name: v.string(),
     coverTitle: v.string(),
+    // Icono de portada (TAL-23) — antes incrustado a mano dentro del texto
+    // de `coverTitle` (p. ej. "...🎄"). Campo propio, `v.string()` libre
+    // (no una unión de literales del catálogo): el catálogo de iconos vive
+    // como constante en el frontend (`src/lib/cover-icons.ts`), sin límite
+    // fijo en la lógica (brief de TAL-23) — igual que `skins` no vive como
+    // enum acoplado al schema. `v.optional()` porque los calendarios
+    // creados ANTES de esta tarea no tienen este campo — ver
+    // `DEFAULT_COVER_ICON` (`src/lib/cover-icons.ts`) para el valor de
+    // respaldo, aplicado en cada sitio que lee este campo, nunca
+    // escrito hacia atrás en las filas existentes (Convex no tiene un
+    // mecanismo de migración de datos declarativo — se documenta el
+    // respaldo en vez de escribir un script de backfill para un campo
+    // puramente cosmético).
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     // "YYYY-MM-DD", no un timestamp — ver docs/convex-modelo-de-datos.md §
     // "Fechas como día natural". Comparan correctamente como string

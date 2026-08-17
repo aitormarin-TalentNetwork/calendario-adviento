@@ -7,13 +7,16 @@ import {
   type UpdateCalendarFieldValues,
   type UpdateCalendarState,
 } from "@/app/admin/actions";
+import { CoverIconPicker } from "@/app/admin/[calendarId]/cover-icon-picker";
 import { SubmitButton } from "@/components/submit-button";
+import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 
 type EditCalendarFormProps = {
   calendar: {
     id: string;
     name: string;
     coverTitle: string;
+    coverIcon: string;
     startDate: Date;
     endDate: Date;
     skinId: string;
@@ -26,6 +29,11 @@ function initialValues(calendar: EditCalendarFormProps["calendar"]): UpdateCalen
   return {
     name: calendar.name,
     coverTitle: calendar.coverTitle,
+    // El valor de respaldo (calendarios creados antes de TAL-23) ya se
+    // resuelve más abajo, donde se lee el calendario (`getCalendarForAdminPage`,
+    // `page.tsx`) — `calendar.coverIcon` aquí siempre llega con un valor
+    // real, nunca vacío.
+    coverIcon: calendar.coverIcon || DEFAULT_COVER_ICON,
     startDate: calendar.startDate.toISOString().slice(0, 10),
     endDate: calendar.endDate.toISOString().slice(0, 10),
     skinId: calendar.skinId,
@@ -80,6 +88,19 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
           disabled={pending}
           required
         />
+      </label>
+      <label>
+        Icono de portada
+        <CoverIconPicker
+          value={fieldValues.coverIcon}
+          onChange={(icon) => setField("coverIcon", icon)}
+          disabled={pending}
+        />
+        {/* Campo oculto: el picker no es un <input> nativo (es una rejilla
+            de botones), así que el valor seleccionado se manda al form
+            explícitamente, igual que cualquier otro campo controlado de
+            este formulario. */}
+        <input type="hidden" name="coverIcon" value={fieldValues.coverIcon} />
       </label>
       <label>
         Fecha de inicio

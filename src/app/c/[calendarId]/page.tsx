@@ -8,6 +8,7 @@ import { DoorGridLoader } from "@/app/c/[calendarId]/door-grid-loader";
 import { signOut } from "@/lib/auth";
 import { todayInTimeZone } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { resolveCalendarAccess } from "@/lib/roles";
@@ -19,12 +20,18 @@ import { resolveCalendarAccess } from "@/lib/roles";
  * se deja propagar, mismo criterio que el resto de lecturas reconectadas
  * de TAL-12 (no hay ningún estado parcial honesto que fingir).
  */
-async function getCalendarForGuestPage(calendarId: string): Promise<{ coverTitle: string } | null> {
+async function getCalendarForGuestPage(calendarId: string): Promise<{ coverTitle: string; coverIcon: string } | null> {
   const calendar = await fetchQuery(api.calendars.getPublic, {
     serverSecret: convexAppServerSecret(),
     calendarId: calendarId as Id<"calendars">,
   });
-  return calendar ? { coverTitle: calendar.coverTitle } : null;
+  if (!calendar) return null;
+  return {
+    coverTitle: calendar.coverTitle,
+    // Respaldo para calendarios creados antes de TAL-23 — ver
+    // convex/schema.ts § coverIcon.
+    coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
+  };
 }
 
 export default async function GuestCalendarPage({
@@ -70,7 +77,9 @@ export default async function GuestCalendarPage({
     <main style={{ flex: 1, padding: "2rem" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "1.5rem" }}>
         <div>
-          <h1>{calendar.coverTitle}</h1>
+          <h1>
+            <span aria-hidden="true">{calendar.coverIcon}</span> {calendar.coverTitle}
+          </h1>
           <p style={{ color: "var(--accent)" }}>
             Sesión: {user.email} ({access.kind === "super-admin" ? "Super Admin" : access.role})
           </p>

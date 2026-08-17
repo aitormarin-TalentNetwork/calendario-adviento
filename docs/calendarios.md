@@ -271,6 +271,92 @@ aviso: no ejecutar `migrate reset` sin coordinar antes, el mismo desfase
 seguirá ahí (viene de antes de esta tarea) y resetear no lo "arregla" de
 verdad, solo destruye datos compartidos.
 
+## Icono de portada (TAL-23) — primera tarea de UI bajo el Design System
+
+**Antes**: el 🎄 iba incrustado a mano dentro del texto por defecto de
+`coverTitle` ("¡Feliz cuenta atrás, equipo! 🎄") — ni campo propio ni
+seleccionable, el Admin solo podía cambiarlo escribiendo/borrando el
+emoji dentro del texto del título.
+
+**Ahora**: `coverIcon` es un campo propio del calendario
+(`convex/schema.ts`, `v.optional(v.string())`), con un selector real en
+el editor (`src/app/admin/[calendarId]/cover-icon-picker.tsx`) — buscador
++ galería categorizada (Navidad, Fiesta, Cariño, Naturaleza y cielo,
+Animales y fantasía; 45 emoji en total, catálogo en
+`src/lib/cover-icons.ts`), siguiendo `design/design-system.md` §
+"Selector de icono de portada (Admin)" (fuente:
+`design/propuesta-skins.html`). Icono seleccionado con borde/fondo
+distintivos (colores exactos del Design System — ver nota de tokens más
+abajo).
+
+**Catálogo sin límite fijo en la lógica** (brief de TAL-23, mismo
+criterio que la validación de email en `inviteGuest`, TAL-16): ni Convex
+(`assertValidCoverIcon`, `convex/calendars.ts`) ni la Server Action
+(`updateCalendarAction`) validan contra la lista exacta de 45 — solo una
+cota de longitud defensiva (`MAX_COVER_ICON_LENGTH = 16`, igual de
+criterio que `MAX_VIDEO_URL_LENGTH`/`MAX_MESSAGE_LENGTH`, TAL-6/13).
+Ampliar el catálogo más adelante es añadir entradas a
+`COVER_ICON_CATEGORIES` (`src/lib/cover-icons.ts`), no tocar lógica de
+validación en ningún sitio.
+
+**Buscador con términos en español, no del mockup** (`design/propuesta-skins.html`
+es un `<div>` estático con placeholder "🔍 Buscar icono…", sin JS real
+que defina cómo debería filtrar) — decisión de implementación, no de
+fidelidad visual: cada emoji lleva un `searchTerms` corto en español
+(`"unicornio"`, `"árbol de navidad"`, etc.), filtrado por substring
+insensible a mayúsculas.
+
+**Migración de datos — calendarios creados antes de TAL-23**: Convex no
+tiene un mecanismo de migración de datos declarativo (mismo
+tema ya documentado varias veces en `docs/convex-modelo-de-datos.md`
+para otros campos). `coverIcon` es `v.optional()` a propósito; no se
+escribió un script de backfill — en su lugar, cada sitio que LEE este
+campo aplica el mismo valor de respaldo (`DEFAULT_COVER_ICON = "🎄"`,
+`src/lib/cover-icons.ts` — el mismo emoji que antes estaba fijo en el
+texto) si el calendario todavía no lo tiene:
+`src/app/admin/[calendarId]/page.tsx` (editor), `src/app/c/[calendarId]/page.tsx`
+(portada real de invitado). Decisión deliberada frente a un backfill: es
+un campo puramente cosmético, sin ninguna lógica que dependa de
+distinguir "nunca se guardó" de "se guardó explícitamente el valor por
+defecto" — escribir un script de migración para esto habría sido
+trabajo real sin ninguna ganancia observable.
+
+**Sitio NO reconectado, hallazgo de esta tarea, trackeado aparte
+(TAL-25)**: `src/app/login/page.tsx` nunca llegó a mostrar el calendario
+real de un `callbackUrl` — sigue siendo un `null` fijo desde que TAL-10
+retiró Prisma, ninguna tarea posterior lo reconectó. El tipo/JSX de esa
+página ya están preparados para pintar `coverIcon` en cuanto TAL-25
+resuelva esa búsqueda (página pública sin autenticar, con su propia
+superficie de seguridad — no algo que decidir dentro de este ticket) —
+hasta entonces, esa página sigue mostrando solo la portada genérica
+(🎄 + texto sin el emoji dentro), igual que antes de esta tarea.
+
+**Tokens del Design System — hallazgo de esta tarea**: `design/design-system.md`
+es normativo (`--gold`, `--paper-2`, etc.), pero `src/app/globals.css`
+todavía solo tiene el esquema viejo del MVP (`--accent`/`--background`/
+`--foreground`) — ninguna página de la app usa los tokens nuevos
+todavía. Consultado con el PM (factory-e9): el set completo tiene que
+acabar en `globals.css` tal cual, pero coordinar quién lo añade primero
+(para no chocar con TAL-21, mismo Design System, en paralelo) es
+decisión de la Directora — se lo asignó a T3 como paso aparte. Mientras
+tanto, `cover-icon-picker.tsx` usa los valores hex exactos de la tabla
+de tokens directamente (`#c99a3d` gold, `#efe7d4` paper-2), sin depender
+de variables CSS que todavía no existen — a actualizar a `var(--gold)`/
+`var(--paper-2)` en cuanto la migración de tokens esté hecha.
+
+### Evidencia (TAL-23)
+
+Verificado en navegador real (`npx next dev -p 3001`, dev-login):
+selector con las 5 categorías y 45 iconos exactos del mockup; buscador
+filtrando por término en español (`"unicornio"` → solo 🦄, en su
+categoría); selección visual correcta (borde/fondo distintivos, icono
+elegido persiste al guardar y se ve en la portada real de invitado,
+`/c/[calendarId]`); editar un calendario existente para cambiar el
+icono, confirmado que el valor nuevo persiste tras recargar.
+
+`npx next build`/`npx eslint .` limpios; `npx convex dev --typecheck=enable`
+limpio; `AGENTS.md` intacto.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
@@ -278,3 +364,5 @@ verdad, solo destruye datos compartidos.
   ni placeholder aquí a propósito.
 - Subida real de la foto de portada (solo URL por ahora) — depende de que
   se decida el backend de almacenamiento (`docs/stack.md`).
+- (TAL-23) El grid de días (TAL-21) y el catálogo de skins (TAL-22) —
+  dominios de otras tareas en paralelo bajo el mismo Design System.

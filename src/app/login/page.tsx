@@ -1,5 +1,6 @@
 import { devLoginEnabled } from "@/lib/auth.config";
 import { signIn } from "@/lib/auth";
+import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 
 // `callbackUrl` seguía usándose para saber de qué calendario mostrar la
 // portada personalizada (TAL-8) cuando un Invitado llega desde
@@ -31,7 +32,16 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   // reventar con un error crudo por un link de invitado
   // (`/login?callbackUrl=/c/{id}`). Se cae a la portada genérica siempre,
   // en vez de lanzar.
-  const calendar = null as { coverTitle: string; coverImageUrl: string | null } | null;
+  //
+  // TAL-23 — sigue sin reconectar (hallazgo de esta tarea, trackeado
+  // aparte en TAL-25: reconectar esto de verdad implica resolver un
+  // calendario a partir de `callbackUrl` en una página pública sin
+  // autenticar, con su propia superficie de seguridad a considerar — no
+  // algo que decidir dentro de un ticket de "selector de icono"). Se deja
+  // el tipo/JSX ya preparados para pintar `coverIcon` en cuanto TAL-25
+  // reconecte la búsqueda real — con `calendar` siempre `null` hoy, esto
+  // no cambia nada observable todavía.
+  const calendar = null as { coverTitle: string; coverIcon: string; coverImageUrl: string | null } | null;
 
   return (
     <main
@@ -54,7 +64,10 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           style={{ width: "120px", height: "120px", objectFit: "cover", borderRadius: "50%" }}
         />
       )}
-      <h1 style={{ fontSize: "1.8rem" }}>{calendar?.coverTitle ?? "¡Feliz cuenta atrás, equipo! 🎄"}</h1>
+      <h1 style={{ fontSize: "1.8rem" }}>
+        <span aria-hidden="true">{calendar?.coverIcon ?? DEFAULT_COVER_ICON}</span>{" "}
+        {calendar?.coverTitle ?? "¡Feliz cuenta atrás, equipo!"}
+      </h1>
 
       <form
         action={async () => {
