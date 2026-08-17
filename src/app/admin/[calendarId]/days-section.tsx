@@ -160,7 +160,13 @@ export async function DaysSection({
 
   return (
     <section style={{ marginTop: "2rem", "--accent": skinAccent } as React.CSSProperties}>
-      <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
+      <h2 style={{ fontSize: "1.1rem", marginBottom: "0.25rem" }}>Días del calendario</h2>
+      {/* TAL-34 (design/design-system.md § "Editor de calendario",
+          design/propuesta-editor-calendario.html) — texto explicativo fijo
+          encima del grid, mismo criterio de wording que el mockup. */}
+      <p style={{ color: "var(--text-dim)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+        Selecciona el día para subir el vídeo. Los días que ya tienen vídeo muestran un fotograma como miniatura.
+      </p>
       <DaysGridEditor calendarId={calendarId} days={dayInfos} background={skinBackground} />
     </section>
   );
