@@ -865,8 +865,23 @@ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }` que ya usa la cabecera de
 portada (`page.tsx::coverTextStyle`) a TODO el contenido de texto del
 modal (título del día, botón de cerrar, aviso de "sin vídeo todavía",
 enlace de vídeo no embebible, mensaje del día) — el aviso de error rojo
-(`markError`, `#e35b5b`) se dejó sin tocar a propósito, ya tenía contraste
-razonable sobre fondo oscuro y no forma parte de este hallazgo.
+(`markError`, `#e35b5b`) se dejó sin tocar en la ronda 1, asumiendo que ya
+tenía contraste razonable sobre fondo oscuro. **Esa suposición era
+incorrecta — ver "Ronda 2" más abajo, NO-GO real de auditoría.**
+
+**Ronda 2 (corrección de un NO-GO real de auditoría):** el auditor calculó
+el contraste real de `#e35b5b` contra el peor caso de fondo compuesto
+(`rgb(102,102,102)`, skin blanco + capa al 60%, el mismo caso límite que
+TAL-24 ya identificó) — ~1.37:1, muy por debajo del 4.5:1 de WCAG AA. La
+suposición de la ronda 1 ("ya tenía contraste razonable") solo era cierta
+contra el fondo FIJO que tenía el modal ANTES de esta tarea — dejó de
+serlo en cuanto el fondo pasó a ser variable. Mismo cálculo que
+`skin-appearance.ts` ya hace para el resto del texto del modal: en ese
+peor caso, solo un color muy próximo al blanco puede garantizar 4.5:1 —
+un rojo más claro (p. ej. `--berry-2`) tampoco hubiera bastado. Corregido
+aplicando el mismo `modalTextStyle` (blanco + sombra, mismo 5.74:1 ya
+verificado) que el resto del modal, con `fontWeight: 700` en vez de un
+color propio para seguir distinguiéndolo visualmente como aviso urgente.
 
 **Evidencia:** verificado en navegador real (super-admin, calendario de
 prueba "Test TAL-13") con una imagen real (`picsum.photos`, imagen
@@ -885,8 +900,22 @@ overflow ni regresión. Datos de prueba (rango de fechas, día temporal,
 `backgroundImageUrl`) restaurados a su estado original exacto tras la
 verificación, confirmado campo a campo contra Convex.
 
+**Evidencia ronda 2:** el flujo natural (abrir un día real sin vídeo aún
+visto, forzar un fallo de red genuino para disparar `markError`) resultó
+poco práctico de reproducir de forma fiable en este entorno concreto — el
+estado "bloqueado/hoy" del día de prueba parpadeaba entre recargas de
+forma intermitente por un motivo ajeno a esta tarea (lógica de
+`resolveDoors`/`todayInTimeZone`, no tocada aquí ni en la ronda 1). Para
+aislar la verificación del hallazgo de la auditoría de ese problema
+ajeno, se forzó temporalmente en el propio código (`useState` de
+`openDate`/`markError` en `door-grid.tsx`, revertido antes de comitear) a
+que el modal se abriera ya con el aviso de error visible, contra el fondo
+real con `backgroundImageUrl` — confirmado visualmente que el texto es
+legible en blanco+negrita. Cambio revertido y datos de prueba limpiados
+de la misma forma que en la ronda 1 antes de comitear el fix real.
+
 `npx eslint .`/`npx tsc --noEmit`/`npx convex dev --once --typecheck=enable`
-limpios; `AGENTS.md` intacto.
+limpios (ronda 1 y ronda 2); `AGENTS.md` intacto.
 
 ## Fuera de alcance de esta tarea
 
