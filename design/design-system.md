@@ -153,8 +153,15 @@ inicial de **22 skins** (los 4 del MVP shippeado — Dorado/Grosella/Medianoche/
 18 nuevas: Nochebuena, Nieve, Confeti, Dorado Real, Bosque Nórdico, Neón Fiesta,
 Historieta, Enamorados, Oficina, Superhéroe, Bebé, Adolescente, Memorias de Familia,
 Amigas, K-pop, Gótico, Baloncesto, Fútbol). Cada skin es, como mínimo, un color/degradado
-de fondo + un color de acento — aplicado consistentemente a portada, grid de días y
-modal.
+de fondo + un color de acento.
+
+**Ajuste 2026-08-17 (segunda vuelta), pedido explícito de Aitor probando en real:** el
+fondo del skin ya NO se limita a portada + cabecera de mes del grid + modal (TAL-24
+original) — pasa a cubrir **toda la pantalla** de la vista del Invitado, incluida el área
+de página que queda alrededor/entre esas tarjetas (hoy se queda en el `--bg` fijo por
+defecto, pine, sin importar el skin elegido). El acento del skin sigue gobernando solo lo
+que ya gobernaba (puertas/casillas/bordes/"hoy"/píldoras) — este ajuste es sobre el
+**fondo**, no sobre el acento.
 
 **Marcas registradas — regla dura:** cuando una skin pedida hace referencia a una IP con
 copyright/marca (personajes, logos, nombres de club o liga, branding de una serie
