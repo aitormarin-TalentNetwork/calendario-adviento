@@ -1,10 +1,35 @@
-import { fetchQuery } from "convex/nextjs";
+import { ConvexHttpClient } from "convex/browser";
 import { api } from "../../../convex/_generated/api";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { devLoginEnabled } from "@/lib/auth.config";
 import { signIn } from "@/lib/auth";
 import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
+
+// Hallazgo de auditoría, ronda 1: `fetchQuery` (`convex/nextjs`) no acepta
+// ningún `signal`/timeout propio — si Convex está inalcanzable de verdad
+// (no "responde rápido con un error", sino que la conexión se queda
+// colgada), la llamada podría tardar más que cualquier timeout externo
+// (proxy de Railway, el propio `fetch` de Next.js) — ese timeout externo
+// devolvería un 5xx/504 crudo al navegador ANTES de que el `try/catch` de
+// `getCalendarCoverForLogin` llegara siquiera a ejecutarse, exactamente
+// el tipo de respuesta distinguible que el brief pedía evitar (punto 4).
+// Por eso aquí se usa `ConvexHttpClient` directamente en vez de
+// `fetchQuery` con un `fetch` propio que impone un `AbortSignal` con
+// timeout — `setFetchOptions` (donde viviría un `signal` de forma más
+// directa) es un método `@internal` de `ConvexHttpClient`, sin tipo
+// público; `fetch` en el constructor SÍ es API pública documentada
+// ("A custom fetch implementation to use for all HTTP requests made by
+// this client."), así que es la vía soportada para esto. 3s es
+// deliberadamente pequeño frente a cualquier timeout de plataforma
+// razonable (decenas de segundos) — así el `catch` de esta función
+// SIEMPRE gana la carrera y la página cae a la portada genérica con 200,
+// nunca a un 5xx crudo del proxy.
+const LOGIN_COVER_QUERY_TIMEOUT_MS = 3000;
+
+function fetchWithTimeout(timeoutMs: number): typeof fetch {
+  return (input, init) => fetch(input, { ...init, cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
+}
 
 // `callbackUrl` dice de qué calendario mostrar la portada personalizada
 // (TAL-8, reconectada en TAL-25 tras el hueco que dejó TAL-10) cuando un
@@ -36,11 +61,12 @@ const GUEST_CALLBACK_RE = /^\/c\/([^/?]+)/;
  *
  * Cualquier fallo — `calendarId` con formato inválido (Convex rechaza el
  * argumento antes de que el handler compruebe si existe), el calendario
- * no existe, o un fallo genuino de Convex — cae al mismo `null` (portada
- * genérica), sin excepción ni distinción visible entre esos casos (brief
- * TAL-25 punto 4: no dar pistas de si un id existe o no a quien no
- * debería tenerlas) — mismo criterio ya establecido en esta página desde
- * TAL-10 para cualquier fallo de la capa de datos.
+ * no existe, un fallo genuino de Convex, o que la consulta tarde más de
+ * `LOGIN_COVER_QUERY_TIMEOUT_MS` (ver arriba) — cae al mismo `null`
+ * (portada genérica), sin excepción ni distinción visible entre esos
+ * casos (brief TAL-25 punto 4: no dar pistas de si un id existe o no a
+ * quien no debería tenerlas) — mismo criterio ya establecido en esta
+ * página desde TAL-10 para cualquier fallo de la capa de datos.
  */
 async function getCalendarCoverForLogin(
   callbackUrl: string | undefined
@@ -49,7 +75,10 @@ async function getCalendarCoverForLogin(
   if (!match) return null;
 
   try {
-    const calendar = await fetchQuery(api.calendars.getPublicCoverInfoForLogin, {
+    const client = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!, {
+      fetch: fetchWithTimeout(LOGIN_COVER_QUERY_TIMEOUT_MS),
+    });
+    const calendar = await client.query(api.calendars.getPublicCoverInfoForLogin, {
       serverSecret: convexAppServerSecret(),
       calendarId: match[1] as Id<"calendars">,
     });

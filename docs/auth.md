@@ -325,11 +325,28 @@ documento al cliente.
 **No dar pistas de si un `calendarId` existe** (brief, punto 4):
 `calendarId` con formato inválido (Convex rechaza el argumento antes de
 que el handler compruebe si existe), calendario bien formado pero
-inexistente, y cualquier fallo genuino de Convex caen los tres al mismo
-`null` (portada genérica) — capturados con un único `try/catch` en
-`getCalendarCoverForLogin`, sin distinguir entre ellos ni dejar escapar
-ninguna excepción cruda (mismo criterio ya establecido en esta página
-desde TAL-10 para cualquier fallo de la capa de datos).
+inexistente, un fallo genuino de Convex, o que la consulta tarde
+demasiado, caen los cuatro al mismo `null` (portada genérica) —
+capturados con un único `try/catch` en `getCalendarCoverForLogin`, sin
+distinguir entre ellos ni dejar escapar ninguna excepción cruda (mismo
+criterio ya establecido en esta página desde TAL-10 para cualquier fallo
+de la capa de datos).
+
+**Hallazgo de auditoría, ronda 1 — timeout propio, no solo el catch**:
+`fetchQuery` (`convex/nextjs`, usado en el resto del proyecto) no acepta
+ningún `signal`/timeout propio. Si Convex está inalcanzable de verdad (la
+conexión se queda colgada, no "responde rápido con un error"), la
+llamada podía tardar más que cualquier timeout externo (proxy de
+Railway, el propio runtime) — ese timeout externo devolvería un 5xx/504
+crudo al navegador ANTES de que el `try/catch` de esta función llegara
+siquiera a ejecutarse, la respuesta distinguible que el brief pedía
+evitar. Corregido usando `ConvexHttpClient` (`convex/browser`)
+directamente con un `fetch` propio que impone `AbortSignal.timeout(3000)`
+— 3s, deliberadamente corto frente a cualquier timeout de plataforma
+razonable, para que el `catch` de esta función siempre gane la carrera.
+`setFetchOptions` (donde viviría un `signal` de forma más directa) es
+`@internal` en el SDK de Convex, sin tipo público — se usa en su lugar
+la opción `fetch` del constructor, que sí es API pública documentada.
 
 **Verificación** — vía `curl` contra `npx next dev -p 3001` (evita
 contender por el cerrojo compartido de Chrome para una comprobación que
@@ -344,6 +361,17 @@ no necesita interacción visual real):
   mismo código HTTP), tal como pide el brief.
 - `callbackUrl=/admin/{id real}`: portada genérica — confirma que la
   ruta de Admin no se personaliza, tal como se decidió arriba.
+- **Convex genuinely inalcanzable (ronda 1)**: `NEXT_PUBLIC_CONVEX_URL`
+  apuntado temporalmente a `https://192.0.2.1` (dirección reservada de
+  documentación, RFC 5737 — no rutable, las conexiones se quedan
+  colgadas hasta que algo las corta) contra un servidor de desarrollo
+  temporal en el mismo puerto (parado y restaurado con la URL real
+  después). Petición real con `callbackUrl` a un calendario válido:
+  HTTP 200, portada genérica, **3.04s** de principio a fin — coincide con
+  el timeout de 3000ms configurado más el overhead normal de la petición,
+  confirmando que el `AbortSignal` corta la conexión colgada de verdad y
+  el `catch` gana la carrera, en vez de depender de que algún timeout
+  externo actúe primero.
 
 ## Pendiente (fuera de alcance de TAL-2)
 
