@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { createCalendarAction } from "@/app/admin/actions";
 import { NewCalendarSubmit } from "@/components/new-calendar-submit";
 import { formatCalendarDate, listAdminCalendars } from "@/lib/calendars";
 import { signOut } from "@/lib/auth";
@@ -36,14 +35,17 @@ export default async function AdminCalendarsPage() {
         </ul>
       )}
 
-      <form action={createCalendarAction} style={{ marginTop: "1.5rem" }}>
-        {/* creationKey asignado tras montar, exclusivamente en cliente
-            (TAL-19 — ver src/components/new-calendar-submit.tsx): mientras
-            no se recargue la página, un doble clic o un reenvío del mismo
-            formulario manda la misma clave y el servidor lo trata como el
-            mismo intento — ver createCalendarForAdmin. */}
+      {/* El <form> entero (nombre + creationKey + envío) vive dentro de
+          NewCalendarSubmit — TAL-26 lo convirtió en un Client Component
+          completo (useActionState) para poder pintar errores de
+          validación del nombre sin perder lo que el Admin ya había
+          escrito. creationKey sigue asignándose tras montar, exclusivamente
+          en cliente (TAL-19): mientras no se recargue la página, un doble
+          clic o un reenvío del mismo formulario manda la misma clave y el
+          servidor lo trata como el mismo intento — ver createCalendarForAdmin. */}
+      <div style={{ marginTop: "1.5rem" }}>
         <NewCalendarSubmit />
-      </form>
+      </div>
 
       <form
         action={async () => {

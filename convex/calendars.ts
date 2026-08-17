@@ -2,6 +2,7 @@ import { internalMutation, internalQuery, mutation, query, type MutationCtx, typ
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "./calendarErrorMessages";
+import { MAX_CALENDAR_NAME_LENGTH } from "./calendarNameConstants";
 import { MAX_COVER_ICON_LENGTH } from "./coverIconConstants";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
@@ -140,6 +141,33 @@ async function resolveDefaultSkinId(ctx: MutationCtx): Promise<Id<"skins">> {
  * DENTRO de Convex (`resolveDefaultSkinId`), mismo criterio que el resto
  * del dominio de fechas/validación ya vive aquí y no en la Server Action.
  */
+/**
+ * TAL-26 — "Pedir nombre al crear": antes `name` no tenía NINGUNA
+ * validación en Convex (ni "no vacío"), porque siempre llegaba fijo
+ * ("Nuevo calendario", puesto por `createCalendarForAdmin`) — nunca
+ * hacía falta. Ahora lo escribe el propio Admin, así que la invariante
+ * deja de ser hipotética. Cota de longitud defensiva, no de producto —
+ * mismo criterio que `assertValidCoverIcon`/`MAX_VIDEO_URL_LENGTH`
+ * (TAL-6/13/23): nada en la UI necesita un nombre más largo que esto.
+ * Normaliza con `trim()` antes de validar Y de guardar — nunca se fía de
+ * que el llamador (Next.js) ya lo haya recortado, mismo criterio
+ * defensivo que el resto de este fichero.
+ *
+ * Deliberadamente NO se aplica a `updateCalendarHandler` en esta tarea —
+ * el brief de TAL-26 acota el trabajo a la creación ("pedir nombre AL
+ * CREAR"); el formulario de edición ya exige "no vacío" del lado de
+ * Next.js (`updateCalendarAction`, TAL-5) pero no re-verifica nada de
+ * esto en Convex. Inconsistencia real y menor, documentada aquí a
+ * propósito en vez de ampliar el alcance de esta tarea sin que nadie lo
+ * pidiera — seguimiento natural si el equipo quiere cerrarla del todo.
+ */
+function assertValidCalendarName(name: string): void {
+  if (name.length === 0) throw new Error("El nombre del calendario no puede estar vacío.");
+  if (name.length > MAX_CALENDAR_NAME_LENGTH) {
+    throw new Error(`El nombre del calendario no puede superar los ${MAX_CALENDAR_NAME_LENGTH} caracteres.`);
+  }
+}
+
 async function createCalendarHandler(
   ctx: MutationCtx,
   args: {
@@ -170,6 +198,8 @@ async function createCalendarHandler(
   const skin = await ctx.db.get(skinId);
   if (!skin) throw new Error("El skin indicado no existe.");
 
+  const name = args.name.trim();
+  assertValidCalendarName(name);
   assertValidCalendarDate(args.startDate);
   assertValidCalendarDate(args.endDate);
   assertRangeNotInverted(args.startDate, args.endDate);
@@ -177,7 +207,7 @@ async function createCalendarHandler(
   assertValidCoverIcon(args.coverIcon);
 
   const calendarId = await ctx.db.insert("calendars", {
-    name: args.name,
+    name,
     coverTitle: args.coverTitle,
     coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,

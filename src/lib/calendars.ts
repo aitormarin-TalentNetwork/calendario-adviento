@@ -157,16 +157,24 @@ export async function listAdminCalendars(
  * el resultado visual de "+ Nuevo calendario" (el Admin lo cambia después
  * desde el selector del formulario de edición, igual que el resto de
  * campos de partida).
+ *
+ * TAL-26 — `name` ya no va fijo a "Nuevo calendario": el Admin lo escribe
+ * al crear (brief: identificar cuál es cuál desde el primer momento, con
+ * varios calendarios a la vez). Validación real (no vacío, cota de
+ * longitud) vive en Convex (`createCalendarHandler::assertValidCalendarName`)
+ * — mismo criterio que el resto de invariantes de este dominio, nunca
+ * solo en la Server Action.
  */
 export async function createCalendarForAdmin(
   user: { id: string },
-  creationKey: string
+  creationKey: string,
+  name: string
 ): Promise<{ id: string }> {
   const { startDate, endDate } = defaultCalendarDateRange();
   const calendarId = await fetchMutation(api.calendars.createCalendarPublic, {
     serverSecret: convexAppServerSecret(),
     userId: user.id as Id<"users">,
-    name: "Nuevo calendario",
+    name,
     coverTitle: "¡Feliz cuenta atrás, equipo!",
     coverIcon: DEFAULT_COVER_ICON,
     startDate: startDate.toISOString().slice(0, 10),
