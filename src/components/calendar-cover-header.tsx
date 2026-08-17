@@ -38,6 +38,18 @@ export type CalendarCoverHeaderProps = {
   // contenedor — cada superficie decide su propio layout (centrado/flex
   // de la vista previa del editor vs. bloque simple de la portada real).
   containerStyle?: React.CSSProperties;
+  // TAL-50 — por defecto `true` (la vista previa del editor, un cuadro
+  // flotante sin relación con el fondo de la página que lo rodea, SÍ
+  // necesita pintar su propio fondo). La portada real del Invitado pasa
+  // `false`: su `<main>` ya pinta el mismo skin a pantalla completa
+  // (`mainBackgroundStyle`, `page.tsx`) — si esta tarjeta repintara el
+  // mismo fondo por su cuenta, un skin de patrón repetitivo (rayas/
+  // lunares/gajos) reiniciaría el patrón desde la esquina de la tarjeta,
+  // creando una costura visible con el fondo de `<main>` justo detrás
+  // (hallazgo real de Aitor, TAL-50). `treatment` (el color del texto) se
+  // sigue calculando igual con `false` — solo deja de pintarse el fondo,
+  // el texto sigue siendo correcto sobre lo que sea que haya detrás.
+  paintBackground?: boolean;
   // Se pinta ANTES del título, dentro del mismo contenedor — icono en su
   // propio bloque/círculo decorativo, botón de cerrar del diálogo... No
   // pasa por `CoverText`: cada superficie decide su propio tratamiento si
@@ -71,6 +83,12 @@ export type CalendarCoverHeaderProps = {
  * Sin `"use client"` — no usa hooks ni APIs de navegador, así que sirve
  * tal cual tanto desde un Server Component (`page.tsx`) como desde uno de
  * Cliente (`calendar-preview.tsx`).
+ *
+ * TAL-50 — `paintBackground` (ver el prop, más abajo) deja que la portada
+ * real deje de repintar el fondo del skin aquí y muestre en su lugar la
+ * única capa continua de `<main>` — mismo motivo/mecanismo que
+ * `door-grid.tsx` aplicó a su cabecera de mes sticky y a la tarjeta que la
+ * envuelve (ver el comentario completo ahí).
  */
 export function CalendarCoverHeader({
   background,
@@ -83,10 +101,11 @@ export function CalendarCoverHeader({
   titleStyle,
   countdown,
   containerStyle,
+  paintBackground = true,
   children,
 }: CalendarCoverHeaderProps) {
   const treatment = resolveCoverTextTreatment({ textColor, textPill }, !!backgroundImageUrl);
-  const backgroundStyle = skinBackgroundStyle(background, backgroundImageUrl);
+  const backgroundStyle = paintBackground ? skinBackgroundStyle(background, backgroundImageUrl) : undefined;
 
   return (
     <div style={{ ...containerStyle, ...backgroundStyle }}>

@@ -622,12 +622,30 @@ export function DoorGrid({
           }
         }
       `}</style>
+      {/* TAL-50 — esta tarjeta y la cabecera sticky de cada mes ya NO
+          pintan el fondo del skin por su cuenta (antes: `background:
+          "var(--bg-raised)"` aquí, `skinBackgroundStyle(...)` en la
+          cabecera) — con un skin de patrón repetitivo (rayas/lunares/
+          gajos), cada caja reiniciaba el patrón desde su propia esquina,
+          se veía como capas superpuestas en vez de un fondo continuo
+          (hallazgo real de Aitor). Ahora las dos son transparentes y
+          dejan pasar la ÚNICA capa de fondo real, la de `<main>`
+          (`mainBackgroundStyle`, `page.tsx`) — mismo fondo, un solo
+          origen, sin costuras.
+
+          Verificado que la cabecera sticky no causa "bleed-through" de
+          las casillas al hacerse transparente: `position: sticky`
+          conserva su espacio reservado en el flujo normal del documento
+          — las casillas de un mes que se desplazan por debajo NUNCA
+          ocupan ese rectángulo, así que no hay nada detrás de la
+          cabecera salvo el fondo continuo de `<main>` (comprobado con
+          scroll real, en el navegador, sobre un calendario largo con un
+          skin de rayas). */}
       <div
         style={{
           border: "1px solid var(--border)",
           borderRadius: "16px",
           boxShadow: "var(--shadow)",
-          background: "var(--bg-raised)",
           overflow: "hidden",
         }}
       >
@@ -640,12 +658,6 @@ export function DoorGrid({
                   position: "sticky",
                   top: 0,
                   zIndex: 2,
-                  // TAL-47 — `skinBackgroundStyle` (sin la capa de
-                  // oscurecimiento cuando no hay `backgroundImageUrl`; el
-                  // contraste ya lo garantiza `textColor`/`textPill` vía
-                  // `resolveCoverTextTreatment`/`CoverText`, más abajo).
-                  // Ver `src/lib/skin-appearance.ts`.
-                  ...skinBackgroundStyle(background, backgroundImageUrl),
                   fontFamily: "var(--font-display)",
                 }}
               >
@@ -828,9 +840,21 @@ export function DoorGrid({
               // `page.tsx`, así que no hace falta pasar el skin explícito
               // aquí también.
               border: "2px solid var(--accent)",
-              // TAL-47 — `skinBackgroundStyle` (mismo mecanismo que la
-              // cabecera de mes de arriba y la cabecera de portada,
-              // `page.tsx`) en vez del antiguo `coverBackgroundStyle`.
+              // TAL-47 — `skinBackgroundStyle` en vez del antiguo
+              // `coverBackgroundStyle`.
+              //
+              // TAL-50 — a diferencia de la tarjeta de portada y la
+              // cabecera de mes (arriba, ya sin fondo propio — dejan
+              // pasar la única capa continua de `<main>`), este modal SÍ
+              // mantiene su propio repintado del skin, a propósito: flota
+              // en un overlay `position: fixed` sobre un backdrop oscuro
+              // (`rgba(0,0,0,0.6)`, más abajo), no es parte del flujo
+              // continuo de la página — detrás de él, en el orden de
+              // pintado, no hay ninguna capa de `<main>` que dejar ver
+              // (el backdrop la tapa por completo), así que quitarle su
+              // propio fondo dejaría el modal sin fondo legible en
+              // absoluto, no "continuo con la página". Mismo criterio ya
+              // adelantado en el brief de TAL-50.
               ...skinBackgroundStyle(background, backgroundImageUrl),
               borderRadius: "1rem",
               maxWidth: "480px",
