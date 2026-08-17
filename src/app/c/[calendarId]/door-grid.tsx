@@ -5,6 +5,7 @@ import { markDayViewedAction } from "@/app/c/[calendarId]/actions";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC } from "@/lib/calendar-grid";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 import type { DoorInfo } from "@/lib/guest-calendar";
+import { coverBackgroundCss } from "@/lib/skin-appearance";
 
 const WEEKDAY_INITIALS = ["L", "M", "X", "J", "V", "S", "D"];
 
@@ -74,9 +75,29 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
  * design-system.md § "Grid de días"): filas de 7 (lunes a domingo)
  * agrupadas por mes, cabecera de mes sticky, número grande sans-serif
  * (`--font-body`, nunca `--font-display` — decisión explícita del Design
- * System), fin de semana en `--berry`. El modal de vídeo no se toca.
+ * System), fin de semana en `--berry`.
+ *
+ * TAL-24 — `background` (el `background` real del skin del calendario,
+ * `src/lib/skin-appearance.ts`) se aplica SOLO a la cabecera sticky de
+ * cada mes (antes un `--pine` fijo) — decisión deliberada de NO tocar el
+ * fondo de las casillas individuales (`cellStyle`, más abajo): esas ya
+ * codifican los 4 estados (bloqueado/abierto/visto/hoy) que TAL-21 acaba
+ * de auditar, y aplicar un degradado arbitrario del skin ahí arriesgaba
+ * romper ese contraste ya validado. El acento (`--accent`, heredado desde
+ * `page.tsx` — las custom properties CSS heredan por el árbol del DOM sin
+ * importar límites de componente) ya tiñe el borde de "hoy" sin tocar
+ * nada aquí. El modal SÍ gana un borde de acento (más abajo) — el iframe
+ * en sí no se toca, como pide el brief.
  */
-export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: string; doors: DoorInfo[] }) {
+export function DoorGrid({
+  calendarId,
+  doors: initialDoors,
+  background,
+}: {
+  calendarId: string;
+  doors: DoorInfo[];
+  background: string;
+}) {
   const [doors, setDoors] = useState(initialDoors);
   const [openDate, setOpenDate] = useState<string | null>(null);
   const [markError, setMarkError] = useState(false);
@@ -155,8 +176,16 @@ export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: stri
                   position: "sticky",
                   top: 0,
                   zIndex: 2,
-                  background: "var(--pine)",
-                  color: "var(--paper)",
+                  // Corrección de auditoría, ronda 1 (TAL-24):
+                  // `coverBackgroundCss` antepone una capa de
+                  // oscurecimiento uniforme al `background` del skin —
+                  // sin ella, un skin claro (p. ej. "Nieve", que llega a
+                  // `#ffffff`) dejaba el texto blanco ilegible. Cálculo
+                  // completo de por qué garantiza contraste en
+                  // `src/lib/skin-appearance.ts`.
+                  background: coverBackgroundCss(background),
+                  color: "#fff",
+                  textShadow: "0 1px 4px rgba(0,0,0,0.5)",
                   fontFamily: "var(--font-display)",
                   fontSize: "1.15rem",
                   padding: "10px 20px",
@@ -270,6 +299,12 @@ export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: stri
             onClick={(event) => event.stopPropagation()}
             style={{
               background: "var(--background)",
+              // TAL-24 — brief: "aplica el acento del skin de forma
+              // consistente (borde, o algún detalle visual — el iframe en
+              // sí no se toca)". `--accent` ya está heredado desde
+              // `page.tsx`, así que no hace falta pasar el skin explícito
+              // aquí también.
+              border: "2px solid var(--accent)",
               borderRadius: "1rem",
               maxWidth: "480px",
               width: "100%",

@@ -13,6 +13,7 @@ import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
+import { resolveSkinAppearance } from "@/lib/skin-appearance";
 
 type AdminCalendar = {
   id: string;
@@ -34,15 +35,20 @@ type AdminCalendar = {
  * si Convex es inalcanzable, mismo criterio que la versión Prisma nunca
  * tuvo un estado especial para "la base de datos está caída").
  */
-async function getCalendarForAdminPage(
-  calendarId: string
-): Promise<{ calendar: AdminCalendar; skins: { id: string; name: string }[] } | null> {
+async function getCalendarForAdminPage(calendarId: string): Promise<{
+  calendar: AdminCalendar;
+  skins: { id: string; name: string }[];
+  skinAccent: string;
+  skinBackground: string;
+} | null> {
   const serverSecret = convexAppServerSecret();
   const [calendar, skins] = await Promise.all([
     fetchQuery(api.calendars.getPublic, { serverSecret, calendarId: calendarId as Id<"calendars"> }),
     fetchQuery(api.skins.listAllPublic, { serverSecret }),
   ]);
   if (!calendar) return null;
+
+  const appearance = resolveSkinAppearance(calendar.skinId, skins);
 
   return {
     calendar: {
@@ -58,6 +64,13 @@ async function getCalendarForAdminPage(
       coverImageUrl: calendar.coverImageUrl ?? null,
     },
     skins: skins.map((skin) => ({ id: skin._id, name: skin.name })).sort((a, b) => a.name.localeCompare(b.name)),
+    // TAL-24 — a diferencia de la portada de Invitado, esta página es un
+    // formulario de edición (no una "portada"), así que el brief solo
+    // pide que el GRID de días refleje el skin, no toda la página — ver
+    // `DaysSection`/`DaysGridEditor` más abajo, donde se escopan
+    // `--accent`/`background` solo a esa sección.
+    skinAccent: appearance.accent,
+    skinBackground: appearance.background,
   };
 }
 
@@ -75,7 +88,7 @@ export default async function AdminCalendarPage({
 
   const data = await getCalendarForAdminPage(calendarId);
   if (!data) notFound();
-  const { calendar, skins } = data;
+  const { calendar, skins, skinAccent, skinBackground } = data;
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "900px" }}>
@@ -86,7 +99,7 @@ export default async function AdminCalendarPage({
 
       <EditCalendarForm calendar={calendar} skins={skins} />
 
-      <DaysSection calendarId={calendar.id} />
+      <DaysSection calendarId={calendar.id} skinAccent={skinAccent} skinBackground={skinBackground} />
 
       <form action={deleteCalendarAction.bind(null, calendar.id)} style={{ marginTop: "2rem" }}>
         <ConfirmSubmitButton

@@ -18,7 +18,7 @@ const COOKIE_NAME = "tz";
  * puertas ya resueltas correctamente — nada de contenido de días se manda
  * hasta este punto.
  */
-export function DoorGridLoader({ calendarId }: { calendarId: string }) {
+export function DoorGridLoader({ calendarId, background }: { calendarId: string; background: string }) {
   const [result, setResult] = useState<GetDoorsResult | null>(null);
 
   useEffect(() => {
@@ -55,5 +55,5 @@ export function DoorGridLoader({ calendarId }: { calendarId: string }) {
       </p>
     );
   }
-  return <DoorGrid calendarId={calendarId} doors={result.doors} />;
+  return <DoorGrid calendarId={calendarId} doors={result.doors} background={background} />;
 }
