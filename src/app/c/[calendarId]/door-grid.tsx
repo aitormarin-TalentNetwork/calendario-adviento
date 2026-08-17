@@ -2,8 +2,9 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { markDayViewedAction } from "@/app/c/[calendarId]/actions";
-import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC } from "@/lib/calendar-grid";
+import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { createConfettiEngine, type ConfettiEngine } from "@/lib/confetti-canvas";
+import { daysUntil } from "@/lib/countdown";
 import { playRewardSound } from "@/lib/reward-sound";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 import type { DoorInfo } from "@/lib/guest-calendar";
@@ -51,7 +52,11 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
     base.boxShadow = "inset 0 0 0 999px color-mix(in srgb, var(--gold) 10%, transparent)";
   }
   if (door.state === "locked") {
-    return { ...base, opacity: 0.4, cursor: "default" };
+    // TAL-41 — antes `cursor: "default"` (día bloqueado = no interactivo);
+    // ahora el clic SÍ tiene reacción (pulso + letrero de "impaciencia",
+    // ver `triggerImpatienceEffect`), aunque el vídeo en sí siga sin
+    // desbloquearse — `cursor: "pointer"` para que se note que responde.
+    return { ...base, opacity: 0.4, cursor: "pointer" };
   }
   if (door.state === "watched") {
     return { ...base, cursor: "pointer" };
@@ -207,6 +212,79 @@ export function DoorGrid({
     };
   }, []);
 
+  // TAL-41 — efecto de "impaciencia" (día bloqueado). `patienceInfo`
+  // guarda el contenido del letrero (se queda con el último valor
+  // aunque se oculte, igual que el prototipo de referencia: el propio
+  // nodo del letrero está SIEMPRE montado, solo se le da o quita
+  // visibilidad — así el texto no desaparece de golpe a mitad del
+  // desvanecimiento de 0.25s). `patienceVisible` controla esa
+  // visibilidad por separado.
+  const [patienceInfo, setPatienceInfo] = useState<{ days: number } | null>(null);
+  const [patienceVisible, setPatienceVisible] = useState(false);
+  const patienceHideTimeoutRef = useRef<number | null>(null);
+  // Timeout que quita `dg-pulsing`, por día — un `Map` (no un único ref)
+  // porque dos días bloqueados distintos pueden estar pulsando a la vez;
+  // hallazgo de auditoría, ronda 1: sin cancelar el timeout anterior de
+  // ESE MISMO día, pinchar la misma casilla dos veces antes de los
+  // 460ms dejaba el timeout del primer clic quitando la clase antes de
+  // que terminara la animación reiniciada por el segundo.
+  const pulseTimeoutsRef = useRef<Map<string, number>>(new Map());
+  // Hallazgo de auditoría, ronda 1: un `window.addEventListener("click",
+  // dismiss)` (con o sin `setTimeout(…, 0)` para retrasar el registro)
+  // no basta para distinguir "clic genuinamente fuera" de "clic en OTRA
+  // casilla bloqueada mientras el letrero ya estaba visible" — en ese
+  // segundo caso `patienceVisible` no cambia (ya era `true`), así que el
+  // efecto de abajo no se vuelve a ejecutar y el listener QUE YA ESTABA
+  // puesto desde el primer clic sigue vivo y cierra el letrero justo
+  // después de que su contenido se actualice. Este ref actúa de
+  // "silenciador de una sola vez": `triggerImpatienceEffect` lo pone a
+  // `true` de forma síncrona, ANTES de que el propio clic termine de
+  // burbujear hasta `window` (React resuelve el `onClick` del botón,
+  // más arriba en el árbol, antes de que el evento nativo siga
+  // subiendo) — así que el `dismiss` de más abajo siempre ve `true` para
+  // el clic que abre/actualiza el letrero, y `false` para cualquier
+  // clic posterior genuinamente distinto.
+  const suppressNextDismissRef = useRef(false);
+
+  useEffect(() => {
+    const pulseTimeouts = pulseTimeoutsRef.current;
+    return () => {
+      if (patienceHideTimeoutRef.current !== null) window.clearTimeout(patienceHideTimeoutRef.current);
+      pulseTimeouts.forEach((id) => window.clearTimeout(id));
+    };
+  }, []);
+
+  // Clic en cualquier parte de la pantalla (dentro o fuera del letrero)
+  // lo cierra antes de los ~2.5s — brief: "se desvanece solo... o al
+  // pinchar fuera/encima" — salvo que sea el propio clic que lo abrió o
+  // actualizó (ver `suppressNextDismissRef` arriba).
+  //
+  // Hallazgo de auditoría, ronda 2: este efecto NO puede depender de
+  // `patienceVisible` (como en la ronda anterior) — en la apertura
+  // INICIAL (`false` → `true`), el efecto que monta este listener corre
+  // DESPUÉS de que el propio clic de apertura ya haya terminado de
+  // burbujear hasta `window` (los efectos siempre corren tras el commit
+  // del render, nunca durante el mismo evento nativo) — así que
+  // `suppressNextDismissRef` se pone a `true` sin que nadie lo consuma
+  // todavía, y queda ahí atascado. El siguiente clic GENUINO para
+  // cerrar es el que se encuentra el listener recién montado con el ref
+  // aún en `true` — y se ignora por error, justo el intento real de
+  // cerrar que debía funcionar. Solución: el listener se monta UNA sola
+  // vez, de forma permanente (dependencias vacías), así que siempre
+  // existe desde antes de que cualquier clic (incluida la primerísima
+  // apertura) llegue a burbujear hasta `window`.
+  useEffect(() => {
+    function dismiss() {
+      if (suppressNextDismissRef.current) {
+        suppressNextDismissRef.current = false;
+        return;
+      }
+      setPatienceVisible(false);
+    }
+    window.addEventListener("click", dismiss);
+    return () => window.removeEventListener("click", dismiss);
+  }, []);
+
   function closeModal() {
     setOpenDate(null);
     // Devuelve el foco a la puerta que abrió el modal — sin esto, tras
@@ -303,8 +381,68 @@ export function DoorGrid({
     );
   }
 
+  /**
+   * TAL-41 — efecto de "impaciencia" (design-system.md § "Grid de días"):
+   * al pinchar un día bloqueado (futuro, dentro del rango, todavía sin
+   * abrir) no pasa nada funcionalmente (el vídeo sigue bloqueado), pero
+   * la casilla da un pulso corto en `--berry` (nunca `--gold` — a
+   * propósito distinto del pop dorado de TAL-40, "primera apertura") y
+   * aparece un letrero centrado con la cuenta atrás real hasta ese día
+   * concreto.
+   *
+   * El pulso se aplica con `classList` directamente sobre el propio
+   * botón (`trigger`), no vía `className` de React — es el mismo truco
+   * que el prototipo de referencia (quitar la clase, forzar un reflow
+   * con `offsetWidth`, volver a añadirla) para que la animación se
+   * REINICIE si se pincha el mismo día bloqueado varias veces seguidas;
+   * como React nunca gestiona `className` en el botón bloqueado (no se
+   * le pasa ese prop), tocarlo así no choca con ningún re-render.
+   */
+  function triggerImpatienceEffect(door: DoorInfo, trigger: HTMLButtonElement) {
+    // Ver el comentario completo junto a la declaración de este ref —
+    // tiene que ponerse a `true` de forma SÍNCRONA, antes de que este
+    // mismo clic termine de burbujear hasta `window`, para que el
+    // listener de "clic fuera" (más arriba) sepa ignorar este clic en
+    // vez de cerrar el letrero que este mismo clic acaba de abrir o
+    // actualizar.
+    suppressNextDismissRef.current = true;
+
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (!prefersReducedMotion) {
+      // Hallazgo de auditoría, ronda 1: cancelar el timeout pendiente de
+      // ESTE MISMO día antes de programar uno nuevo — si no, pinchar la
+      // misma casilla dos veces antes de los 460ms dejaba el timeout del
+      // primer clic quitando `dg-pulsing` a mitad de la animación
+      // reiniciada por el segundo.
+      const pendingTimeout = pulseTimeoutsRef.current.get(door.dateStr);
+      if (pendingTimeout !== undefined) window.clearTimeout(pendingTimeout);
+
+      trigger.classList.remove("dg-pulsing");
+      void trigger.offsetWidth;
+      trigger.classList.add("dg-pulsing");
+      const pulseTimeoutId = window.setTimeout(() => {
+        trigger.classList.remove("dg-pulsing");
+        pulseTimeoutsRef.current.delete(door.dateStr);
+      }, 460);
+      pulseTimeoutsRef.current.set(door.dateStr, pulseTimeoutId);
+    }
+
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    const today = parseDateOnlyUTC(todayDateStrInTimeZone(timeZone));
+    const doorDate = parseDateOnlyUTC(door.dateStr);
+    const days = daysUntil(today, doorDate);
+
+    setPatienceInfo({ days });
+    setPatienceVisible(true);
+    if (patienceHideTimeoutRef.current !== null) window.clearTimeout(patienceHideTimeoutRef.current);
+    patienceHideTimeoutRef.current = window.setTimeout(() => setPatienceVisible(false), 2500);
+  }
+
   function handleOpen(door: DoorInfo, trigger: HTMLButtonElement) {
-    if (door.state === "locked") return;
+    if (door.state === "locked") {
+      triggerImpatienceEffect(door, trigger);
+      return;
+    }
     lastTriggerRef.current = trigger;
     setMarkError(false);
 
@@ -395,6 +533,34 @@ export function DoorGrid({
         .dg-bursting .dg-num {
           opacity: 0;
           transition: opacity 0.15s;
+        }
+        /* TAL-41 — efecto de "impaciencia": pulso corto en --berry al
+           pinchar un día bloqueado, portado de
+           design/propuesta-grid-calendario.html — deliberadamente en
+           --berry, nunca --gold, para que se note de un vistazo que es
+           un "todavía no" distinto del pop dorado de "primera apertura"
+           (TAL-40). */
+        @keyframes dg-impatience-pulse {
+          0% {
+            transform: scale(1);
+          }
+          25% {
+            transform: scale(0.9);
+          }
+          50% {
+            transform: scale(1.08);
+          }
+          75% {
+            transform: scale(0.96);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+        .dg-pulsing {
+          animation: dg-impatience-pulse 0.45s ease both;
+          z-index: 3;
+          box-shadow: 0 0 0 3px var(--berry), 0 6px 18px rgba(140, 47, 57, 0.4);
         }
         @media (max-width: 640px) {
           .dg-month-header {
@@ -545,8 +711,7 @@ export function DoorGrid({
                       <button
                         key={door.dateStr}
                         type="button"
-                        disabled={door.state === "locked"}
-                        aria-label={`${door.label}${door.state === "locked" ? " — bloqueado" : door.state === "watched" ? " — ya visto" : ""}`}
+                        aria-label={`${door.label}${door.state === "locked" ? " — bloqueado, todavía no puedes abrirlo" : door.state === "watched" ? " — ya visto" : ""}`}
                         onClick={(event) => handleOpen(door, event.currentTarget)}
                         className={burstingDate === door.dateStr ? "dg-bursting" : undefined}
                         style={style}
@@ -581,6 +746,47 @@ export function DoorGrid({
         aria-hidden="true"
         style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 60 }}
       />
+
+      {/* TAL-41 — letrero de "impaciencia". SIEMPRE montado (no
+          condicional): el desvanecimiento de 0.25s necesita que el
+          contenido siga presente mientras `patienceVisible` pasa a
+          `false` — si el texto desapareciera de golpe con el estado, no
+          habría nada que desvanecer. El cierre (clic dentro o fuera) lo
+          gestiona el `useEffect` de arriba sobre `window`, no un
+          `onClick` propio aquí. */}
+      <div
+        role="status"
+        aria-live="polite"
+        style={{
+          position: "fixed",
+          top: "50%",
+          left: "50%",
+          zIndex: 70,
+          background: "var(--pine)",
+          color: "var(--paper)",
+          padding: "18px 26px",
+          borderRadius: "14px",
+          boxShadow: "0 20px 50px rgba(10,16,12,0.45)",
+          maxWidth: "min(360px, 84vw)",
+          textAlign: "center",
+          fontFamily: "var(--font-display)",
+          fontSize: "1.08rem",
+          lineHeight: 1.4,
+          opacity: patienceVisible ? 1 : 0,
+          transform: `translate(-50%, -50%) scale(${patienceVisible ? 1 : 0.85})`,
+          pointerEvents: patienceVisible ? "auto" : "none",
+          transition: "opacity 0.25s ease, transform 0.25s ease",
+        }}
+      >
+        {patienceInfo && (
+          <>
+            Calma tu ansiedad.
+            <br />
+            Te quedan <strong style={{ color: "var(--gold-2)" }}>{patienceInfo.days}</strong>{" "}
+            {patienceInfo.days === 1 ? "día" : "días"} para abrir este regalo.
+          </>
+        )}
+      </div>
 
       {openDoor && (
         <div
