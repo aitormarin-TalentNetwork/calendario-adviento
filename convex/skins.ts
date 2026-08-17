@@ -147,8 +147,9 @@ export const migrateLegacySkinKeysToSpanish = internalMutation({
 
 /**
  * TAL-22 — catálogo completo (originalmente 22 skins: los 4 del MVP + los
- * 18 nuevos validados con Aitor, design/design-system.md § "Skins"; ahora
- * 23 con "Tira Cómica", TAL-38 — mismo mecanismo, sin UI de gestión). Un
+ * 18 nuevos validados con Aitor, design/design-system.md § "Skins"; 23 con
+ * "Tira Cómica" (TAL-38), ahora 24 con "Rojiblanco" (TAL-48) — mismo
+ * mecanismo, sin UI de gestión). Un
  * solo `npx convex run skins:seedSkinCatalog '{}'` puebla o actualiza
  * todas las filas de una vez — idempotente vía `upsertSkinHandler`
  * (converge al mismo estado sin importar si las filas ya existían con
@@ -364,6 +365,25 @@ const SKIN_CATALOG: SkinSeed[] = [
       "Colores vivos de cómic clásico — rojo, azul y amarillo con contorno negro, sobre fondo claro. Pensado para combinar con una foto de portada propia.",
     background: "linear-gradient(160deg, #fdf8ec 0%, #ffffff 100%)",
     accent: "#e63946",
+  },
+
+  // --- Skin #24 — pedido explícito de Aitor (TAL-48, 2026-08-17). Rayas
+  // rojo/blanco tipo camiseta de fútbol — misma regla dura de marcas que
+  // el resto del catálogo (colores genéricos inspirados libremente, sin
+  // nombre de club/ciudad/escudo/liga concreta), mismo criterio ya
+  // aplicado a "Fútbol" arriba. Sin `textColor`: este skin entra en el
+  // grupo de "difíciles" del catálogo de TAL-47 (rayas alternas, ningún
+  // color de texto plano funciona sobre las dos a la vez) — lleva
+  // tratamiento de "píldora de fondo" en vez de `textColor`, que
+  // construye T1 como parte de TAL-47 (coordinado con la Directora antes
+  // de sembrar esta fila, 2026-08-17 — el campo `textColor` en sí todavía
+  // no existe en el schema en el momento de este commit).
+  {
+    key: "rojiblanco",
+    name: "Rojiblanco",
+    description: "Rayas verticales de camiseta de fútbol clásica, rojo y blanco — sin escudo ni nombre de equipo.",
+    background: "repeating-linear-gradient(90deg, #d61f26 0 20px, #ffffff 20px 40px)",
+    accent: "#1a1a1a",
   },
 ];
 
