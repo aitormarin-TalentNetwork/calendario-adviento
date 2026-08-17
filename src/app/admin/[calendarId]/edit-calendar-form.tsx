@@ -189,7 +189,12 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
           />
         </div>
         <div className="editor-field">
-          <label>Icono de portada</label>
+          {/* Ajustes de Aitor (post-TAL-33): "Icono de portada" →
+              "Selecciona un icono" → acortada de nuevo a simplemente
+              "Icono" — el icono deja de ser una etiqueta pasiva junto a
+              un botón "Cambiar icono" aparte; ahora describe la acción
+              directa sobre el propio icono clicable (ver `CoverIconPicker`). */}
+          <label>Icono</label>
           <CoverIconPicker
             value={fieldValues.coverIcon}
             onChange={(icon) => setField("coverIcon", icon)}
@@ -228,7 +233,13 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
           />
         </div>
         <div className="editor-field">
-          <label htmlFor="calendar-countdownLabel">Marcador de cuenta atrás</label>
+          {/* Ajuste de Aitor (design-system.md, commit f7b6cdb): "Marcador
+              de cuenta atrás" → "Fecha objetivo" — SOLO la etiqueta
+              visible. Sigue siendo texto libre (`type="text"`, ej. "la
+              Navidad"), no un selector de fecha; la fecha real que
+              gobierna la cuenta atrás sigue siendo "Fecha de fin", sin
+              tocar aquí. */}
+          <label htmlFor="calendar-countdownLabel">Fecha objetivo</label>
           <input
             id="calendar-countdownLabel"
             name="countdownLabel"

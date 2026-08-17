@@ -486,3 +486,22 @@ a {
   flex-shrink: 0;
   border: 1px solid rgba(0, 0, 0, 0.15);
 }
+
+/* Ajuste del PM (post-TAL-33) — el icono de portada pasa a ser él mismo el
+   disparador del diálogo de galería (antes, un botón de texto "Cambiar
+   icono" aparte). Necesita `:hover`/`:focus-visible`, que un `style`
+   inline de React no puede expresar — mismo criterio y mismos valores que
+   `.skin-swatch` (borde `--gold` en hover, outline `--gold` en foco). */
+.cover-icon-trigger {
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.cover-icon-trigger:hover {
+  border-color: var(--gold);
+}
+
+.cover-icon-trigger:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}

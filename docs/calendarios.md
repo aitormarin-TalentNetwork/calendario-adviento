@@ -947,6 +947,102 @@ igual que antes en ambos casos.
 `npx eslint .`/`npx tsc --noEmit` limpios. `AGENTS.md` intacto. No toca
 Convex — cambio puramente de presentación, un solo componente.
 
+## 5 ajustes de Aitor sobre el editor de calendario (TAL-33, ya Done)
+
+Ajustes pequeños pedidos directamente por Aitor tras cerrarse la tanda del
+editor, en varios mensajes seguidos del mismo ciclo (el PM confirmó que
+solo uno —el diálogo de eliminar— necesita ronda completa de auditoría,
+por tocar un flujo destructivo real; se exportan los 5 juntos en un solo
+ciclo, mismo commit).
+
+1. **Icono de portada clicable directamente** — se quita el botón de texto
+   "Cambiar icono" aparte (redundante con el propio icono); el icono
+   (`CoverIconPicker`) pasa a ser él mismo el `<button>` que abre el
+   diálogo de galería, sin lógica nueva (mismo diálogo de siempre). Nueva
+   clase `.cover-icon-trigger` (`globals.css`) para `:hover`/`:focus-
+   visible` con borde `--gold` — mismo criterio que `.skin-swatch`
+   (TAL-37), que un `style` inline de React no puede expresar.
+2. **Fondo del icono, transparente** — antes relleno (`--paper-2`/
+   `--pine-2`); ahora solo el borde `--gold` en hover/foco indica que es
+   clicable, sin casilla rellena de fondo.
+3. **Etiqueta**: "Icono de portada" → "Selecciona un icono" → acortada de
+   nuevo, en un tercer mensaje, a simplemente **"Icono"** (describe la
+   acción directa sobre el icono, ya no una etiqueta pasiva junto a un
+   botón separado; el texto intermedio "Selecciona un icono" nunca llegó
+   a comitearse solo — se corrigió antes de exportar, ver nota siguiente).
+4. **"Borrar calendario" → "Eliminar calendario", con diálogo real en vez
+   de `window.confirm()`** — nuevo `delete-calendar-button.tsx`,
+   deliberadamente un componente propio de esta pantalla (no un cambio al
+   `ConfirmSubmitButton` compartido, que sigue usando `guests-section.tsx`
+   para "Borrar por completo" de un invitado — fuera de alcance de este
+   ajuste, no tocado). Reutiliza el mismo patrón de diálogo ya montado dos
+   veces en esta misma carpeta (`cover-icon-picker.tsx`, `days-grid-
+   editor.tsx`): foco inicial dentro del diálogo — aquí en "Cancelar", la
+   opción segura, no en el botón rojo, para que un Intro reflejo al abrir
+   no confirme el borrado por accidente —, Escape cierra, clic en el fondo
+   cierra, foco devuelto al disparador al cerrar. Contenido: `¿Eliminar
+   "{nombre}"?` + aviso de que se borran también días/vídeos/invitados y
+   que no se puede deshacer + dos botones ("Sí, eliminar calendario" en
+   rojo / "Cancelar").
+5. **"Marcador de cuenta atrás" → "Fecha objetivo"** — pedido en un cuarto
+   mensaje, ya con commit real (`f7b6cdb`) confirmando que Aitor lo pidió
+   explícitamente después de que se le avisara de la posible confusión
+   (parece invitar a un selector de fecha). Solo la etiqueta visible
+   cambia: sigue siendo un campo de texto libre (`type="text"`, ej. "la
+   Navidad"), sin tocar tipo de campo, validación ni comportamiento — la
+   fecha real que gobierna la cuenta atrás sigue siendo "Fecha de fin".
+
+**Nota sobre las fuentes de diseño:** los dos primeros mensajes (icono
+clicable; borrar → eliminar + diálogo) afirmaban que `design/design-
+system.md` y el mockup ya estaban actualizados con el detalle exacto —
+comprobado en ambos casos que NO era así en el momento de implementar (ni
+la sección "Selector de icono de portada" ni "Editor de calendario"
+mencionaban estos ajustes todavía). No fue bloqueante porque las
+instrucciones directas ya eran lo bastante concretas para implementar sin
+ambigüedad, pero se avisó de la discrepancia en vez de asumir en silencio
+que sí estaban actualizadas. Un TERCER mensaje, ya con la etiqueta acortada
+a "Icono", sí citó un commit real y concreto (`4311b49`, confirmado —
+`design-system.md` documenta ahí las 4 vueltas seguidas de ajuste sobre
+este mismo campo, incluida esta última) — se aplicó ese cambio de texto
+antes de dar la ronda por terminada y exportar, sin necesidad de volver a
+preguntar.
+
+**Evidencia:** verificado en navegador real. Primera pasada (super-admin,
+calendario de prueba creado específicamente para esto, borrado en la
+propia verificación): la etiqueta dice "Icono"; el icono no tiene fondo
+relleno (zoom visual); un solo clic en el icono abre el diálogo de galería
+(sin botón aparte); el botón dice "Eliminar calendario"; al pulsarlo se
+abre un diálogo propio (no un `confirm()` del navegador) con el texto
+exacto pedido; el foco inicial cae en "Cancelar" (confirmado con
+`document.activeElement`); Escape cierra el diálogo y devuelve el foco al
+botón que lo abrió (confirmado también); el flujo completo de eliminar
+(clic en "Sí, eliminar calendario") borra de verdad el calendario —
+confirmado tanto por la redirección a `/admin` como directamente contra
+Convex (`npx convex data calendars`, ya no aparece). Segunda pasada, tras
+los ajustes de copy de los mensajes 3º/4º (calendario de prueba "Test
+TAL-13", sin tocar sus datos): la etiqueta del icono dice "Icono" (no ya
+"Selecciona un icono"), el diálogo de galería se sigue abriendo con un
+clic; la etiqueta del marcador de cuenta atrás dice "Fecha objetivo",
+sigue siendo un `<input type="text">` con el valor de texto libre ya
+guardado ("la Navidad") intacto, y la vista previa de la cuenta atrás
+sigue funcionando igual.
+
+`npx eslint .`/`npx tsc --noEmit` limpios. `AGENTS.md` intacto. No toca
+Convex — los 5 ajustes son puramente de presentación (el borrado en sí ya
+existía, `deleteCalendarAction`/`deleteCalendarAsUserHandler` sin cambios,
+solo cambia cómo se pide confirmación en el cliente).
+
+**Verificación mobile (requisito del PM, 2026-08-17, retroactivo a toda
+tarea sin mergear):** repasado a ~500px de ancho de viewport — el suelo
+mínimo de ventana disponible en el entorno de automatización de esta
+sesión, pero por debajo del único breakpoint real de `globals.css`
+(`@media (max-width: 640px)`), así que ejerce la misma ruta de CSS que a
+375px. Confirmado sin recorte de texto ni desbordamiento: los campos
+("Icono", "Fecha objetivo" incluidos) se apilan en una columna con la
+etiqueta encima; el icono clicable abre su diálogo sin problemas; "Eliminar
+calendario" ocupa el ancho completo y su diálogo de confirmación se ve
+completo; flujo de borrado probado de nuevo de punta a punta a este ancho.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
