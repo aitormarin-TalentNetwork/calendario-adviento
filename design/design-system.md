@@ -60,6 +60,13 @@ Fondo `--bg-raised`, borde `1px solid var(--border)`, radio `10-14px`, sombra es
 
 Inputs con borde `--border`, fondo `--bg`, radio `8px`. Labels en mayúsculas pequeñas (`0.76rem`, `letter-spacing: 0.05em`, color `--text-dim`).
 
+**Etiqueta junto al campo, no apilada (ajuste 2026-08-17, pedido explícito de Aitor):**
+en desktop, la etiqueta va **a la izquierda del input**, en la misma línea — no encima.
+Ancho de etiqueta fijo (`~150px`), alineada a la derecha; el input ocupa el resto del
+ancho disponible. Reemplaza el patrón anterior (etiqueta encima del campo) en toda
+pantalla de edición de datos. En mobile (`<640px`) esta regla tiene una excepción — ver
+"Responsive / Mobile" más abajo, ahí sí se apila.
+
 ### Grid de días — invitado y editor de Admin (reemplaza el patrón del MVP shippeado)
 
 **Validado con Aitor, 2026-08-16 — sustituye por completo el grid plano de N columnas
@@ -75,14 +82,25 @@ del MVP original.** Fuente: `design/propuesta-grid-calendario.html`.
 - **Sábado y domingo en `--berry`** (rojo), igual que un calendario de pared impreso
   clásico — el resto de los días en `--text`.
 - **"Hoy"**: borde punteado en `--gold` alrededor de la casilla, número también en
-  `--gold`.
-- **Bloqueado** (día futuro): casilla atenuada (`opacity: 0.4`), número más pequeño,
-  icono de candado 🔒 en la esquina inferior derecha — sin click.
+  `--gold` — **más destacado que el resto de estados** (ajuste 2026-08-17: aumentar
+  grosor de borde y/o añadir un fondo sutil en `--gold`/10% opacidad, no solo el
+  punteado — que se note claramente de un vistazo, no solo al fijarse).
+- **Bloqueado** (día futuro, dentro del rango del calendario): casilla atenuada
+  (`opacity: 0.4`), número más pequeño, icono de candado 🔒 en la esquina inferior
+  derecha — sin click.
 - **Abierto, sin ver**: fondo `--paper-2` (claro) / `--pine-2` (oscuro), número grande
   normal, click habilitado.
 - **Visto**: fondo = fotograma del vídeo (o color de relleno si no hay miniatura real
   todavía), número se reduce y baja a la esquina inferior derecha, en una píldora
   semitransparente sobre el fotograma — clic reabre el vídeo.
+- **Fuera de rango** (fecha anterior a `startDate` o posterior a `endDate` del
+  calendario — ajuste 2026-08-17, pedido explícito de Aitor): **se muestra el mes
+  completo siempre**, nunca casillas en blanco al principio o al final. Los días fuera
+  del rango configurado numeran igual que el resto (1, 2, 3... del mes), pero con el
+  número grande en estilo "marca de agua" — muy atenuado (opacity baja, p. ej. `0.15`),
+  sin candado, sin fondo de estado, sin click. Antes de este ajuste, esos días
+  aparecían como casillas vacías al principio/final del calendario, lo cual quedaba
+  raro visualmente — ya no.
 - Modal de vídeo: `<iframe>` de YouTube/Vimeo/Drive centrado, mensaje del día debajo —
   sin cambios respecto al MVP shippeado, esta parte no se toca.
 
@@ -114,14 +132,27 @@ suficiente por ahora, no hace falta una pantalla de Super Admin para ello).
 
 ### Selector de icono de portada (Admin)
 
-**Validado con Aitor, 2026-08-16.** Fuente: `design/propuesta-skins.html`. Sustituye el
-icono fijo en código (🎄) por un selector real en el editor de calendario:
+**Validado con Aitor, 2026-08-16; forma de mostrarlo ajustada 2026-08-17.** Fuente:
+`design/propuesta-skins.html` (contenido de la galería) +
+`design/propuesta-editor-calendario.html` (dónde vive la galería). Sustituye el icono
+fijo en código (🎄) por un selector real en el editor de calendario.
+
+**Ajuste 2026-08-17, pedido explícito de Aitor — la galería ya NO va siempre visible en
+la página:** en la pantalla de configuración del calendario solo se muestra el **icono
+ya seleccionado** (casilla `44-52px`, fondo `--paper-2`/`--pine-2`) + un botón **"Cambiar
+icono"**. Al pulsar el botón se abre un **diálogo** (modal) con la galería completa —
+esta parte reemplaza al "TAL-23 shippeado" original, que la mostraba siempre desplegada
+inline en la página.
+
+Contenido del diálogo (sin cambios respecto a lo ya validado):
 - Buscador arriba (`🔍 Buscar icono…`).
 - Galería organizada en **categorías**: Navidad, Fiesta, Cariño, Naturaleza y cielo,
   Animales y fantasía — ~45 emoji en total, incluye 🦄, 🌈 y ❤️ explícitamente pedidos.
 - Icono seleccionado con borde `--gold` + fondo `--paper-2`.
 - Mismo patrón de "catálogo sin límite fijo" que los skins — la lista de iconos puede
   crecer sin tocar código si en algún momento se decide.
+- Al elegir un icono, el diálogo se cierra y el icono elegido pasa a mostrarse en la
+  casilla de la página (no hace falta un botón "Guardar" aparte dentro del diálogo).
 
 ### Indicador de sesión
 
@@ -132,12 +163,89 @@ indicador fijo en la esquina superior derecha:
   `users.image`, Convex, y se refresca en cada login si cambia). Si no hay foto (login de
   desarrollo, o el usuario todavía no tiene una guardada): círculo `--pine-2` con la
   inicial del email en `--paper`, tipografía `--font-display`.
-- Botón de cerrar sesión SOLO icono ("🚪"), sin texto visible — evita palabras en un
-  idioma concreto.
+- Botón de cerrar sesión SOLO icono, sin texto visible — evita palabras en un idioma
+  concreto. **Ajuste 2026-08-17, feedback de Aitor:** el emoji de puerta ("🚪") no
+  convence, resulta demasiado literal/skeuomórfico para el resto del sistema. Sustituir
+  por un icono de línea minimalista tipo "log-out" (Heroicons/Feather outline: flecha
+  saliendo de un rectángulo/marco abierto por un lado), trazo fino (`stroke-width`
+  ~1.5-2px), sin relleno, heredando `currentColor` — mismo lenguaje visual que el resto
+  de iconografía de línea de la app, no un emoji.
 - El email (y el rol, si aplica) sigue disponible como `title`/`aria-label` del avatar —
   no se pierde la información, solo deja de ocupar espacio permanente en pantalla.
 - Componente compartido `SessionIndicator` (`src/components/session-indicator.tsx`),
   `position: fixed`, mismo patrón en las 4 pantallas.
+
+### Editor de calendario (pantalla de configuración del Admin)
+
+**Validado con Aitor, 2026-08-17.** Fuente: `design/propuesta-editor-calendario.html`.
+Reestructura la pantalla de configuración de un calendario (creada en TAL-5/TAL-32,
+shippeada) — no toca el mockup del MVP a nivel de campos/datos, solo su disposición y el
+comportamiento de algunos componentes.
+
+- **Sección "Datos del calendario" en dos columnas:**
+  - **Izquierda:** fecha de inicio y fecha de fin, apiladas una encima de otra.
+  - **Derecha:** nombre del calendario, título de portada, icono de portada (ver
+    "Selector de icono de portada" arriba) y skin, apilados uno encima de otro.
+  - Cada campo sigue la regla general de "Formularios": etiqueta a la izquierda del
+    input, no encima.
+- **Grid de días:** reutiliza el patrón de "Grid de días — invitado y editor de Admin"
+  de más arriba (7 columnas, calendario de pared real) — no es un componente nuevo,
+  solo se confirma que el editor lo usa igual que la vista de Invitado. Añade:
+  - Texto explicativo encima del grid: *"Selecciona el día para subir el vídeo. Los
+    días que ya tienen vídeo muestran un fotograma como miniatura."*
+  - Días con vídeo ya cargado muestran el fotograma de fondo (mismo tratamiento visual
+    que el estado "Visto" del Invitado), no un simple número.
+  - **Clic en un día abre un diálogo** (modal) con URL del vídeo (o subir archivo),
+    mensaje del día opcional, y botones "Guardar día" / "Quitar vídeo" — sustituye el
+    panel inline que se abría antes debajo del grid.
+- **Zona de peligro:** "Borrar calendario" pasa a ser un **botón rojo** (`--berry`,
+  relleno, no solo texto), colocado **al final de la pantalla**, separado del resto por
+  un separador (`border-top`) — antes estaba en la cabecera de la pantalla junto al
+  título, como botón fantasma de solo texto.
+
+### Invitados — link de invitación único
+
+**Validado con Aitor, 2026-08-17.** Fuente: `design/propuesta-editor-calendario.html`.
+Ajusta la sección "Invitados" del editor de calendario (TAL-7, shippeado):
+
+- **Un único "Link de invitación" por calendario** (no uno distinto por invitado),
+  mostrado en un campo de solo lectura con icono de copiar al lado — el link no lleva
+  un token personal.
+- **Por qué basta con uno solo:** el control de acceso real no lo hace el link, lo hace
+  el login con Google **contra la lista de invitados de ese calendario** — si el email
+  autenticado no está en la lista, no entra aunque tenga el link. El link solo es un
+  atajo a la pantalla de login de ese calendario en concreto.
+- La fila de cada invitado en la tabla pierde su botón/icono de copiar individual (ya
+  no aplica) — mantiene solo la acción de quitarlo del calendario.
+- **Icono de copiar** (el del link general): icono de línea minimalista (dos
+  rectángulos superpuestos, estilo "copy"), sin texto — mismo criterio que el resto de
+  botones solo-icono del sistema (ver "Indicador de sesión"). Al pulsarlo, confirmación
+  breve tipo toast ("Link copiado"), no un `alert()`.
+
+## Responsive / Mobile
+
+**Requisito transversal, pedido explícito de Aitor (2026-08-17): todo el Design System
+tiene que funcionar en mobile, no solo en desktop.** Ninguna pantalla se da por cerrada
+sin comprobar cómo se ve por debajo del breakpoint.
+
+- **Breakpoint estándar:** `640px`.
+- **Layouts de 2 columnas** (formularios, "Datos del calendario", etc.) colapsan a **1
+  columna** por debajo del breakpoint.
+- **Campo con etiqueta a la izquierda del input** (regla general en desktop, ver
+  "Formularios" más arriba): en mobile pasa a **apilarse** (etiqueta arriba, campo
+  abajo) — única excepción documentada a esa regla, por falta de espacio horizontal en
+  pantallas estrechas.
+- **Grid de días de calendario**: mantiene siempre **7 columnas** en cualquier ancho —
+  es la esencia del patrón (calendario de pared real), nunca colapsa a menos columnas.
+  Lo que se reduce es tipografía/padding de cada casilla, no la estructura.
+- **Tablas** (invitados, admins de Super Admin, etc.): contenedor con `overflow-x: auto`
+  propio en vez de romper el layout de la página — la página nunca scrollea en
+  horizontal, solo la tabla dentro de su contenedor.
+- **Botones de acción a ancho completo** cuando quedan solos al final de una pantalla en
+  mobile (p. ej. "Borrar calendario") — mejor objetivo táctil que un botón pequeño
+  flotando a la derecha.
+- Ver `design/propuesta-editor-calendario.html` como referencia — primera pantalla con
+  el comportamiento mobile ya resuelto siguiendo estas reglas.
 
 ## Cómo se usa este documento
 

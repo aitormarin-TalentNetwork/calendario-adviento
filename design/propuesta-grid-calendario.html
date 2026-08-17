@@ -57,9 +57,14 @@
   :root[data-theme="dark"] .day.open-unseen, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .day.open-unseen { background: var(--pine-2); } }
   .day.open-unseen:hover { outline: 2px solid var(--gold); outline-offset: -2px; }
   .day.today .num { color: var(--gold); }
-  .day.today::after {
-    content: ""; position: absolute; inset: 4px; border: 1.5px dashed var(--gold); border-radius: 6px; pointer-events: none;
+  .day.today {
+    background: rgba(201,154,61,0.12);
   }
+  .day.today::after {
+    content: ""; position: absolute; inset: 3px; border: 2px dashed var(--gold); border-radius: 6px; pointer-events: none;
+  }
+  .day.out-of-range { cursor: default; }
+  .day.out-of-range .num { opacity: 0.15; font-weight: 800; }
   .day.watched { cursor: pointer; background-size: cover; background-position: center; }
   .day.watched .num {
     position: absolute; bottom: 5px; right: 8px; font-size: 0.82rem; font-weight: 600;
@@ -92,6 +97,7 @@
     <span><span class="sw" style="background:var(--bg); opacity:0.5; border:1px solid var(--border);"></span> Bloqueado (candado)</span>
     <span><span class="sw f1"></span> Ya visto (fotograma de fondo)</span>
     <span><span class="sw" style="border:1.5px dashed var(--gold);"></span> Hoy</span>
+    <span><span class="sw" style="background:var(--bg); opacity:0.25;"></span> Fuera del rango del calendario (marca de agua)</span>
   </div>
 
   <p class="footnote">¿Esto es lo que tenías en mente? Si lo apruebas así, lo convierto ya en Design System normativo y lo entrego a la Directora para repartir.</p>
@@ -101,6 +107,8 @@
   const MONTHS = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
   const scrollArea = document.getElementById("scrollArea");
   const TODAY = new Date(2026, 7, 16); // 16 ago 2026, fecha real del sistema
+  const CAL_START = new Date(2026, 7, 9);   // rango real del calendario de ejemplo (9 ago)
+  const CAL_END = new Date(2026, 11, 25);   // ...a 25 dic
 
   function buildMonth(year, monthIdx, watchedSet, frameClasses) {
     const first = new Date(year, monthIdx, 1);
@@ -135,7 +143,11 @@
           const isWeekend = d >= 5;
           const key = year + "-" + monthIdx + "-" + dayNum;
           const weekendCls = isWeekend ? " weekend" : "";
-          if (watchedSet.has(key)) {
+          const outOfRange = date < CAL_START || date > CAL_END;
+          if (outOfRange) {
+            cell.className = "day out-of-range" + (isToday ? " today" : "");
+            cell.innerHTML = '<span class="num">' + dayNum + "</span>";
+          } else if (watchedSet.has(key)) {
             cell.className = "day watched " + frameClasses[dayNum % frameClasses.length];
             cell.innerHTML = '<span class="num">' + dayNum + "</span>";
           } else if (isPast || isToday) {

@@ -1,0 +1,338 @@
+<title>Propuesta Editor de Calendario</title>
+<style>
+  :root {
+    --pine: #1b3a2f; --pine-2: #234a3b; --paper: #f6f1e4; --paper-2: #efe7d4;
+    --gold: #c99a3d; --gold-2: #e3bb63; --berry: #8c2f39; --berry-2: #e08a92; --ink: #16211c;
+    --text-dim: #57604f; --border: #ded3ba; --bg: var(--paper); --bg-raised: #ffffff;
+    --text: var(--ink); --shadow: 0 1px 2px rgba(20,30,20,0.06), 0 8px 24px rgba(20,30,20,0.08);
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436; --gold: var(--gold-2); --berry: var(--berry-2); }
+  }
+  :root[data-theme="dark"] { --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436; --gold: var(--gold-2); --berry: var(--berry-2); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+  h1, h2, h4 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 40px 24px 90px; }
+  .intro h1 { font-size: 1.6rem; margin-bottom: 8px; }
+  .intro p { color: var(--text-dim); max-width: 66ch; line-height: 1.55; }
+  .section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 34px 0 12px; }
+  .helptext { color: var(--text-dim); font-size: 0.85rem; margin: -4px 0 14px; }
+
+  .card {
+    border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+    background: var(--bg-raised); padding: 26px 28px; margin-top: 24px;
+  }
+  .pagehead h1 { font-size: 1.5rem; }
+  .pagehead .sub { color: var(--text-dim); font-size: 0.85rem; margin-top: 4px; }
+
+  /* ---- Datos del calendario: dos columnas — fechas a la izquierda, resto a la derecha ---- */
+  .datos-layout { display: grid; grid-template-columns: 1fr 1.4fr; gap: 28px; align-items: start; }
+  .datos-col { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---- campo: etiqueta junto al input, no apilados ---- */
+  .field { display: flex; align-items: center; gap: 12px; }
+  .field label {
+    flex: 0 0 152px; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--text-dim); text-align: right;
+  }
+  .field input[type="text"], .field input[type="date"] {
+    flex: 1; font-family: var(--font-body); font-size: 0.92rem; padding: 8px 10px;
+    border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text);
+  }
+  .field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+
+  /* ---- selector de icono: icono + botón, la galería vive en un diálogo ---- */
+  .icon-field { display: flex; align-items: center; gap: 14px; flex: 1; }
+  .icon-current {
+    width: 44px; height: 44px; border-radius: 11px; background: var(--paper-2); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center; font-size: 1.4rem; flex-shrink: 0;
+  }
+  :root[data-theme="dark"] .icon-current, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .icon-current { background: var(--pine-2); } }
+
+  .btn { font-family: var(--font-body); font-size: 0.85rem; font-weight: 600; padding: 8px 16px; border-radius: 999px; border: 1px solid var(--border); background: var(--bg-raised); color: var(--text); cursor: pointer; }
+  .btn:hover { border-color: var(--gold); }
+  .btn-primary { background: var(--gold); border-color: var(--gold); color: #241a06; }
+  .btn-primary:hover { background: var(--gold-2); border-color: var(--gold-2); }
+  .btn-ghost { background: transparent; }
+  .btn-sm { padding: 6px 12px; font-size: 0.8rem; }
+  .btn-icon { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: transparent; border: 1px solid transparent; color: var(--text-dim); flex-shrink: 0; cursor: pointer; }
+  .btn-icon:hover { background: var(--paper-2); color: var(--text); border-color: var(--border); }
+  :root[data-theme="dark"] .btn-icon:hover, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .btn-icon:hover { background: var(--pine-2); } }
+  .btn-icon svg { width: 17px; height: 17px; }
+
+  /* ---- borrar calendario: rojo, al final de la pantalla ---- */
+  .danger-zone { margin-top: 34px; padding-top: 22px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; }
+  .btn-danger { background: var(--berry); border-color: var(--berry); color: #fff5f0; }
+  .btn-danger:hover { background: #a13844; border-color: #a13844; }
+
+  /* ---- grid de días del editor — calendario de pared real, 7 columnas ---- */
+  .cal-frame { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .month-header { background: var(--pine); color: var(--paper); font-family: var(--font-display); font-size: 1.05rem; padding: 8px 16px; }
+  .weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); font-family: var(--font-mono); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+  .weekday-row span { background: var(--bg-raised); text-align: center; padding: 5px 0; }
+  .weekday-row span.weekend { color: var(--berry); font-weight: 700; }
+  .week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; background: var(--border); }
+  .day { aspect-ratio: 1; background: var(--bg); position: relative; display: flex; align-items: center; justify-content: center; overflow: hidden; cursor: pointer; }
+  .day .num { font-size: 1.15rem; font-weight: 800; color: var(--text-dim); }
+  .day.empty-cell { cursor: default; background: var(--bg-raised); }
+  .day.out-of-range { cursor: default; }
+  .day.out-of-range .num { opacity: 0.15; font-weight: 800; color: var(--text); }
+  .day.no-video:hover { outline: 2px solid var(--gold); outline-offset: -2px; }
+  .day.no-video { background: var(--paper-2); }
+  :root[data-theme="dark"] .day.no-video, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .day.no-video { background: var(--pine-2); } }
+  .day.has-video { background-size: cover; background-position: center; }
+  .day.has-video .num {
+    position: absolute; bottom: 4px; right: 6px; font-size: 0.72rem; font-weight: 600;
+    background: rgba(15,24,18,0.6); color: var(--paper); padding: 1px 6px; border-radius: 999px; font-family: var(--font-mono);
+  }
+  .day.has-video::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(10,16,12,0.5), transparent 55%); }
+  .f1 { background-image: linear-gradient(155deg, #7a5a1e, #1b3a2f); }
+  .f2 { background-image: linear-gradient(155deg, #8c2f39, #2b3f22); }
+  .f3 { background-image: linear-gradient(155deg, #2b3f6b, #6b3f2b); }
+
+  /* ---- invitados ---- */
+  .invite-link-row {
+    display: flex; align-items: center; gap: 10px; background: var(--paper-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; margin-bottom: 16px;
+  }
+  :root[data-theme="dark"] .invite-link-row, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .invite-link-row { background: var(--pine-2); } }
+  .invite-link-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); flex-shrink: 0; }
+  .invite-link-url { flex: 1; font-family: var(--font-mono); font-size: 0.82rem; color: var(--text); overflow-x: auto; white-space: nowrap; }
+  table.guests { width: 100%; border-collapse: collapse; font-size: 0.87rem; margin-top: 6px; }
+  table.guests th { text-align: left; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); padding: 8px 10px; border-bottom: 1px solid var(--border); }
+  table.guests td { padding: 10px 10px; border-bottom: 1px solid var(--border); }
+  .guest-actions { display: flex; gap: 6px; justify-content: flex-end; align-items: center; }
+  .invite-row { display: flex; gap: 10px; margin-top: 14px; }
+  .invite-row input { flex: 1; font-family: var(--font-body); font-size: 0.9rem; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); }
+
+  /* ---- diálogos (modal) ---- */
+  .overlay { position: fixed; inset: 0; background: rgba(10,16,12,0.5); display: none; align-items: center; justify-content: center; z-index: 20; padding: 20px; }
+  .overlay.open { display: flex; }
+  .dialog { background: var(--bg-raised); border-radius: 16px; box-shadow: var(--shadow); width: 100%; max-height: 82vh; overflow-y: auto; }
+  .dialog-icon { max-width: 460px; padding: 22px 24px; }
+  .dialog-day { max-width: 420px; padding: 22px 24px; }
+  .dialog h4 { font-size: 1.05rem; margin-bottom: 4px; }
+  .dialog-close { float: right; background: none; border: none; color: var(--text-dim); font-size: 1.1rem; cursor: pointer; }
+  .icon-search { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px; background: var(--bg); color: var(--text); font-family: var(--font-body); font-size: 0.88rem; margin: 12px 0 16px; }
+  .icon-cat-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 14px 0 8px; }
+  .icon-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+  .icon-opt { aspect-ratio: 1; border-radius: 9px; border: 1px solid transparent; background: var(--paper-2); display: flex; align-items: center; justify-content: center; font-size: 1.2rem; cursor: pointer; }
+  :root[data-theme="dark"] .icon-opt, @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .icon-opt { background: var(--pine-2); } }
+  .icon-opt.selected { border-color: var(--gold); background: var(--paper-2); box-shadow: 0 0 0 2px rgba(201,154,61,0.25); }
+  .segmented { display: flex; border: 1px solid var(--border); border-radius: 999px; overflow: hidden; width: fit-content; margin-bottom: 14px; }
+  .segmented button { border: none; background: transparent; padding: 6px 16px; font-size: 0.82rem; font-family: var(--font-body); cursor: pointer; color: var(--text-dim); }
+  .segmented button.active { background: var(--gold); color: #241a06; font-weight: 600; }
+  .dialog-day label { display: block; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); margin: 12px 0 6px; }
+  .dialog-day input[type="text"], .dialog-day textarea {
+    width: 100%; font-family: var(--font-body); font-size: 0.9rem; padding: 9px 11px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--bg); color: var(--text);
+  }
+  .dialog-day textarea { min-height: 64px; resize: vertical; }
+  .dialog-actions { display: flex; gap: 10px; margin-top: 18px; }
+
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(0); background: var(--pine); color: var(--paper); padding: 9px 18px; border-radius: 999px; font-size: 0.85rem; opacity: 0; pointer-events: none; transition: opacity 0.2s, transform 0.2s; z-index: 30; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-6px); }
+
+  .footnote { margin-top: 26px; color: var(--text-dim); font-size: 0.85rem; max-width: 66ch; }
+
+  /* ---- mobile (<640px): todo el Design System tiene que funcionar aquí también ---- */
+  @media (max-width: 640px) {
+    .wrap { padding: 24px 14px 70px; }
+    .card { padding: 18px 16px; }
+    .pagehead { display: flex; flex-direction: column; gap: 4px; }
+    .datos-layout { grid-template-columns: 1fr; gap: 16px; }
+    .field { flex-direction: column; align-items: stretch; gap: 4px; }
+    .field label { flex: none; text-align: left; }
+    .month-header { font-size: 0.92rem; padding: 7px 12px; }
+    .weekday-row { font-size: 0.6rem; }
+    .day .num { font-size: 0.88rem; }
+    .day.has-video .num { font-size: 0.62rem; padding: 1px 4px; }
+    .invite-link-row { flex-wrap: wrap; }
+    .invite-link-url { flex-basis: 100%; overflow: hidden; text-overflow: ellipsis; }
+    .table-scroll { overflow-x: auto; }
+    .invite-row { flex-direction: column; }
+    .danger-zone { justify-content: stretch; }
+    .btn-danger { width: 100%; }
+  }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Editor de calendario — v2</h1>
+    <p>Segunda vuelta tras tu feedback: columna izquierda solo con las fechas, columna derecha con nombre/título/icono/skin; grid de días como calendario de pared real (7 columnas, lunes a domingo); un único link de invitación (el acceso real lo da el login con Google contra la lista de invitados, no el link). Añadido también: comportamiento mobile — reduce la ventana del navegador (o mira en el móvil) para verlo. Por debajo de 640px los campos con etiqueta a la izquierda pasan a apilarse (etiqueta arriba, campo abajo) por falta de espacio — única excepción documentada a la regla de "etiqueta junto al campo".</p>
+  </div>
+
+  <div class="card">
+    <div class="pagehead">
+      <h1>Regalo de Navidad — Equipo</h1>
+      <div class="sub">TalentNetwork · editable en cualquier momento</div>
+    </div>
+
+    <div class="section-title" style="margin-top:28px;">Datos del calendario</div>
+    <div class="datos-layout">
+      <div class="datos-col">
+        <div class="field"><label>Fecha de inicio</label><input type="date" value="2026-12-01" /></div>
+        <div class="field"><label>Fecha de fin</label><input type="date" value="2026-12-24" /></div>
+      </div>
+      <div class="datos-col">
+        <div class="field"><label>Nombre del calendario</label><input type="text" value="Regalo de Navidad — Equipo TalentNetwork" /></div>
+        <div class="field"><label>Título de portada</label><input type="text" value="¡Feliz cuenta atrás, equipo! 🎄" /></div>
+        <div class="field"><label>Icono de portada</label>
+          <div class="icon-field">
+            <div class="icon-current">🎁</div>
+            <button class="btn btn-sm" onclick="document.getElementById('iconDialog').classList.add('open')">Cambiar icono</button>
+          </div>
+        </div>
+        <div class="field"><label>Skin</label>
+          <div style="display:flex; gap:8px;">
+            <span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#7a5a1e,#1b3a2f);box-shadow:0 0 0 2px var(--gold);"></span>
+            <span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#8c2f39,#2b3f22);"></span>
+            <span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#2b3f6b,#6b3f2b);"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Días del calendario</div>
+    <p class="helptext">Selecciona el día para subir el vídeo. Los días que ya tienen vídeo muestran un fotograma como miniatura.</p>
+    <div class="cal-frame">
+      <div class="month-header">DICIEMBRE 2026</div>
+      <div class="weekday-row">
+        <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span class="weekend">S</span><span class="weekend">D</span>
+      </div>
+      <div id="dayGridEditor"></div>
+    </div>
+
+    <div class="section-title">Invitados</div>
+    <div class="invite-link-row">
+      <span class="invite-link-label">Link de invitación</span>
+      <code class="invite-link-url" id="inviteLinkUrl">https://calendario-adviento.talent-network.org/c/regalo-navidad-equipo</code>
+      <button class="btn-icon" title="Copiar link" onclick="copyLink()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></svg>
+      </button>
+    </div>
+    <p class="helptext" style="margin-top:-8px;">Vale para cualquiera de la lista de abajo — el acceso se comprueba al iniciar sesión con Google, no lleva un token por persona.</p>
+    <div class="table-scroll">
+      <table class="guests">
+        <thead><tr><th>Email</th><th>Estado</th><th></th></tr></thead>
+        <tbody id="guestRows"></tbody>
+      </table>
+    </div>
+    <div class="invite-row">
+      <input type="text" placeholder="email@ejemplo.com" />
+      <button class="btn btn-primary">Invitar ahora</button>
+    </div>
+
+    <div class="danger-zone">
+      <button class="btn btn-danger">Borrar calendario</button>
+    </div>
+  </div>
+
+  <p class="footnote">¿Esto es lo que tenías en mente? Si lo apruebas así, lo convierto en Design System normativo (sección "Editor de calendario") y actualizo las tareas de Linear correspondientes.</p>
+</div>
+
+<!-- Diálogo: selector de icono -->
+<div class="overlay" id="iconDialog">
+  <div class="dialog dialog-icon">
+    <button class="dialog-close" onclick="document.getElementById('iconDialog').classList.remove('open')">✕</button>
+    <h4>Elegir icono de portada</h4>
+    <input class="icon-search" type="text" placeholder="🔍 Buscar icono…" />
+    <div class="icon-cat-label">Navidad</div>
+    <div class="icon-grid">
+      <span class="icon-opt selected">🎁</span><span class="icon-opt">🎄</span><span class="icon-opt">🎅</span><span class="icon-opt">⛄</span><span class="icon-opt">🔔</span><span class="icon-opt">❄️</span><span class="icon-opt">🕯️</span>
+    </div>
+    <div class="icon-cat-label">Cariño</div>
+    <div class="icon-grid">
+      <span class="icon-opt">❤️</span><span class="icon-opt">🥰</span><span class="icon-opt">💝</span><span class="icon-opt">🌈</span><span class="icon-opt">🦄</span><span class="icon-opt">✨</span><span class="icon-opt">🌟</span>
+    </div>
+  </div>
+</div>
+
+<!-- Diálogo: editar día -->
+<div class="overlay" id="dayDialog">
+  <div class="dialog dialog-day">
+    <button class="dialog-close" onclick="document.getElementById('dayDialog').classList.remove('open')">✕</button>
+    <h4>Día <span id="dayDialogNum">3</span></h4>
+    <div class="segmented" style="margin-top:14px;">
+      <button class="active">Link externo</button>
+      <button>Subir archivo</button>
+    </div>
+    <label>URL del vídeo</label>
+    <input type="text" value="https://videos.talent-network.org/adviento/dia-3.mp4" />
+    <label>Mensaje del día (opcional)</label>
+    <textarea>Gracias por currar tan bien este año — hoy invita la casa 🍪</textarea>
+    <div class="dialog-actions">
+      <button class="btn btn-primary btn-sm">Guardar día</button>
+      <button class="btn btn-ghost btn-sm">Quitar vídeo</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">Link copiado</div>
+
+<script>
+  const grid = document.getElementById("dayGridEditor");
+  const frames = ["f1", "f2", "f3"];
+  const withVideo = new Set([1,2,3,5,6,9,10,11,15,16]);
+  const CAL_START = 1, CAL_END = 24; // rango configurado del calendario (1–24 dic)
+  const year = 2026, monthIdx = 11; // diciembre
+  const first = new Date(year, monthIdx, 1);
+  const startOffset = (first.getDay() + 6) % 7; // lunes=0
+  const daysInMonth = new Date(year, monthIdx + 1, 0).getDate();
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
+
+  for (let w = 0; w < totalCells / 7; w++) {
+    const row = document.createElement("div");
+    row.className = "week-row";
+    for (let d = 0; d < 7; d++) {
+      const cellIdx = w * 7 + d;
+      const dayNum = cellIdx - startOffset + 1;
+      const cell = document.createElement("div");
+      if (dayNum < 1 || dayNum > daysInMonth) {
+        cell.className = "day empty-cell";
+      } else if (dayNum < CAL_START || dayNum > CAL_END) {
+        cell.className = "day out-of-range";
+        cell.innerHTML = '<span class="num">' + dayNum + "</span>";
+      } else if (withVideo.has(dayNum)) {
+        cell.className = "day has-video " + frames[dayNum % frames.length];
+        cell.innerHTML = '<span class="num">' + dayNum + "</span>";
+        cell.onclick = () => openDay(dayNum);
+      } else {
+        cell.className = "day no-video";
+        cell.innerHTML = '<span class="num">' + dayNum + "</span>";
+        cell.onclick = () => openDay(dayNum);
+      }
+      row.appendChild(cell);
+    }
+    grid.appendChild(row);
+  }
+
+  function openDay(d) {
+    document.getElementById("dayDialogNum").textContent = d;
+    document.getElementById("dayDialog").classList.add("open");
+  }
+
+  const guests = [
+    { email: "carlos.perez@talent-network.org", estado: "Invitado" },
+    { email: "lucia.ramos@talent-network.org", estado: "Invitado" },
+    { email: "nora.diaz@talent-network.org", estado: "Aceptado" }
+  ];
+  const rows = document.getElementById("guestRows");
+  guests.forEach((g) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = '<td>' + g.email + '</td><td>' + g.estado + '</td><td><div class="guest-actions">' +
+      '<button class="btn-icon" title="Quitar del calendario"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"></path></svg></button>' +
+      '</div></td>';
+    rows.appendChild(tr);
+  });
+
+  function copyLink() {
+    const t = document.getElementById("toast");
+    t.classList.add("show");
+    setTimeout(() => t.classList.remove("show"), 1400);
+  }
+</script>
