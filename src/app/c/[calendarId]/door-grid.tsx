@@ -359,7 +359,25 @@ export function DoorGrid({
             )}
             {openDoor.message && <p style={{ ...modalTextStyle, marginTop: "0.75rem" }}>{openDoor.message}</p>}
             {markError && (
-              <p role="alert" style={{ color: "#e35b5b", marginTop: "0.75rem", fontSize: "0.85rem" }}>
+              // TAL-39, ronda 2 (NO-GO de auditoría, ronda 1): este texto se
+              // quedó con su color rojo original (`#e35b5b`) cuando el resto
+              // del modal pasó a `modalTextStyle` — válido contra el fondo
+              // FIJO que tenía el modal antes de esta tarea, pero no contra
+              // la nueva capa de oscurecimiento (`coverBackgroundStyle`), que
+              // puede dejar el contraste tan bajo como ~1.37:1 (auditor,
+              // verificado matemáticamente) — muy por debajo del 4.5:1 de
+              // WCAG AA. Mismo cálculo que ya hizo TAL-24 (ronda 1): el peor
+              // caso posible de fondo compuesto con la capa al 60% es
+              // `rgb(102,102,102)` (skin blanco), así que CUALQUIER color
+              // salvo uno muy próximo al blanco no puede garantizar 4.5:1
+              // ahí — un rojo más claro (p. ej. `--berry-2`) seguiría sin
+              // bastar. `modalTextStyle` (blanco + sombra) es la única
+              // opción de esta paleta con margen de sobra en el peor caso
+              // (mismo 5.74:1 ya verificado en `skin-appearance.ts`);
+              // `fontWeight` en vez de color distingue visualmente que es un
+              // aviso urgente sin depender de un rojo que no puede
+              // garantizar su propio contraste aquí.
+              <p role="alert" style={{ ...modalTextStyle, fontWeight: 700, marginTop: "0.75rem", fontSize: "0.85rem" }}>
                 No se ha podido guardar que has visto este día. Ciérralo y vuelve a intentarlo.
               </p>
             )}
