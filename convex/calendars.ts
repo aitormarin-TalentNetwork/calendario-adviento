@@ -628,6 +628,42 @@ export const getPublic = query({
   },
 });
 
+/**
+ * TAL-25 — frontera pública DELIBERADAMENTE distinta de `getPublic`
+ * (arriba): esta es la única consulta a `calendars` alcanzable desde una
+ * página SIN AUTENTICAR (`/login`, portada personalizada por
+ * `callbackUrl`). `getPublic` devuelve el documento entero (`skinId`,
+ * `startDate`/`endDate`, `creationKey`, `updatedAt`...) porque sus dos
+ * únicos llamadores (`admin/[calendarId]/page.tsx`, `c/[calendarId]/page.tsx`)
+ * ya exigen que quien mira esté autenticado Y tenga acceso a ese
+ * calendario concreto — devolver el documento completo ahí es seguro
+ * porque la autorización ya se resolvió antes de llegar aquí. Para
+ * `/login` no hay ninguna autorización previa que resolver (es el propio
+ * punto de entrada, alcanzable por cualquiera con el link de invitación
+ * antes de loguearse) — así que esta consulta expone una lista blanca
+ * explícita y mínima (solo lo que ya decidimos, TAL-25, que es aceptable
+ * enseñar a alguien no autenticado: el nombre bonito, la foto y el icono
+ * de portada — nada de fechas, skin, ni ningún otro campo interno), en
+ * vez de reutilizar `getPublic` y confiar en que Next.js recuerde no
+ * reenviar el resto del documento al cliente.
+ */
+export const getPublicCoverInfoForLogin = query({
+  args: { serverSecret: v.string(), calendarId: v.id("calendars") },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ coverTitle: string; coverIcon?: string; coverImageUrl?: string } | null> => {
+    await requireServerSecret(args.serverSecret);
+    const calendar = await ctx.db.get(args.calendarId);
+    if (!calendar) return null;
+    return {
+      coverTitle: calendar.coverTitle,
+      coverIcon: calendar.coverIcon,
+      coverImageUrl: calendar.coverImageUrl,
+    };
+  },
+});
+
 export const listCalendarsForUserPublic = query({
   args: { serverSecret: v.string(), userId: v.id("users") },
   handler: async (ctx, args) => {
