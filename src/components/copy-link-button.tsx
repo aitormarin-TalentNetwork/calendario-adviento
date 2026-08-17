@@ -17,12 +17,27 @@ import { useState } from "react";
  * coordinar varios toasts a la vez.
  */
 export function CopyLinkButton({ link }: { link: string }) {
-  const [showToast, setShowToast] = useState(false);
+  // `toastMessage: null` esconde el toast — mismo criterio que
+  // `showToast` antes, pero guardando también qué texto mostrar: éxito y
+  // fallo comparten el mismo mecanismo de aparecer/desaparecer, solo
+  // cambia el mensaje.
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  // Hallazgo del auditor (TAL-35, no bloqueante en su momento): esta
+  // promesa se quedaba sin `catch` — `navigator.clipboard.writeText` puede
+  // rechazar (permiso de portapapeles denegado, contexto no seguro,
+  // navegador sin soporte) y, sin manejarlo, el clic no hacía NADA visible
+  // — ni el toast de éxito (correcto, no llegó a copiarse) ni ningún aviso
+  // de que había fallado. Ahora un fallo muestra su propio mensaje en el
+  // mismo toast, en vez de quedarse en silencio.
   async function handleCopy() {
-    await navigator.clipboard.writeText(link);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 1400);
+    try {
+      await navigator.clipboard.writeText(link);
+      setToastMessage("Link copiado");
+    } catch {
+      setToastMessage("No se ha podido copiar el link");
+    }
+    setTimeout(() => setToastMessage(null), 1400);
   }
 
   return (
@@ -33,8 +48,8 @@ export function CopyLinkButton({ link }: { link: string }) {
           <path d="M5 15V5a2 2 0 0 1 2-2h10"></path>
         </svg>
       </button>
-      <div className={`toast${showToast ? " show" : ""}`} role="status" aria-live="polite">
-        Link copiado
+      <div className={`toast${toastMessage ? " show" : ""}`} role="status" aria-live="polite">
+        {toastMessage}
       </div>
     </>
   );
