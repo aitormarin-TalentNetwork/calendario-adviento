@@ -2,43 +2,64 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { markDayViewedAction } from "@/app/c/[calendarId]/actions";
+import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC } from "@/lib/calendar-grid";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 import type { DoorInfo } from "@/lib/guest-calendar";
 
-function doorStyle(door: DoorInfo, thumbnailUrl: string | null): React.CSSProperties {
-  const base: React.CSSProperties = {
-    aspectRatio: "0.85",
-    borderRadius: "0.6rem",
-    border: "1px solid var(--accent)",
-    padding: "0.5rem",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    color: "inherit",
-    fontFamily: "inherit",
-    position: "relative",
-  };
+const WEEKDAY_INITIALS = ["L", "M", "X", "J", "V", "S", "D"];
 
+function cellStyle(door: DoorInfo): React.CSSProperties {
+  const base: React.CSSProperties = {
+    aspectRatio: "1",
+    background: "var(--bg)",
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    border: "none",
+    padding: 0,
+    fontFamily: "inherit",
+    color: "inherit",
+  };
+  if (door.isToday) {
+    base.border = "1.5px dashed var(--accent)";
+  }
   if (door.state === "locked") {
-    return { ...base, opacity: 0.5, cursor: "default", background: "transparent" };
+    return { ...base, opacity: 0.4, cursor: "default" };
   }
   if (door.state === "watched") {
+    return { ...base, cursor: "pointer" };
+  }
+  // unseen ("abierto, sin ver")
+  return { ...base, cursor: "pointer", background: "var(--day-open-bg)" };
+}
+
+function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
+  if (door.state === "watched") {
     return {
-      ...base,
-      cursor: "pointer",
-      color: thumbnailUrl ? "#fff" : "inherit",
-      background: thumbnailUrl
-        ? `linear-gradient(to top, rgba(0,0,0,0.65), rgba(0,0,0,0.1)), url("${thumbnailUrl}") center / cover`
-        : "color-mix(in srgb, var(--accent) 30%, transparent)",
+      position: "absolute",
+      bottom: "5px",
+      right: "8px",
+      fontSize: "0.82rem",
+      fontWeight: 600,
+      background: "rgba(15,24,18,0.6)",
+      // Hallazgo de auditoría, ronda 1: el color de "hoy" (--accent) tiene
+      // que aplicarse SIEMPRE, se combine con el estado que se combine —
+      // antes esta rama ignoraba `isToday` por completo, así que abrir el
+      // vídeo de hoy mismo (unseen → watched, cambio optimista) apagaba el
+      // número dorado a --paper en el propio clic.
+      color: door.isToday ? "var(--accent)" : "var(--paper)",
+      padding: "1px 6px",
+      borderRadius: "999px",
+      fontFamily: "var(--font-mono)",
     };
   }
-  // unseen
   return {
-    ...base,
-    cursor: "pointer",
-    background: "color-mix(in srgb, var(--accent) 12%, transparent)",
-    boxShadow: "0 0 0 1px var(--accent)",
+    fontFamily: "var(--font-body)",
+    fontSize: door.state === "locked" ? "1.45rem" : "1.9rem",
+    fontWeight: 800,
+    color: door.isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--text)",
   };
 }
 
@@ -48,6 +69,12 @@ function doorStyle(door: DoorInfo, thumbnailUrl: string | null): React.CSSProper
  * estado (qué puerta está abierta), pero el contenido (vídeo/mensaje de
  * cada puerta desbloqueada) ya viene resuelto en `doors` desde el
  * servidor, sin una segunda petición al abrir el modal.
+ *
+ * TAL-21 — grid rediseñado como "calendario de pared" real (design/
+ * design-system.md § "Grid de días"): filas de 7 (lunes a domingo)
+ * agrupadas por mes, cabecera de mes sticky, número grande sans-serif
+ * (`--font-body`, nunca `--font-display` — decisión explícita del Design
+ * System), fin de semana en `--berry`. El modal de vídeo no se toca.
  */
 export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: string; doors: DoorInfo[] }) {
   const [doors, setDoors] = useState(initialDoors);
@@ -107,25 +134,119 @@ export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: stri
     }
   }
 
+  const months = groupIntoMonths(doors);
+
   return (
     <>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(64px, 1fr))", gap: "0.5rem" }}>
-        {doors.map((door) => {
-          const thumbnailUrl = door.state === "watched" && door.videoUrl ? parseEmbeddableVideo(door.videoUrl)?.thumbnailUrl ?? null : null;
-          return (
-            <button
-              key={door.dateStr}
-              type="button"
-              disabled={door.state === "locked"}
-              onClick={(event) => handleOpen(door, event.currentTarget)}
-              style={doorStyle(door, thumbnailUrl)}
-            >
-              <span style={{ fontSize: "0.7rem", fontWeight: 600 }}>{door.label}</span>
-              {door.state === "locked" && <span aria-hidden="true">🔒</span>}
-              {door.isToday && <span style={{ fontSize: "0.6rem", color: "var(--accent)" }}>hoy</span>}
-            </button>
-          );
-        })}
+      <div
+        style={{
+          border: "1px solid var(--border)",
+          borderRadius: "16px",
+          boxShadow: "var(--shadow)",
+          background: "var(--bg-raised)",
+          overflow: "hidden",
+        }}
+      >
+        <div style={{ maxHeight: "70vh", overflowY: "auto", overflowX: "auto" }}>
+          {months.map((month) => (
+            <div key={month.key}>
+              <div
+                style={{
+                  position: "sticky",
+                  top: 0,
+                  zIndex: 2,
+                  background: "var(--pine)",
+                  color: "var(--paper)",
+                  fontFamily: "var(--font-display)",
+                  fontSize: "1.15rem",
+                  padding: "10px 20px",
+                }}
+              >
+                {month.label}
+              </div>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(7, minmax(64px, 1fr))",
+                  gap: "1px",
+                  background: "var(--border)",
+                  fontFamily: "var(--font-mono)",
+                  fontSize: "0.68rem",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  color: "var(--text-dim)",
+                }}
+              >
+                {WEEKDAY_INITIALS.map((initial, i) => (
+                  <span
+                    key={initial}
+                    style={{
+                      background: "var(--bg-raised)",
+                      textAlign: "center",
+                      padding: "6px 0",
+                      color: i >= 5 ? "var(--weekend-text)" : undefined,
+                      fontWeight: i >= 5 ? 700 : undefined,
+                    }}
+                  >
+                    {initial}
+                  </span>
+                ))}
+              </div>
+              {month.weeks.map((week, weekIdx) => (
+                <div
+                  key={weekIdx}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "repeat(7, minmax(64px, 1fr))",
+                    gap: "1px",
+                    background: "var(--border)",
+                  }}
+                >
+                  {week.map((door, dayIdx) => {
+                    if (!door) {
+                      return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--bg-raised)" }} />;
+                    }
+                    const date = parseDateOnlyUTC(door.dateStr);
+                    const isWeekend = isWeekendUTC(date);
+                    const dayNum = date.getUTCDate();
+                    const thumbnailUrl =
+                      door.state === "watched" && door.videoUrl
+                        ? parseEmbeddableVideo(door.videoUrl)?.thumbnailUrl ?? null
+                        : null;
+                    const style = cellStyle(door);
+                    if (door.state === "watched") {
+                      style.backgroundImage = thumbnailUrl
+                        ? `linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), url("${thumbnailUrl}")`
+                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--pine)";
+                      style.backgroundSize = "cover";
+                      style.backgroundPosition = "center";
+                    }
+                    return (
+                      <button
+                        key={door.dateStr}
+                        type="button"
+                        disabled={door.state === "locked"}
+                        aria-label={`${door.label}${door.state === "locked" ? " — bloqueado" : door.state === "watched" ? " — ya visto" : ""}`}
+                        onClick={(event) => handleOpen(door, event.currentTarget)}
+                        style={style}
+                      >
+                        <span style={numStyle(door, isWeekend)}>{dayNum}</span>
+                        {door.state === "locked" && (
+                          <span
+                            aria-hidden="true"
+                            style={{ position: "absolute", bottom: "6px", right: "8px", fontSize: "0.7rem" }}
+                          >
+                            🔒
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
       {openDoor && (

@@ -67,7 +67,7 @@ export default async function GuestCalendarPage({
   const tz = (await cookies()).get("tz")?.value;
 
   return (
-    <main style={{ flex: 1, padding: "2rem" }}>
+    <main style={{ flex: 1, padding: "2rem", maxWidth: "900px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "1.5rem" }}>
         <div>
           <h1>{calendar.coverTitle}</h1>

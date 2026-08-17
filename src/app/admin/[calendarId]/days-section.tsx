@@ -119,6 +119,15 @@ export async function DaysSection({ calendarId }: { calendarId: string }) {
   }
 
   const dayByDate = new Map(days.map((day) => [toDateInputValue(day.date), day]));
+  // TAL-21, hallazgo de auditoría ronda 2: "hoy" NO se calcula aquí en
+  // absoluto — ni con la fecha cruda del servidor (ronda 1) ni con la
+  // cookie `tz` (que, si todavía no existe en la primerísima visita,
+  // habría obligado a caer a UTC de todas formas, dejando esa primera
+  // respuesta ya mal aunque se corrigiera después). El marcado de "hoy" es
+  // puramente de cliente ahora — ver
+  // `days-grid-editor.tsx::DaysGridEditor` (`todayDateStrInTimeZone`,
+  // resuelta tras montar con la zona horaria real del navegador, que
+  // nunca depende de que ninguna cookie haya llegado).
   const dayInfos = datesInRange(startDate, endDate).map((date) => {
     const dateStr = toDateInputValue(date);
     const day = dayByDate.get(dateStr);
