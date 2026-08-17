@@ -137,8 +137,9 @@ casilla **bloqueada** (día futuro, sin abrir todavía):
   `--gold` — para que se note claramente que es un "todavía no", distinto del pop dorado
   de "primera apertura"). No abre nada, el vídeo sigue bloqueado.
 - Aparece un **letrero centrado en la pantalla** (overlay, se desvanece solo a los
-  ~2.5s o al pinchar fuera): *"Calma tu ansiedad. Te quedan **{X}** días para abrir este
-  regalo"* — X = días naturales que faltan hasta la fecha de esa casilla concreta.
+  ~2.5s o al pinchar fuera): *"¡Respira! Te quedan **{X}** días para abrir este
+  regalo"* (ajuste 2026-08-17, pedido de Aitor: "Calma tu ansiedad" → "¡Respira!") — X =
+  días naturales que faltan hasta la fecha de esa casilla concreta.
   **Concordancia singular/plural completa cuando X=1** (ajuste 2026-08-17, pedido de
   Aitor): no solo el sustantivo ("día", no "días") sino también el verbo ("Te **queda**
   1 día", no "Te quedan 1 día"). Tono cercano/con humor, no un error.
