@@ -4,10 +4,10 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { deleteCalendarAction } from "@/app/admin/actions";
 import { DaysSection } from "@/app/admin/[calendarId]/days-section";
+import { DeleteCalendarButton } from "@/app/admin/[calendarId]/delete-calendar-button";
 import { EditCalendarForm } from "@/app/admin/[calendarId]/edit-calendar-form";
 import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
 import type { SkinOption } from "@/app/admin/[calendarId]/skin-picker";
-import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
@@ -127,20 +127,18 @@ export default async function AdminCalendarPage({
 
       <GuestsSection calendarId={calendar.id} />
 
-      {/* TAL-33 — "Borrar calendario" pasa de botón fantasma en la
-          cabecera a botón rojo relleno al final de la pantalla, separado
-          por un divisor (design/design-system.md § "Editor de
-          calendario" — "Zona de peligro"). `.editor-danger-zone`
-          (globals.css) alinea el botón a la derecha en desktop y lo pone
-          a ancho completo en mobile (mejor objetivo táctil cuando queda
-          solo al final de la pantalla). */}
+      {/* TAL-33 — "Eliminar calendario" (ajuste de Aitor: antes "Borrar
+          calendario") pasa de botón fantasma en la cabecera a botón rojo
+          relleno al final de la pantalla, separado por un divisor
+          (design/design-system.md § "Editor de calendario" — "Zona de
+          peligro"). `.editor-danger-zone` (globals.css) alinea el botón a
+          la derecha en desktop y lo pone a ancho completo en mobile
+          (mejor objetivo táctil cuando queda solo al final de la
+          pantalla). Confirmación mediante diálogo propio, no
+          `window.confirm()` — ver `delete-calendar-button.tsx`. */}
       <div className="editor-danger-zone">
         <form action={deleteCalendarAction.bind(null, calendar.id)}>
-          <ConfirmSubmitButton
-            label="Borrar calendario"
-            confirmText={`¿Seguro que quieres borrar "${calendar.name}"? Esto borra también sus días, invitaciones y membresías — no se puede deshacer.`}
-            variant="danger"
-          />
+          <DeleteCalendarButton calendarName={calendar.name} />
         </form>
       </div>
     </main>

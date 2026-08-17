@@ -189,7 +189,11 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
           />
         </div>
         <div className="editor-field">
-          <label>Icono de portada</label>
+          {/* Ajuste del PM (post-TAL-33): "Icono de portada" → "Selecciona
+              un icono" — el icono deja de ser una etiqueta pasiva junto a
+              un botón "Cambiar icono" aparte; ahora describe la acción
+              directa sobre el propio icono clicable (ver `CoverIconPicker`). */}
+          <label>Selecciona un icono</label>
           <CoverIconPicker
             value={fieldValues.coverIcon}
             onChange={(icon) => setField("coverIcon", icon)}

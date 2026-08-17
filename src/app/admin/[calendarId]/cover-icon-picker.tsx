@@ -14,8 +14,19 @@ type CoverIconPickerProps = {
  * (`design/design-system.md` § "Selector de icono de portada (Admin)"),
  * fuente `design/propuesta-skins.html` (contenido de la galería) +
  * `design/propuesta-editor-calendario.html` (dónde vive: ya NO va
- * siempre visible en la página — solo el icono elegido + un botón
- * "Cambiar icono" que abre un diálogo con la galería completa).
+ * siempre visible en la página — solo el icono elegido, que abre un
+ * diálogo con la galería completa).
+ *
+ * Ajustes de Aitor (post-TAL-33, ya con Done): el propio icono pasa a ser
+ * el elemento clicable — se quita el botón de texto "Cambiar icono" aparte
+ * (redundante: dos disparadores para la misma acción). El icono ya era un
+ * `<div>` con las medidas/fondo del "swatch"; ahora es directamente el
+ * `<button>` que abre el diálogo (`.cover-icon-trigger`, `globals.css` —
+ * hover/focus con borde `--gold`, mismo criterio ya establecido para el
+ * resto de elementos clicables del sistema, p. ej. `.skin-swatch` TAL-37).
+ * Fondo del icono ahora transparente (antes `--paper-2`/`--pine-2`
+ * relleno) — sin la casilla rellena, solo el borde `--gold` en hover/foco
+ * indica que es clicable.
  *
  * Patrón de diálogo (abrir/cerrar con Escape, foco inicial en el botón
  * de cerrar, foco devuelto al disparador al cerrar) — mismo ya
@@ -67,43 +78,28 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
 
   return (
     <>
-      <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-        <div
-          style={{
-            width: "44px",
-            height: "44px",
-            borderRadius: "11px",
-            background: "var(--paper-2)",
-            border: "1px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "1.4rem",
-            flexShrink: 0,
-          }}
-        >
-          {value}
-        </div>
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={openDialog}
-          disabled={disabled}
-          style={{
-            fontFamily: "var(--font-body)",
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            padding: "8px 16px",
-            borderRadius: "999px",
-            border: "1px solid var(--border)",
-            background: "var(--bg-raised)",
-            color: "var(--text)",
-            cursor: disabled ? "default" : "pointer",
-          }}
-        >
-          Cambiar icono
-        </button>
-      </div>
+      <button
+        ref={triggerRef}
+        type="button"
+        className="cover-icon-trigger"
+        onClick={openDialog}
+        disabled={disabled}
+        aria-label="Selecciona un icono"
+        title="Selecciona un icono"
+        style={{
+          width: "44px",
+          height: "44px",
+          borderRadius: "11px",
+          background: "transparent",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "1.4rem",
+          flexShrink: 0,
+        }}
+      >
+        {value}
+      </button>
 
       {open && (
         <div

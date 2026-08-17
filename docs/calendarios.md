@@ -947,6 +947,69 @@ igual que antes en ambos casos.
 `npx eslint .`/`npx tsc --noEmit` limpios. `AGENTS.md` intacto. No toca
 Convex — cambio puramente de presentación, un solo componente.
 
+## 4 ajustes de Aitor sobre el editor de calendario (TAL-33, ya Done)
+
+Ajustes pequeños pedidos directamente por Aitor tras cerrarse la tanda del
+editor, en dos mensajes seguidos del mismo ciclo (el PM confirmó que 3 de
+los 4 no necesitan ronda completa de auditoría; el cuarto —el diálogo de
+eliminar— sí, por tocar un flujo destructivo real; se exportan los 4
+juntos en un solo ciclo).
+
+1. **Icono de portada clicable directamente** — se quita el botón de texto
+   "Cambiar icono" aparte (redundante con el propio icono); el icono
+   (`CoverIconPicker`) pasa a ser él mismo el `<button>` que abre el
+   diálogo de galería, sin lógica nueva (mismo diálogo de siempre). Nueva
+   clase `.cover-icon-trigger` (`globals.css`) para `:hover`/`:focus-
+   visible` con borde `--gold` — mismo criterio que `.skin-swatch`
+   (TAL-37), que un `style` inline de React no puede expresar.
+2. **Fondo del icono, transparente** — antes relleno (`--paper-2`/
+   `--pine-2`); ahora solo el borde `--gold` en hover/foco indica que es
+   clicable, sin casilla rellena de fondo.
+3. **Etiqueta**: "Icono de portada" → "Selecciona un icono" (describe la
+   acción directa sobre el icono, ya no una etiqueta pasiva junto a un
+   botón separado).
+4. **"Borrar calendario" → "Eliminar calendario", con diálogo real en vez
+   de `window.confirm()`** — nuevo `delete-calendar-button.tsx`,
+   deliberadamente un componente propio de esta pantalla (no un cambio al
+   `ConfirmSubmitButton` compartido, que sigue usando `guests-section.tsx`
+   para "Borrar por completo" de un invitado — fuera de alcance de este
+   ajuste, no tocado). Reutiliza el mismo patrón de diálogo ya montado dos
+   veces en esta misma carpeta (`cover-icon-picker.tsx`, `days-grid-
+   editor.tsx`): foco inicial dentro del diálogo — aquí en "Cancelar", la
+   opción segura, no en el botón rojo, para que un Intro reflejo al abrir
+   no confirme el borrado por accidente —, Escape cierra, clic en el fondo
+   cierra, foco devuelto al disparador al cerrar. Contenido: `¿Eliminar
+   "{nombre}"?` + aviso de que se borran también días/vídeos/invitados y
+   que no se puede deshacer + dos botones ("Sí, eliminar calendario" en
+   rojo / "Cancelar").
+
+**Nota sobre las fuentes de diseño:** tanto este mensaje como el anterior
+(icono clicable) afirmaban que `design/design-system.md` y el mockup ya
+estaban actualizados con el detalle exacto — comprobado en ambos casos que
+NO era así en el momento de implementar (ni la sección "Selector de icono
+de portada" ni "Editor de calendario" mencionaban estos ajustes). No fue
+bloqueante porque las instrucciones directas ya eran lo bastante concretas
+para implementar sin ambigüedad, pero se avisó de la discrepancia en vez
+de asumir en silencio que sí estaban actualizadas.
+
+**Evidencia:** verificado en navegador real (super-admin, calendario de
+prueba creado y borrado en la propia verificación). Confirmado: la
+etiqueta dice "Selecciona un icono"; el icono no tiene fondo relleno
+(zoom visual); un solo clic en el icono abre el diálogo de galería (sin
+botón aparte); el botón dice "Eliminar calendario"; al pulsarlo se abre un
+diálogo propio (no un `confirm()` del navegador) con el texto exacto
+pedido; el foco inicial cae en "Cancelar" (confirmado con
+`document.activeElement`); Escape cierra el diálogo y devuelve el foco al
+botón que lo abrió (confirmado también); el flujo completo de eliminar
+(clic en "Sí, eliminar calendario") borra de verdad el calendario —
+confirmado tanto por la redirección a `/admin` como directamente contra
+Convex (`npx convex data calendars`, ya no aparece).
+
+`npx eslint .`/`npx tsc --noEmit` limpios. `AGENTS.md` intacto. No toca
+Convex — los 4 ajustes son puramente de presentación (el borrado en sí ya
+existía, `deleteCalendarAction`/`deleteCalendarAsUserHandler` sin cambios,
+solo cambia cómo se pide confirmación en el cliente).
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
