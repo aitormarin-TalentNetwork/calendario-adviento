@@ -917,6 +917,36 @@ de la misma forma que en la ronda 1 antes de comitear el fix real.
 `npx eslint .`/`npx tsc --noEmit`/`npx convex dev --once --typecheck=enable`
 limpios (ronda 1 y ronda 2); `AGENTS.md` intacto.
 
+## Fallo sin manejar en el botón de copiar link (fix pequeño, sin ticket de Linear)
+
+Hallazgo del auditor durante TAL-35 (no bloqueante en su momento, apuntado
+para más adelante): `navigator.clipboard.writeText()` en `copy-link-
+button.tsx` no tenía `catch` — si la promesa rechazaba (permiso de
+portapapeles denegado, contexto no seguro, navegador sin soporte de la
+API), el clic no hacía NADA visible: ni el toast de éxito (correcto, no
+llegó a copiarse) ni ningún aviso de que había fallado — un fallo
+completamente silencioso.
+
+**Fix:** `try`/`catch` alrededor de la llamada. `showToast: boolean` pasa
+a `toastMessage: string | null` — mismo mecanismo de aparecer/desaparecer
+que antes, pero guardando también qué texto mostrar: "Link copiado" en
+éxito, "No se ha podido copiar el link" en fallo. Sin cambios de
+comportamiento en el camino feliz.
+
+**Evidencia:** verificado en navegador real. Camino feliz: clic real en
+el botón, confirmado contra el portapapeles del sistema operativo
+(`pbpaste`, fuera del navegador) que el link se copió correctamente —
+antes y después del cambio, sin diferencia. Camino de fallo: sustituido
+temporalmente `navigator.clipboard.writeText` por una función que rechaza
+siempre (vía consola del navegador, no toca código de producto), clic en
+el botón, confirmado que el toast muestra "No se ha podido copiar el
+link" — antes de este fix, ese mismo escenario no mostraba nada en
+absoluto. Auto-ocultado del toast tras el tiempo de espera confirmado
+igual que antes en ambos casos.
+
+`npx eslint .`/`npx tsc --noEmit` limpios. `AGENTS.md` intacto. No toca
+Convex — cambio puramente de presentación, un solo componente.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
