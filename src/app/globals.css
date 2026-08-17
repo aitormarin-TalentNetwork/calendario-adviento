@@ -52,6 +52,14 @@
      criterio que --gold/--gold-2) para mantener contraste sobre fondo
      oscuro. */
   --weekend-text: var(--berry);
+  /* TAL-35 — mismo criterio que --day-open-bg: fondo "panel sutil" que
+     cambia de --paper-2 (claro) a --pine-2 (oscuro), aquí para la fila del
+     link de invitación y el hover del botón de copiar (design/propuesta-
+     editor-calendario.html § .invite-link-row/.btn-icon:hover). Token
+     propio en vez de reutilizar --day-open-bg (que es del grid de días,
+     un concepto distinto) o --bg-sunken (semántico pero de un tono
+     distinto, casi negro en oscuro). */
+  --invite-link-bg: var(--paper-2);
 
   /* --- Tipografía (design-system.md § Tokens > Tipografía) --- */
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
@@ -107,6 +115,7 @@
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
     --day-open-bg: var(--pine-2);
     --weekend-text: var(--berry-2);
+    --invite-link-bg: var(--pine-2);
   }
 }
 
@@ -129,6 +138,7 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
   --day-open-bg: var(--pine-2);
   --weekend-text: var(--berry-2);
+  --invite-link-bg: var(--pine-2);
 }
 
 html {
@@ -312,4 +322,105 @@ a {
   .editor-danger-zone button {
     width: 100%;
   }
+}
+
+/* TAL-35 — link de invitación único (design/design-system.md § "Invitados
+   — link de invitación único", design/propuesta-editor-calendario.html
+   `.invite-link-row`/`.btn-icon`/`.toast`). Necesitan `@media` (mobile:
+   la fila se envuelve, la URL pasa a ocupar el ancho completo con
+   elipsis) y `:hover`, que un `style` inline de React no puede expresar
+   — mismo motivo que el resto de bloques de esta hoja. */
+.invite-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--invite-link-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.invite-link-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.invite-link-url {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.copy-icon-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.copy-icon-button:hover {
+  background: var(--invite-link-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.copy-icon-button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.copy-icon-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+@media (max-width: 640px) {
+  .invite-link-row {
+    flex-wrap: wrap;
+  }
+
+  .invite-link-url {
+    flex-basis: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Confirmación de copiado — pastilla flotante breve, sustituye el cambio
+   de texto en el propio botón que tenía la versión anterior (ya sin
+   `alert()`, pero tampoco un toast real todavía). */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background: var(--pine);
+  color: var(--paper);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 30;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-6px);
 }
