@@ -140,7 +140,7 @@ export const createCalendar = internalMutation({
 });
 ```
 
-**Pregunta abierta: ¿dónde vive "pine" es el skin por defecto?** La
+**Pregunta abierta: ¿dónde vive "pino" es el skin por defecto?** La
 versión Prisma lo resuelve dentro de `defaultSkin()` (parte de la propia
 capa de datos, el llamador no necesita saberlo). El `createCalendar` de
 TAL-9 exige `skinId` como argumento obligatorio — asume que quien llama
@@ -148,7 +148,7 @@ ya lo resolvió. Para que la Server Action de creación siga siendo tan
 simple como hoy (un único botón "+ Nuevo calendario", sin selector de
 skin en ese paso), lo natural es mantener la resolución de default
 DENTRO de Convex (`resolveDefaultSkinId`, arriba, pseudocódigo — busca
-por índice `by_key` la clave `"pine"`, si no existe cae a la primera fila
+por índice `by_key` la clave `"pino"`, si no existe cae a la primera fila
 de `skins`), no en Next.js — mismo criterio que el resto del dominio de
 fechas/validación ya vive en `convex/dates.ts` y no en la Server Action.
 No es una decisión cerrada, solo la que encaja mejor con dónde TAL-9 ya
@@ -355,7 +355,7 @@ Antes de escribir código de verdad:
 4. Escribir `deleteCalendar` con el borrado en cascada manual completo
    (días, dayViews, memberships, invitations) — TAL-9 ya avisó de este
    hueco, aquí queda el primer intento de pseudocódigo concreto.
-5. Decidir dónde vive la resolución del skin por defecto ("pine") —
+5. Decidir dónde vive la resolución del skin por defecto ("pino") —
    dentro de Convex (recomendado, sugerido arriba) o resuelta por Next.js
    antes de llamar.
 6. Verificar contra el deployment real, antes de dar nada por bueno, lo
