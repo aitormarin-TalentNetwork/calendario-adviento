@@ -8,6 +8,15 @@ type SkinSeed = {
   description?: string;
   background: string;
   accent: string;
+  // TAL-47 — color del texto (título/número/marcador) para este skin. En
+  // los 6 skins con `textPill: true` es el color del texto QUE VA ENCIMA
+  // de la píldora de fondo, no un color plano directo sobre el degradado
+  // — ver el comentario de `textPill` más abajo y en `convex/schema.ts`.
+  textColor: string;
+  // Solo `true` en los 6 skins cuyo rango de degradado/rayas es
+  // demasiado amplio para un `textColor` plano — omitido (`undefined`,
+  // igual que `description` cuando no aplica) en los otros 18.
+  textPill?: boolean;
 };
 
 // Equivalente al seed idempotente de prisma/seed.ts (upsert por `key`).
@@ -36,6 +45,14 @@ async function upsertSkinHandler(ctx: MutationCtx, args: SkinSeed) {
       description: args.description,
       background: args.background,
       accent: args.accent,
+      // TAL-47 — mismo criterio que el resto de campos de color: el
+      // patch actualiza SIEMPRE los 24 (incluido `textPill`, que en los
+      // 18 sin píldora llega `undefined` desde `SKIN_CATALOG` — patchear
+      // con `undefined` borra el campo si una fila lo tuviera puesto de
+      // antes, mismo comportamiento que ya usa este handler para
+      // `description`).
+      textColor: args.textColor,
+      textPill: args.textPill,
     });
     return existing._id;
   }
@@ -49,6 +66,8 @@ export const createSkin = internalMutation({
     description: v.optional(v.string()),
     background: v.string(),
     accent: v.string(),
+    textColor: v.string(),
+    textPill: v.optional(v.boolean()),
   },
   handler: upsertSkinHandler,
 });
@@ -183,6 +202,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "El clásico del MVP — degradado cálido de oro, elegante y luminoso.",
     background: "linear-gradient(160deg, #c99a3d 0%, #e3bb63 100%)",
     accent: "#1b3a2f",
+    textColor: "#16211c",
   },
   {
     key: "grosella",
@@ -190,6 +210,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "El clásico del MVP — rojo grosella profundo con acento dorado.",
     background: "linear-gradient(160deg, #8c2f39 0%, #4a1319 100%)",
     accent: "#c99a3d",
+    textColor: "#ffffff",
   },
   {
     key: "medianoche",
@@ -197,6 +218,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "El clásico del MVP — pine casi negro, sobrio y nocturno.",
     background: "linear-gradient(160deg, #0f1e17 0%, #1b3a2f 100%)",
     accent: "#e3bb63",
+    textColor: "#ffffff",
   },
   {
     key: "pino",
@@ -204,6 +226,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "El clásico del MVP — verde pino natural con acento dorado.",
     background: "linear-gradient(160deg, #234a3b 0%, #1b3a2f 100%)",
     accent: "#c99a3d",
+    textColor: "#ffffff",
   },
 
   // --- 18 nuevos — valores CSS literales de design/propuesta-skins.html. ---
@@ -214,6 +237,13 @@ const SKIN_CATALOG: SkinSeed[] = [
     background:
       "radial-gradient(ellipse at 30% 20%, rgba(201,154,61,0.25), transparent 55%), linear-gradient(160deg, #4a1319 0%, #1b3a2f 100%)",
     accent: "#c99a3d",
+    // TAL-47 — uno de los 6 "difíciles": el degradado va de rojo oscuro a
+    // un dorado medio que ningún color plano (blanco ni --ink) cubre con
+    // AA en todo el rango (mejor caso mecánico: blanco, 2.57:1 — por
+    // debajo de 4.5:1, ver comentario de `textPill` en `schema.ts`).
+    // Píldora de fondo detrás del texto en vez de plano.
+    textColor: "#f6f1e4",
+    textPill: true,
   },
   {
     key: "nieve",
@@ -221,6 +251,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Invierno genérico y luminoso, no depende de la Navidad en concreto.",
     background: "linear-gradient(160deg, #cfe3ee 0%, #eef5f8 55%, #ffffff 100%)",
     accent: "#4a7f9c",
+    textColor: "#16211c",
   },
   {
     key: "confeti",
@@ -229,6 +260,11 @@ const SKIN_CATALOG: SkinSeed[] = [
     background:
       "conic-gradient(from 0deg at 20% 15%, #f2a6d8 0deg 40deg, #7c5cbf 40deg 80deg, #f4805c 80deg 120deg, #7c5cbf 120deg 160deg, #f4c542 160deg 200deg, #7c5cbf 200deg 240deg, #f2a6d8 240deg 280deg, #7c5cbf 280deg 320deg, #f4805c 320deg 360deg), #7c5cbf",
     accent: "#f4c542",
+    // TAL-47 — uno de los 6 "difíciles": multicolor, el stop dorado
+    // #f4c542 rompe cualquier color plano (mejor caso mecánico: --ink,
+    // 3.26:1). Píldora de fondo.
+    textColor: "#f6f1e4",
+    textPill: true,
   },
   {
     key: "dorado-real",
@@ -236,6 +272,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Negro + oro foil, elegante — bodas, aniversarios de empresa, gala.",
     background: "linear-gradient(160deg, #0c0c0c 0%, #1a1512 100%)",
     accent: "#e3bb63",
+    textColor: "#ffffff",
   },
   {
     key: "bosque-nordico",
@@ -243,6 +280,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Acogedor y artesanal, tipo papel/madera — para algo íntimo (familia, amigos).",
     background: "linear-gradient(160deg, #e7e0cf 0%, #d8cdaf 100%)",
     accent: "#a9714a",
+    textColor: "#16211c",
   },
   {
     key: "neon-fiesta",
@@ -250,6 +288,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Moderno y gamberro — Fin de Año, cumpleaños de equipo, energía y color.",
     background: "linear-gradient(160deg, #0d0221 0%, #1a0b3d 100%)",
     accent: "#ff2e88",
+    textColor: "#ffffff",
   },
   {
     // Genérico, sin personajes con copyright (marca registrada — ver
@@ -259,6 +298,11 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Cómic clásico — contorno grueso, tramado de puntos, colores primarios.",
     background: "radial-gradient(circle, #1a1a1a 1.2px, transparent 1.2px) 0 0 / 10px 10px, #ffd23f",
     accent: "#e63946",
+    // TAL-47 — uno de los 6 "difíciles": fondo amarillo #ffd23f casi puro,
+    // el peor caso del catálogo entero para un color plano (mejor caso
+    // mecánico: blanco, 1.44:1). Píldora de fondo.
+    textColor: "#f6f1e4",
+    textPill: true,
   },
   {
     key: "enamorados",
@@ -267,6 +311,11 @@ const SKIN_CATALOG: SkinSeed[] = [
     background:
       "radial-gradient(ellipse at 70% 20%, rgba(255,255,255,0.3), transparent 55%), linear-gradient(160deg, #d94f6b 0%, #f7c9d4 100%)",
     accent: "#8c2f39",
+    // TAL-47 — uno de los 6 "difíciles": el overlay blanco radial hace que
+    // una zona del fondo llegue casi a blanco puro, justo por debajo de
+    // AA con --ink (mejor caso mecánico: 4.16:1). Píldora de fondo.
+    textColor: "#f6f1e4",
+    textPill: true,
   },
   {
     // Genérico, sin branding de ninguna serie concreta.
@@ -275,6 +324,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Humor de oficina genérico — tonos caqui/beige, sin branding de ninguna serie.",
     background: "linear-gradient(160deg, #d9d2bd 0%, #b9ae90 100%)",
     accent: "#a89b74",
+    textColor: "#16211c",
   },
   {
     // Genérico, sin ningún personaje con copyright.
@@ -283,6 +333,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Energético, colores primarios de cómic de acción — sin personajes protegidos.",
     background: "linear-gradient(160deg, #1a3ba8 0%, #0b1b4a 100%)",
     accent: "#ffd23f",
+    textColor: "#ffffff",
   },
   {
     key: "bebe",
@@ -290,6 +341,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Primer año, cuenta atrás de embarazo, baby shower — pasteles muy suaves.",
     background: "linear-gradient(160deg, #dff0f7 0%, #fde7ef 100%)",
     accent: "#aed9e8",
+    textColor: "#16211c",
   },
   {
     key: "adolescente",
@@ -297,6 +349,11 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Degradado atrevido tipo Y2K/sticker — para quinceañeras, cumpleaños de instituto.",
     background: "linear-gradient(150deg, #6d28d9 0%, #db2777 55%, #f97316 100%)",
     accent: "#f97316",
+    // TAL-47 — uno de los 6 "difíciles": morado→rosa→naranja, ningún
+    // extremo simple sirve para todo el rango (mejor caso mecánico:
+    // blanco, 2.80:1). Píldora de fondo.
+    textColor: "#f6f1e4",
+    textPill: true,
   },
   {
     key: "memorias-de-familia",
@@ -304,6 +361,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Tonos cálidos de álbum de fotos antiguo — para recuerdos compartidos.",
     background: "linear-gradient(160deg, #e8dcc4 0%, #c9b78f 100%)",
     accent: "#c9b78f",
+    textColor: "#16211c",
   },
   {
     key: "amigas",
@@ -311,6 +369,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Colorido y desenfadado — despedidas, viajes de amigas, cumpleaños de grupo.",
     background: "linear-gradient(135deg, #ffb3c6 0%, #c9a7f5 50%, #a0e7d4 100%)",
     accent: "#c9a7f5",
+    textColor: "#16211c",
   },
   {
     key: "kpop",
@@ -318,6 +377,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Degradado holográfico tipo photocard — sin logos ni imágenes de grupos concretos.",
     background: "linear-gradient(120deg, #ff9ecf 0%, #b19cff 30%, #7ee8fa 60%, #ffd1ff 100%)",
     accent: "#b19cff",
+    textColor: "#16211c",
   },
   {
     key: "gotico",
@@ -325,6 +385,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Oscuro y dramático — para quien quiere algo bien distinto de festivo alegre.",
     background: "linear-gradient(160deg, #0a0a0c 0%, #1c1622 100%)",
     accent: "#8c2f39",
+    textColor: "#ffffff",
   },
   {
     // Genérico, sin logos de liga ni equipo concreto.
@@ -333,6 +394,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Colores de cancha (naranja/negro/blanco) — sin logos de liga ni equipo.",
     background: "linear-gradient(160deg, #b3541e 0%, #7a3610 100%)",
     accent: "#1a1a1a",
+    textColor: "#ffffff",
   },
   {
     // Genérico ("colores azulgrana genéricos, no escudo/nombre del
@@ -342,6 +404,7 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Rayas de colores de equipo, sin escudo ni nombre de club — inspirado libremente.",
     background: "repeating-linear-gradient(90deg, #1a2a6c 0 22px, #8c2f39 22px 44px)",
     accent: "#8c2f39",
+    textColor: "#ffffff",
   },
 
   // --- Skin #23 — pedido explícito de Aitor (TAL-38, 2026-08-17), fuera
@@ -365,25 +428,25 @@ const SKIN_CATALOG: SkinSeed[] = [
       "Colores vivos de cómic clásico — rojo, azul y amarillo con contorno negro, sobre fondo claro. Pensado para combinar con una foto de portada propia.",
     background: "linear-gradient(160deg, #fdf8ec 0%, #ffffff 100%)",
     accent: "#e63946",
+    textColor: "#1a1a1a",
   },
 
   // --- Skin #24 — pedido explícito de Aitor (TAL-48, 2026-08-17). Rayas
   // rojo/blanco tipo camiseta de fútbol — misma regla dura de marcas que
   // el resto del catálogo (colores genéricos inspirados libremente, sin
   // nombre de club/ciudad/escudo/liga concreta), mismo criterio ya
-  // aplicado a "Fútbol" arriba. Sin `textColor`: este skin entra en el
-  // grupo de "difíciles" del catálogo de TAL-47 (rayas alternas, ningún
-  // color de texto plano funciona sobre las dos a la vez) — lleva
-  // tratamiento de "píldora de fondo" en vez de `textColor`, que
-  // construye T1 como parte de TAL-47 (coordinado con la Directora antes
-  // de sembrar esta fila, 2026-08-17 — el campo `textColor` en sí todavía
-  // no existe en el schema en el momento de este commit).
+  // aplicado a "Fútbol" arriba. `textColor`/`textPill` añadidos por T1
+  // (TAL-47) tras merge: rayas alternas, ningún color de texto plano
+  // funciona sobre las dos a la vez — mismo tratamiento de píldora que
+  // los otros 5 "difíciles" del catálogo.
   {
     key: "rojiblanco",
     name: "Rojiblanco",
     description: "Rayas verticales de camiseta de fútbol clásica, rojo y blanco — sin escudo ni nombre de equipo.",
     background: "repeating-linear-gradient(90deg, #d61f26 0 20px, #ffffff 20px 40px)",
     accent: "#1a1a1a",
+    textColor: "#f6f1e4",
+    textPill: true,
   },
 ];
 

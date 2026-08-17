@@ -213,3 +213,85 @@ a `#ffffff` puro) — corregido con una capa de oscurecimiento uniforme
 texto blanco; verificado en navegador real con "Nieve" y "Neón Fiesta".
 Detalle completo del fix y de la verificación en `docs/dias.md` §
 "Corrección de auditoría, ronda 1".
+
+## Actualización — TAL-47 (`textColor`/`textPill`, reemplaza la capa oscura + `text-shadow`)
+
+Tras probar en real, Aitor pidió reemplazar de raíz la capa de
+oscurecimiento uniforme (`coverBackgroundCss`, TAL-24 arriba) — "apagaba
+demasiado" los colores del skin al cubrir ahora toda la pantalla (TAL-47
+núcleo), no solo la cabecera de portada. Decisión final: **color de texto
+como campo nativo del skin**, decidido a mano al mismo tiempo que
+`background`/`accent` (nunca calculado en tiempo real parseando el
+`background`, que puede ser un `conic-gradient` de 6 paradas). Sin capa
+oscura, sin `text-shadow`, para los skins donde un color plano basta.
+
+**Campos nuevos** (mismo criterio `v.optional`/secuencia segura que
+`background`/`accent`, ver "Migración segura" más arriba — aplica igual
+aquí, un deployment con filas previas a esta tarea, incluida producción
+sin re-sembrar tras TAL-43, no tiene `textColor` todavía):
+
+- **`textColor`** (`v.string()`): color de texto del skin. En los 6 skins
+  con `textPill: true`, es el color del texto QUE VA ENCIMA de la
+  píldora, no un color plano directo sobre el degradado.
+- **`textPill`** (`v.boolean()`, opcional, solo `true` en 6 de 24): marca
+  los skins cuyo rango de degradado/rayas es demasiado amplio para que un
+  único `textColor` plano garantice AA en todo el fondo — llevan una
+  píldora de fondo semitransparente detrás del texto en vez de color
+  plano directo. `rgba(15,24,18,0.7)` — **no 0.6** (la píldora de "visto"
+  del grid, la referencia original del brief de Linear): ver "Hallazgo
+  real" más abajo para el porqué del ajuste.
+
+**18 skins — `textColor` plano**: valores validados por Aitor en Linear
+(TAL-47), a partir de un cálculo mecánico de contraste que hizo la
+Directora (peor parada del degradado contra blanco/`--ink` candidatos) —
+re-verificados aquí contra el DEPLOYMENT REAL (no solo el código fuente)
+con `scripts/verify-tal47-textcolor-wcag.mjs`, salida completa en
+`docs/evidence/tal47-textcolor-wcag-output.txt`. Los 18: dorado→`#16211c`,
+grosella→`#ffffff`, medianoche→`#ffffff`, pino→`#ffffff`, nieve→`#16211c`,
+dorado-real→`#ffffff`, bosque-nordico→`#16211c`, neon-fiesta→`#ffffff`,
+oficina→`#16211c`, superheroe→`#ffffff`, bebe→`#16211c`,
+memorias-de-familia→`#16211c`, amigas→`#16211c`, kpop→`#16211c`,
+gotico→`#ffffff`, baloncesto→`#ffffff`, futbol→`#ffffff`,
+tira-comica→`#1a1a1a`.
+
+**6 skins — píldora de fondo**: nochebuena, confeti, historieta,
+enamorados, adolescente (degradados/overlays donde ninguna parada
+plana cubre todo el rango con AA, según el mismo cálculo mecánico de la
+Directora) y rojiblanco (TAL-48, rayas verticales — añadido después,
+mismo motivo). Los 6 llevan `textColor: "#f6f1e4"` (el token `--paper`)
+encima de la píldora.
+
+**Hallazgo real durante la verificación** (no solo teórico —
+`scripts/verify-tal47-textcolor-wcag.mjs` compone la píldora sobre CADA
+parada real del `background`, no solo la asume "suficientemente oscura"):
+con la píldora al 0.6 de opacidad (el valor original del brief, tomado de
+la píldora de "visto" del grid), "rojiblanco" fallaba AA en su parada
+blanca pura (`#ffffff`): el compuesto resultante es `rgb(111,116,113)`
+—un gris medio, no lo bastante oscuro para que `#f6f1e4` alcance 4.5:1
+encima (dio 4.20:1). Motivo: 0.6 de opacidad sobre NEGRO solo llega a
+gris medio cuando el fondo de partida es blanco puro — muy distinto del
+caso "visto" del grid, donde el fondo de partida siempre es un fotograma
+de vídeo con brillo variable, nunca garantizado blanco puro. Subida la
+opacidad de la píldora a **0.7** (probado contra los 6 skins con
+píldora): "rojiblanco" pasa con margen (5.96:1 en su parada blanca) y los
+otros 5 mejoran su margen igual (todos partían ya con margen de sobra a
+0.6). `textColor` se mantiene igual (`#f6f1e4`) en los 6 — solo cambió la
+opacidad de la píldora.
+
+**Verificado** (`scripts/verify-tal47-textcolor-wcag.mjs`, salida
+completa en `docs/evidence/tal47-textcolor-wcag-output.txt`): las 24
+filas del catálogo, leídas del deployment real tras sembrar, pasan WCAG
+AA (≥4.5:1) en el peor caso real de su degradado/rayas — plano contra
+cada parada hex extraída del `background`, o píldora (composición alfa
+real de `rgba(15,24,18,0.7)` sobre cada parada) para las 6 marcadas. El
+script no necesita limpieza (solo lee tras sembrar, sin datos de prueba
+que borrar). `npx tsc --noEmit`/`npx eslint` limpios.
+
+**Qué NO toca esta ronda**: ningún componente de frontend todavía lee
+`textColor`/`textPill` — la capa de oscurecimiento + `text-shadow` de
+TAL-24 sigue aplicándose tal cual en portada/cabecera de mes/modal/fondo
+de pantalla completa. Aplicar los campos nuevos de verdad (sustituyendo
+esa capa) es la siguiente ronda de TAL-47, sobre este mismo catálogo ya
+sembrado. Tampoco toca producción — mismo criterio que TAL-43: diseñado y
+verificado contra el deployment de dev de esta terminal, la re-siembra
+real de producción la decide y ejecuta la Directora con el CEO.
