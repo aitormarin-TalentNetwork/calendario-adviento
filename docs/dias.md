@@ -490,3 +490,91 @@ La ronda 1 llevó texto blanco + `text-shadow` directamente sobre
    vistas (Invitado y editor de Admin), y el borde de acento del modal
    de vídeo visible alrededor del `<iframe>` (sin tocarlo) al abrir un
    día con vídeo asignado.
+
+## Mes completo sin huecos, vista de Invitado (TAL-31)
+
+Pedido explícito de Aitor: cuando el calendario empieza un día que no es
+el 1 del mes (o termina antes del último), esa parte del mes fuera de
+rango aparecía en blanco. El mes tiene que verse siempre completo,
+numerado desde el 1, sin casillas vacías dentro del propio mes.
+
+- **`src/lib/calendar-grid.ts`**: `groupIntoMonths` distinguía solo dos
+  casos (`T | null`) — un día real, o `null` para CUALQUIER celda sin
+  dato, sin diferenciar "relleno de alineación de semana, fuera del
+  propio mes" de "día real del mes, pero fuera de `[startDate, endDate]`
+  del calendario". Ahora `MonthGroup<T>` usa un tipo discriminado,
+  `MonthCell<T>`, con tres casos explícitos: `item` (día real, dentro del
+  rango), `out-of-range` (día real del mes — 1..fin de mes — pero fuera
+  del rango configurado; lleva `dateStr`/`dayNum` para poder numerarlo) y
+  `padding` (relleno de alineación de semana, sigue en blanco sin
+  numerar, sin cambios respecto a antes).
+- **`door-grid.tsx` (vista de Invitado, único alcance de este ticket)**:
+  las celdas `out-of-range` se numeran con un estilo "marca de agua"
+  (número grande, `opacity: 0.15`, sin candado, sin fondo de estado, sin
+  `onClick` — es un `<div>`, no un `<button>`) — deliberadamente distinto
+  del estado "bloqueado" (que sí es interactivo, un día real dentro del
+  rango pero en el futuro).
+- **`days-grid-editor.tsx` (editor de Admin) — fuera de alcance a
+  propósito**: el ticket lo deja a criterio de quien lo lleve y lo
+  encuadra como cambio de la vista de Invitado; para no ampliar el
+  alcance sin que lo pida el PM, las celdas `out-of-range` se tratan
+  igual que `padding` en el editor de Admin (en blanco, comportamiento
+  idéntico al de antes de este ticket) — el tipo compartido obliga a
+  tocar ese fichero para que siga compilando, pero el comportamiento
+  visual de Admin no cambia.
+- **"Hoy" más destacado**: borde más grueso (2px, antes 1.5px, sigue en
+  `var(--accent)`, sensible al skin) + fondo sutil nuevo, `boxShadow`
+  inset con `color-mix(in srgb, var(--gold) 10%, transparent)` — un
+  token fijo (no `--accent`) a propósito: "hoy" es una marca universal
+  que no depende del skin elegido, a diferencia del borde. `boxShadow`
+  en vez de `background`/`backgroundImage`: la celda de "hoy" puede
+  combinar con cualquier otro estado (abierto, bloqueado,
+  visto-con-miniatura) que ya ocupa esas dos propiedades — el box-shadow
+  se pinta como capa aparte encima, sin pisarlas. (Valores ajustados dos
+  veces sobre la marcha: primero a partir de lo pedido directamente por
+  la Directora antes de que existiera un documento commiteado, después
+  al 10%/2px exactos en cuanto `design-system.md` se comiteó de verdad —
+  ver más abajo.)
+
+## Grid de días sin scroll horizontal en mobile (TAL-36)
+
+`design-system.md` § "Responsive / Mobile" (comiteado 2026-08-17, PM) es
+categórico sobre el grid de días: "mantiene siempre 7 columnas en
+cualquier ancho — nunca colapsa a menos columnas. Lo que se reduce es
+tipografía/padding de cada casilla, no la estructura." — es decir, el
+grid NO puede recurrir a scroll horizontal como salida de emergencia en
+estrecho (a diferencia de las tablas, que sí lo tienen permitido
+explícitamente en el mismo documento): un calendario de pared real se
+lee de un vistazo, la semana completa a la vez — si hace falta
+desplazar para verla entera, deja de cumplir su propósito.
+
+- **`gridTemplateColumns`**: cambiado de `repeat(7, minmax(64px, 1fr))`
+  a `repeat(7, 1fr)` — sin suelo mínimo, las columnas se reparten
+  siempre el ancho disponible del contenedor, nunca lo desbordan. Esto
+  es lo que de verdad elimina la necesidad de scroll horizontal (antes,
+  aunque se redujera la tipografía, el suelo de 64px por columna seguía
+  forzando un mínimo de 448px de ancho total).
+- **Tipografía/padding responsive vía `<style jsx>`** (primera media
+  query de todo el proyecto — hasta ahora `globals.css` solo tenía
+  `prefers-color-scheme`, nada de anchura): el tamaño de fuente del
+  número de día, de la cabecera de mes y de la fila de iniciales, más el
+  padding de la píldora "visto", se sacaron del `style` inline (que
+  siempre gana a cualquier regla de hoja de estilos, con o sin
+  `@media`) a clases CSS (`dg-num`, `dg-num-locked`, `dg-num-pill`,
+  `dg-month-header`, `dg-weekday-row`, `dg-lock-icon`) definidas en un
+  bloque `<style jsx>` con dos escalones: `@media (max-width: 640px)`
+  (el único breakpoint que exige el documento normativo) y `@media
+  (max-width: 380px)` (añadido como necesidad de ingeniería: a 640px, en
+  un móvil realmente angosto de ~320-375px de viewport real, un solo
+  escalón de reducción no basta para que el número de día quepa cómodo
+  en una casilla de ~45-50px — sugerencia de implementación que dio el
+  propio PM al pedir el cambio, dos escalones en vez de uno).
+- **Alcance — solo vista de Invitado (`door-grid.tsx`)**: el encargo de
+  esta pasada de mobile excluyó explícitamente Admin/Super Admin ("uso
+  interno, casi seguro desde desktop, no las estamos auditando ahora"),
+  así que `days-grid-editor.tsx` (editor de Admin) sigue con
+  `minmax(64px, 1fr)` + scroll horizontal, sin cambios — aunque la
+  sección "Grid de días" de `design-system.md` nominalmente cubre ambas
+  vistas por título, la instrucción explícita de esta tarea concreta
+  prevalece; queda pendiente para una tarea futura si el PM decide
+  extenderlo a Admin.

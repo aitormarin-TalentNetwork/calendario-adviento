@@ -195,10 +195,18 @@ export function DaysGridEditor({
                     background: "var(--border)",
                   }}
                 >
-                  {week.map((day, dayIdx) => {
-                    if (!day) {
+                  {week.map((cell, dayIdx) => {
+                    // TAL-31 — el mes completo (sin huecos, numerado desde
+                    // el 1) es un cambio pedido solo para la vista de
+                    // Invitado (ver `door-grid.tsx`) — aquí, fuera de
+                    // alcance, un día "out-of-range" se sigue tratando
+                    // igual que el relleno de alineación de semana
+                    // (`padding`), en blanco, mismo comportamiento que
+                    // antes de TAL-31.
+                    if (cell.kind !== "item") {
                       return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--bg-raised)" }} />;
                     }
+                    const day = cell.item;
                     const date = parseDateOnlyUTC(day.dateStr);
                     const isWeekend = isWeekendUTC(date);
                     const dayNum = date.getUTCDate();

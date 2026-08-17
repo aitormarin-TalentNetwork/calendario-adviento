@@ -60,12 +60,33 @@ export function todayDateStrInTimeZone(timeZone: string): string {
   return `${year}-${month}-${day}`;
 }
 
+/**
+ * TAL-31 — antes, cualquier día del mes sin `item` real (ya fuera relleno
+ * de alineación de semana fuera del propio mes, ya fuera un día DENTRO del
+ * mes pero fuera del rango configurado del calendario — p. ej. el
+ * calendario empieza el 12 de un mes que arrancó en lunes 1) colapsaba al
+ * mismo `null`, indistinguible. Aitor pidió que el mes se vea siempre
+ * completo, numerado desde el 1, sin huecos — así que ahora se
+ * distinguen tres casos explícitos:
+ * - `item`: día real, dentro del rango configurado, con datos reales.
+ * - `out-of-range`: día real del mes (1..fin de mes) pero fuera de
+ *   [startDate, endDate] del calendario — se numera igual, estilo "marca
+ *   de agua" en quien lo consuma (ver `door-grid.tsx`), sin estado
+ *   interactivo.
+ * - `padding`: celda de relleno para completar la semana, fuera del
+ *   propio mes (antes del día 1 o después del último) — sigue en blanco,
+ *   sin numerar, como antes.
+ */
+export type MonthCell<T> =
+  | { kind: "item"; item: T }
+  | { kind: "out-of-range"; dateStr: string; dayNum: number }
+  | { kind: "padding" };
+
 export type MonthGroup<T> = {
   key: string;
   label: string;
-  // 7 columnas, lunes a domingo — `null` es una celda de relleno (fuera
-  // del rango real del calendario, para completar la semana del mes).
-  weeks: (T | null)[][];
+  // 7 columnas, lunes a domingo.
+  weeks: MonthCell<T>[][];
 };
 
 /**
@@ -97,18 +118,19 @@ export function groupIntoMonths<T extends { dateStr: string }>(items: T[]): Mont
     const startOffset = (firstOfMonth.getUTCDay() + 6) % 7;
     const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7;
 
-    const cells: (T | null)[] = [];
+    const cells: MonthCell<T>[] = [];
     for (let cellIdx = 0; cellIdx < totalCells; cellIdx++) {
       const dayNum = cellIdx - startOffset + 1;
       if (dayNum < 1 || dayNum > daysInMonth) {
-        cells.push(null);
+        cells.push({ kind: "padding" });
         continue;
       }
       const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(dayNum).padStart(2, "0")}`;
-      cells.push(byDate.get(dateStr) ?? null);
+      const item = byDate.get(dateStr);
+      cells.push(item ? { kind: "item", item } : { kind: "out-of-range", dateStr, dayNum });
     }
 
-    const weeks: (T | null)[][] = [];
+    const weeks: MonthCell<T>[][] = [];
     for (let w = 0; w < cells.length / 7; w++) {
       weeks.push(cells.slice(w * 7, w * 7 + 7));
     }
