@@ -139,6 +139,13 @@
 
   .footnote { margin-top: 26px; color: var(--text-dim); font-size: 0.85rem; max-width: 66ch; }
 
+  /* ---- indicador de sesión (TAL-28) — esquina superior derecha, mismo componente en las 4 pantallas ---- */
+  .session-indicator { position: fixed; top: 16px; right: 20px; display: flex; align-items: center; gap: 8px; z-index: 15; }
+  .session-avatar { width: 34px; height: 34px; border-radius: 999px; background: var(--pine-2); color: var(--paper); display: flex; align-items: center; justify-content: center; font-family: var(--font-display); font-size: 0.95rem; box-shadow: var(--shadow); }
+  .session-logout { width: 34px; height: 34px; border-radius: 999px; background: var(--bg-raised); border: 1px solid var(--border); color: var(--text-dim); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: var(--shadow); }
+  .session-logout:hover { color: var(--berry); border-color: var(--berry); }
+  .session-logout svg { width: 16px; height: 16px; }
+
   /* ---- mobile (<640px): todo el Design System tiene que funcionar aquí también ---- */
   @media (max-width: 640px) {
     .wrap { padding: 24px 14px 70px; }
@@ -160,10 +167,17 @@
   }
 </style>
 
+<div class="session-indicator">
+  <div class="session-avatar" title="admin@talent-network.org (Admin)">A</div>
+  <button class="session-logout" title="Cerrar sesión (admin@talent-network.org)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><path d="M16 17l5-5-5-5"></path><path d="M21 12H9"></path></svg>
+  </button>
+</div>
+
 <div class="wrap">
   <div class="intro">
     <h1>Editor de calendario — v2</h1>
-    <p>Segunda vuelta tras tu feedback: columna izquierda solo con las fechas, columna derecha con nombre/título/icono/skin; grid de días como calendario de pared real (7 columnas, lunes a domingo); un único link de invitación (el acceso real lo da el login con Google contra la lista de invitados, no el link). Añadido también: comportamiento mobile — reduce la ventana del navegador (o mira en el móvil) para verlo. Por debajo de 640px los campos con etiqueta a la izquierda pasan a apilarse (etiqueta arriba, campo abajo) por falta de espacio — única excepción documentada a la regla de "etiqueta junto al campo".</p>
+    <p>Resumen visual de todo lo documentado hoy en el Design System: columna izquierda solo con las fechas, columna derecha con nombre/título/icono/skin; grid de días como calendario de pared real (7 columnas, lunes a domingo); un único link de invitación (el acceso real lo da el login con Google contra la lista de invitados, no el link); indicador de sesión arriba a la derecha con el icono de logout minimalista nuevo (ya no el emoji de puerta); y comportamiento mobile — reduce la ventana del navegador (o mira en el móvil) para verlo. Por debajo de 640px los campos con etiqueta a la izquierda pasan a apilarse (etiqueta arriba, campo abajo) por falta de espacio — única excepción documentada a la regla de "etiqueta junto al campo".</p>
   </div>
 
   <div class="card">
@@ -194,8 +208,10 @@
             <span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#2b3f6b,#6b3f2b);"></span>
           </div>
         </div>
+        <div class="field"><label>Imagen de fondo</label><input type="text" placeholder="https://… (opcional)" /></div>
       </div>
     </div>
+    <p class="helptext" style="margin-top:-8px;">Distinta de "Título/Icono de portada" — esta imagen se ve en todo el calendario (portada, grid de días y modal de vídeo), no solo en el login. Combina con el color de acento del skin elegido.</p>
 
     <div class="section-title">Días del calendario</div>
     <p class="helptext">Selecciona el día para subir el vídeo. Los días que ya tienen vídeo muestran un fotograma como miniatura.</p>
