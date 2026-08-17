@@ -218,10 +218,18 @@ fijo en código (🎄) por un selector real en el editor de calendario.
 
 **Ajuste 2026-08-17, pedido explícito de Aitor — la galería ya NO va siempre visible en
 la página:** en la pantalla de configuración del calendario solo se muestra el **icono
-ya seleccionado** (casilla `44-52px`, fondo `--paper-2`/`--pine-2`) + un botón **"Cambiar
-icono"**. Al pulsar el botón se abre un **diálogo** (modal) con la galería completa —
-esta parte reemplaza al "TAL-23 shippeado" original, que la mostraba siempre desplegada
-inline en la página.
+ya seleccionado** (casilla `44-52px`, fondo `--paper-2`/`--pine-2`) — esta parte
+reemplaza al "TAL-23 shippeado" original, que la mostraba siempre desplegada inline en la
+página. Al pulsar la propia casilla del icono se abre un **diálogo** (modal) con la
+galería completa.
+
+**Ajuste 2026-08-17 (segunda vuelta), pedido explícito de Aitor:** ya NO hay un botón de
+texto "Cambiar icono" aparte — **el propio icono ES el botón**, clicable directamente
+(cursor pointer, borde `--gold` al hover/focus). Etiqueta del campo renombrada de "Icono
+de portada" a **"Selecciona un icono"**. **Ajuste 2026-08-17 (tercera vuelta):** la
+casilla del icono ya NO lleva fondo relleno (`--paper-2`/`--pine-2`) — fondo
+**transparente**, solo el borde (`--border`, pasa a `--gold` en hover/focus) indica que
+es un elemento clicable.
 
 Contenido del diálogo (sin cambios respecto a lo ya validado):
 - Buscador arriba (`🔍 Buscar icono…`).
@@ -261,12 +269,39 @@ Reestructura la pantalla de configuración de un calendario (creada en TAL-5/TAL
 shippeada) — no toca el mockup del MVP a nivel de campos/datos, solo su disposición y el
 comportamiento de algunos componentes.
 
-- **Sección "Datos del calendario" en dos columnas:**
-  - **Izquierda:** fecha de inicio y fecha de fin, apiladas una encima de otra.
-  - **Derecha:** nombre del calendario, título de portada, icono de portada (ver
-    "Selector de icono de portada" arriba) y skin, apilados uno encima de otro.
+- **Sección "Datos del calendario" en dos columnas** (orden ajustado 2026-08-17,
+  pedido de Aitor tras ver el mockup):
+  - **Izquierda:** nombre del calendario (primero), fecha de inicio, fecha de fin —
+    apilados uno encima de otro.
+  - **Derecha:** vista previa en vivo (primero — ver sección propia justo debajo),
+    título de portada, icono de portada (ver "Selector de icono de portada" arriba),
+    skin, marcador de cuenta atrás, imagen de fondo — apilados uno encima de otro.
   - Cada campo sigue la regla general de "Formularios": etiqueta a la izquierda del
     input, no encima.
+
+### Vista previa en vivo (TAL-29)
+
+**Validado con Aitor, 2026-08-17.** Fuente: `design/propuesta-editor-calendario.html`.
+Primer campo de la columna derecha de "Datos del calendario" — réplica en miniatura de
+la portada real que ve el Invitado ya autenticado (`/c/[calendarId]`), que se actualiza
+**al momento** con los cambios de título, icono, skin, marcador de cuenta atrás e imagen
+de fondo. Sustituye por completo el texto suelto "Vista previa: Faltan X días" que había
+junto al marcador de cuenta atrás.
+
+- **Es una fila de campo más, no un bloque aparte:** etiqueta "Vista previa" a la
+  izquierda (mismo estilo que cualquier otra etiqueta), miniatura clicable del mismo
+  ancho que ocupa un input a la derecha — **no** una tarjeta grande en columna propia
+  (primer intento, descartado: el texto no cabía legible en una columna estrecha).
+- **La miniatura SÍ lleva contenido real** (icono, título, cuenta atrás con la misma
+  fórmula de `formatCountdownMessage` — ver `src/lib/countdown.ts`), aunque la letra
+  salga pequeña/apretada — pedido explícito de Aitor: mejor una réplica real aunque no
+  se lea bien, que un icono suelto sin contexto. Proporción `16:9`, radio `12px`.
+- **Clic en la miniatura abre un diálogo** con el mismo contenido a tamaño de
+  producción (icono `84px`, título `1.9rem` con `--font-display`, cuenta atrás en
+  píldora) — ahí es donde se lee bien. Proporción `3:4`, ancho máx. `420px`.
+- **Fondo** (miniatura y diálogo, mismo criterio): imagen de fondo si está puesta (con
+  degradado oscuro encima para legibilidad, ver "Imagen de fondo del calendario") o si
+  no, el color/degradado del skin elegido.
 - **Grid de días:** reutiliza el patrón de "Grid de días — invitado y editor de Admin"
   de más arriba (7 columnas, calendario de pared real) — no es un componente nuevo,
   solo se confirma que el editor lo usa igual que la vista de Invitado. Añade:
@@ -277,10 +312,16 @@ comportamiento de algunos componentes.
   - **Clic en un día abre un diálogo** (modal) con URL del vídeo (o subir archivo),
     mensaje del día opcional, y botones "Guardar día" / "Quitar vídeo" — sustituye el
     panel inline que se abría antes debajo del grid.
-- **Zona de peligro:** "Borrar calendario" pasa a ser un **botón rojo** (`--berry`,
-  relleno, no solo texto), colocado **al final de la pantalla**, separado del resto por
-  un separador (`border-top`) — antes estaba en la cabecera de la pantalla junto al
-  título, como botón fantasma de solo texto.
+- **Zona de peligro:** el botón pasa a ser **rojo** (`--berry`, relleno, no solo texto),
+  colocado **al final de la pantalla**, separado del resto por un separador
+  (`border-top`) — antes estaba en la cabecera de la pantalla junto al título, como botón
+  fantasma de solo texto. **Ajuste 2026-08-17 (segunda vuelta), pedido de Aitor:**
+  - Etiqueta renombrada de "Borrar calendario" a **"Eliminar calendario"**.
+  - **Requiere confirmación en un diálogo** antes de borrar de verdad — hoy no la pide.
+    El diálogo nombra el calendario concreto ("¿Eliminar '{nombre}'?"), avisa de que se
+    borran también días/vídeos/invitados y que no se puede deshacer, con dos acciones:
+    "Sí, eliminar calendario" (rojo) y "Cancelar" (ghost). Ver
+    `design/propuesta-editor-calendario.html`.
 
 ### Invitados — link de invitación único
 
