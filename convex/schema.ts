@@ -176,5 +176,40 @@ export default defineSchema({
     // pobladas (con este mismo `seedSkinCatalog`).
     background: v.optional(v.string()),
     accent: v.optional(v.string()),
+    // TAL-47 — reemplaza la capa de oscurecimiento + `text-shadow` fijos
+    // (TAL-24) por un color de texto propio de cada skin, decidido a mano
+    // al mismo tiempo que `background`/`accent` (nunca calculado en
+    // tiempo real parseando el `background` — puede ser un
+    // `conic-gradient` de 6 paradas, justo la complejidad que TAL-24
+    // quería evitar). `v.optional`, MISMO motivo/secuencia segura que
+    // `background`/`accent` arriba (ver el comentario completo justo
+    // encima): un deployment con filas de `skins` previas a esta tarea
+    // (incluida producción, todavía sin re-sembrar tras TAL-43) no tiene
+    // `textColor` — declararlo requerido habría rechazado el push entero
+    // antes de que el backfill (`seedSkinCatalog`) pudiera arreglarlas.
+    // Ver `docs/skins.md` § "Migración segura" para la secuencia completa
+    // (1: opcional + desplegar, 2: backfill + verificar, 3: solo entonces
+    // requerido) — este cambio entrega los pasos 1 y 2 igual que TAL-22.
+    textColor: v.optional(v.string()),
+    // 6 skins (de 24) cuyo rango de degradado/rayas es demasiado amplio
+    // para que un único `textColor` plano garantice contraste en todo el
+    // fondo — llevan una píldora de fondo semitransparente detrás del
+    // texto en vez de color plano directo sobre el degradado. Opacidad
+    // `rgba(15,24,18,0.7)` — NO 0.6 (la píldora de "visto" del grid, la
+    // referencia original del brief): subida tras un hallazgo real de
+    // `scripts/verify-tal47-textcolor-wcag.mjs` — "rojiblanco" (rayas
+    // rojo/blanco puro) fallaba AA en la parada blanca con 0.6 (4.20:1);
+    // con 0.7 pasa con margen (5.96:1) sin perjudicar a los otros 5 (que
+    // ya tenían margen de sobra a 0.6, y mejoran igual a 0.7). Quien
+    // aplique este flag visualmente (ronda siguiente de TAL-47) debe usar
+    // ESTE valor (0.7), no el 0.6 original del grid — ver
+    // `docs/skins.md` § "textColor" para el detalle completo.
+    // `textColor` en esas 6 filas sigue poblado (el color del texto QUE
+    // VA ENCIMA de la píldora, no del fondo directo) — este flag solo
+    // decide el TRATAMIENTO (píldora vs. plano), no sustituye a
+    // `textColor`. `v.optional` con respaldo `false` en la lectura
+    // (ningún consumidor todavía, se añade en la ronda de aplicación
+    // visual de TAL-47).
+    textPill: v.optional(v.boolean()),
   }).index("by_key", ["key"]),
 });
