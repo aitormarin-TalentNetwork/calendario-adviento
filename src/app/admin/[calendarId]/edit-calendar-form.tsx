@@ -1,18 +1,19 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useActionState, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   updateCalendarAction,
   type UpdateCalendarFieldValues,
   type UpdateCalendarState,
 } from "@/app/admin/actions";
+import { CalendarPreview } from "@/app/admin/[calendarId]/calendar-preview";
 import { CoverIconPicker } from "@/app/admin/[calendarId]/cover-icon-picker";
 import { SkinPicker, type SkinOption } from "@/app/admin/[calendarId]/skin-picker";
 import { SubmitButton } from "@/components/submit-button";
-import { parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
-import { DEFAULT_COUNTDOWN_LABEL, MAX_COUNTDOWN_LABEL_LENGTH, daysUntil, formatCountdownMessage } from "@/lib/countdown";
+import { DEFAULT_COUNTDOWN_LABEL, MAX_COUNTDOWN_LABEL_LENGTH } from "@/lib/countdown";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
+import { DEFAULT_SKIN_APPEARANCE } from "@/lib/skin-appearance";
 
 type EditCalendarFormProps = {
   calendar: {
@@ -70,33 +71,18 @@ type EditCalendarFieldsProps = {
  * frente a lo que el admin llevaba escrito mientras tanto).
  */
 /**
- * TAL-27 — igual que `todayStr` en `days-grid-editor.tsx`: "hoy" para la
- * vista previa se resuelve tras montar, con la zona horaria real del
- * navegador (`todayDateStrInTimeZone`), nunca con la fecha cruda del
- * servidor — mismo criterio ya establecido para cualquier marcador de
- * fecha puramente decorativo en el Admin (TAL-21, hallazgos de auditoría
- * rondas 1 y 2). `null` mientras tanto: la vista previa no enseña ningún
- * número de días hasta que se resuelve, en vez de arriesgar un valor de UTC
- * que no coincida con la zona horaria real de quien mira.
- */
-function useTodayStr(): string | null {
-  const [todayStr, setTodayStr] = useState<string | null>(null);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- excepción deliberada: el valor depende de la zona horaria real del navegador, exclusivamente de cliente — mismo criterio que days-grid-editor.tsx.
-    setTodayStr(todayDateStrInTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone));
-  }, []);
-  return todayStr;
-}
-
-/**
  * TAL-33 — "Datos del calendario" en dos columnas
- * (design/design-system.md § "Editor de calendario"): izquierda = solo
- * fechas, derecha = nombre/título/icono/skin. `countdownLabel` (+ vista
- * previa) y `coverImageUrl` no están en el mockup (`propuesta-editor-
- * calendario.html` es previo a TAL-27 y nunca tuvo una URL de foto de
- * portada) — se añaden al FINAL de la columna derecha, después de los
- * cuatro campos que sí describe el mockup explícitamente, en vez de
- * inventar una tercera sección sin fuente de diseño.
+ * (design/design-system.md § "Editor de calendario"). Orden ajustado
+ * 2026-08-17 (pedido de Aitor tras ver el mockup de TAL-29, aplicado aquí
+ * al cablear la vista previa — no lo tocó TAL-33 en su momento, que usaba
+ * el orden original: nombre en la columna derecha, sin preview):
+ * izquierda = nombre del calendario (primero), fecha de inicio, fecha de
+ * fin; derecha = vista previa en vivo (primero, TAL-29), título de
+ * portada, icono, skin, marcador de cuenta atrás, imagen de fondo.
+ * `coverImageUrl` no está en el mockup (`propuesta-editor-calendario.html`
+ * es previo a TAL-6/TAL-25 y nunca tuvo una URL de foto de portada) — se
+ * mantiene al FINAL de la columna derecha, después de todos los campos que
+ * sí describe el mockup explícitamente, en vez de inventarle un sitio.
  *
  * Cada fila usa la clase `.editor-field` (`globals.css`) — etiqueta a la
  * izquierda del input en desktop, apilada en mobile (`design-system.md`
@@ -115,28 +101,45 @@ function useTodayStr(): string | null {
  * vez de centrada, porque la galería puede envolver a varias líneas con
  * 22+ skins, más alta que una fila de texto normal.
  *
- * TAL-39 — "Imagen de fondo (URL, opcional)" justo debajo de "Skin"
- * (brief: "junto al selector de skin"), campo propio e independiente de
- * `coverImageUrl` (esa es la foto redonda de portada; esta se aplica
- * como fondo en grid/modal/página del Invitado, ver `skin-appearance.ts`).
+ * TAL-39 — "Imagen de fondo (URL, opcional)" justo debajo de "Fecha
+ * objetivo" (brief original: "junto al selector de skin"; el orden final
+ * de TAL-29 la deja tras el marcador de cuenta atrás, no inmediatamente
+ * después de Skin — mismo campo, misma sección, sin cambio de
+ * comportamiento), campo propio e independiente de `coverImageUrl` (esa es
+ * la foto redonda de portada; esta se aplica como fondo en
+ * portada/grid/modal del Invitado, ver `skin-appearance.ts`).
+ *
+ * TAL-29 — `CalendarPreview` (ver `calendar-preview.tsx`) sustituye por
+ * completo el texto suelto "Vista previa: Faltan X días" que vivía junto
+ * al marcador de cuenta atrás (con él se va también el cálculo de
+ * `previewDaysRemaining`/`useTodayStr` que solo servía para ese texto — el
+ * componente resuelve "hoy" y el NaN de fecha de fin borrada por su
+ * cuenta, mismo criterio, ver `calendar-preview.tsx`). El fondo que le
+ * pasamos es el del skin SELECCIONADO EN VIVO en el formulario
+ * (`fieldValues.skinId`), no el guardado en servidor — mismo respaldo
+ * (`DEFAULT_SKIN_APPEARANCE`) que ya usa `SkinPicker` para una fila de
+ * `skins` sin `background` todavía.
  */
 function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();
-  const todayStr = useTodayStr();
-  // Hallazgo no bloqueante de auditoría (TAL-27, ronda 1): si el Admin borra
-  // temporalmente la fecha de fin, `parseDateOnlyUTC("")` da un `Date`
-  // inválido (`NaN`) y el mensaje salía "Faltan NaN días para Y". `NaN` se
-  // trata igual que "todavía no se sabe" (`null`) — mismo placeholder "…"
-  // de más abajo, en vez de un número sin sentido.
-  const rawPreviewDaysRemaining = todayStr
-    ? daysUntil(parseDateOnlyUTC(todayStr), parseDateOnlyUTC(fieldValues.endDate))
-    : null;
-  const previewDaysRemaining =
-    rawPreviewDaysRemaining !== null && !Number.isNaN(rawPreviewDaysRemaining) ? rawPreviewDaysRemaining : null;
+  const selectedSkin = skins.find((skin) => skin.id === fieldValues.skinId);
+  const previewBackground = selectedSkin?.background ?? DEFAULT_SKIN_APPEARANCE.background;
 
   return (
     <div className="editor-columns">
       <div className="editor-col">
+        <div className="editor-field">
+          <label htmlFor="calendar-name">Nombre del calendario</label>
+          <input
+            id="calendar-name"
+            name="name"
+            type="text"
+            value={fieldValues.name}
+            onChange={(e) => setField("name", e.target.value)}
+            disabled={pending}
+            required
+          />
+        </div>
         <div className="editor-field">
           <label htmlFor="calendar-startDate">Fecha de inicio</label>
           <input
@@ -165,15 +168,14 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
 
       <div className="editor-col">
         <div className="editor-field">
-          <label htmlFor="calendar-name">Nombre del calendario</label>
-          <input
-            id="calendar-name"
-            name="name"
-            type="text"
-            value={fieldValues.name}
-            onChange={(e) => setField("name", e.target.value)}
-            disabled={pending}
-            required
+          <label>Vista previa</label>
+          <CalendarPreview
+            coverIcon={fieldValues.coverIcon}
+            coverTitle={fieldValues.coverTitle}
+            countdownLabel={fieldValues.countdownLabel}
+            endDate={fieldValues.endDate}
+            background={previewBackground}
+            backgroundImageUrl={fieldValues.backgroundImageUrl || null}
           />
         </div>
         <div className="editor-field">
@@ -189,7 +191,12 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
           />
         </div>
         <div className="editor-field">
-          <label>Icono de portada</label>
+          {/* Ajustes de Aitor (post-TAL-33): "Icono de portada" →
+              "Selecciona un icono" → acortada de nuevo a simplemente
+              "Icono" — el icono deja de ser una etiqueta pasiva junto a
+              un botón "Cambiar icono" aparte; ahora describe la acción
+              directa sobre el propio icono clicable (ver `CoverIconPicker`). */}
+          <label>Icono</label>
           <CoverIconPicker
             value={fieldValues.coverIcon}
             onChange={(icon) => setField("coverIcon", icon)}
@@ -216,19 +223,13 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
           <input type="hidden" name="skinId" value={fieldValues.skinId} />
         </div>
         <div className="editor-field">
-          <label htmlFor="calendar-backgroundImageUrl">Imagen de fondo (URL, opcional)</label>
-          <input
-            id="calendar-backgroundImageUrl"
-            name="backgroundImageUrl"
-            type="url"
-            value={fieldValues.backgroundImageUrl}
-            onChange={(e) => setField("backgroundImageUrl", e.target.value)}
-            disabled={pending}
-            placeholder="https://…"
-          />
-        </div>
-        <div className="editor-field">
-          <label htmlFor="calendar-countdownLabel">Marcador de cuenta atrás</label>
+          {/* Ajuste de Aitor (design-system.md, commit f7b6cdb): "Marcador
+              de cuenta atrás" → "Fecha objetivo" — SOLO la etiqueta
+              visible. Sigue siendo texto libre (`type="text"`, ej. "la
+              Navidad"), no un selector de fecha; la fecha real que
+              gobierna la cuenta atrás sigue siendo "Fecha de fin", sin
+              tocar aquí. */}
+          <label htmlFor="calendar-countdownLabel">Fecha objetivo</label>
           <input
             id="calendar-countdownLabel"
             name="countdownLabel"
@@ -240,14 +241,18 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
             placeholder={DEFAULT_COUNTDOWN_LABEL}
           />
         </div>
-        <p style={{ color: "var(--text-dim)", fontSize: "0.85rem" }}>
-          Vista previa:{" "}
-          <span style={{ fontFamily: "var(--font-display)" }}>
-            {previewDaysRemaining === null
-              ? "…"
-              : formatCountdownMessage(previewDaysRemaining, fieldValues.countdownLabel)}
-          </span>
-        </p>
+        <div className="editor-field">
+          <label htmlFor="calendar-backgroundImageUrl">Imagen de fondo (URL, opcional)</label>
+          <input
+            id="calendar-backgroundImageUrl"
+            name="backgroundImageUrl"
+            type="url"
+            value={fieldValues.backgroundImageUrl}
+            onChange={(e) => setField("backgroundImageUrl", e.target.value)}
+            disabled={pending}
+            placeholder="https://…"
+          />
+        </div>
         <div className="editor-field">
           <label htmlFor="calendar-coverImageUrl">Foto de portada (URL, opcional)</label>
           <input

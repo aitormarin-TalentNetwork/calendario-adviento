@@ -947,6 +947,171 @@ igual que antes en ambos casos.
 `npx eslint .`/`npx tsc --noEmit` limpios. `AGENTS.md` intacto. No toca
 Convex — cambio puramente de presentación, un solo componente.
 
+## 5 ajustes de Aitor sobre el editor de calendario (TAL-33, ya Done)
+
+Ajustes pequeños pedidos directamente por Aitor tras cerrarse la tanda del
+editor, en varios mensajes seguidos del mismo ciclo (el PM confirmó que
+solo uno —el diálogo de eliminar— necesita ronda completa de auditoría,
+por tocar un flujo destructivo real; se exportan los 5 juntos en un solo
+ciclo, mismo commit).
+
+1. **Icono de portada clicable directamente** — se quita el botón de texto
+   "Cambiar icono" aparte (redundante con el propio icono); el icono
+   (`CoverIconPicker`) pasa a ser él mismo el `<button>` que abre el
+   diálogo de galería, sin lógica nueva (mismo diálogo de siempre). Nueva
+   clase `.cover-icon-trigger` (`globals.css`) para `:hover`/`:focus-
+   visible` con borde `--gold` — mismo criterio que `.skin-swatch`
+   (TAL-37), que un `style` inline de React no puede expresar.
+2. **Fondo del icono, transparente** — antes relleno (`--paper-2`/
+   `--pine-2`); ahora solo el borde `--gold` en hover/foco indica que es
+   clicable, sin casilla rellena de fondo.
+3. **Etiqueta**: "Icono de portada" → "Selecciona un icono" → acortada de
+   nuevo, en un tercer mensaje, a simplemente **"Icono"** (describe la
+   acción directa sobre el icono, ya no una etiqueta pasiva junto a un
+   botón separado; el texto intermedio "Selecciona un icono" nunca llegó
+   a comitearse solo — se corrigió antes de exportar, ver nota siguiente).
+4. **"Borrar calendario" → "Eliminar calendario", con diálogo real en vez
+   de `window.confirm()`** — nuevo `delete-calendar-button.tsx`,
+   deliberadamente un componente propio de esta pantalla (no un cambio al
+   `ConfirmSubmitButton` compartido, que sigue usando `guests-section.tsx`
+   para "Borrar por completo" de un invitado — fuera de alcance de este
+   ajuste, no tocado). Reutiliza el mismo patrón de diálogo ya montado dos
+   veces en esta misma carpeta (`cover-icon-picker.tsx`, `days-grid-
+   editor.tsx`): foco inicial dentro del diálogo — aquí en "Cancelar", la
+   opción segura, no en el botón rojo, para que un Intro reflejo al abrir
+   no confirme el borrado por accidente —, Escape cierra, clic en el fondo
+   cierra, foco devuelto al disparador al cerrar. Contenido: `¿Eliminar
+   "{nombre}"?` + aviso de que se borran también días/vídeos/invitados y
+   que no se puede deshacer + dos botones ("Sí, eliminar calendario" en
+   rojo / "Cancelar").
+5. **"Marcador de cuenta atrás" → "Fecha objetivo"** — pedido en un cuarto
+   mensaje, ya con commit real (`f7b6cdb`) confirmando que Aitor lo pidió
+   explícitamente después de que se le avisara de la posible confusión
+   (parece invitar a un selector de fecha). Solo la etiqueta visible
+   cambia: sigue siendo un campo de texto libre (`type="text"`, ej. "la
+   Navidad"), sin tocar tipo de campo, validación ni comportamiento — la
+   fecha real que gobierna la cuenta atrás sigue siendo "Fecha de fin".
+
+**Nota sobre las fuentes de diseño:** los dos primeros mensajes (icono
+clicable; borrar → eliminar + diálogo) afirmaban que `design/design-
+system.md` y el mockup ya estaban actualizados con el detalle exacto —
+comprobado en ambos casos que NO era así en el momento de implementar (ni
+la sección "Selector de icono de portada" ni "Editor de calendario"
+mencionaban estos ajustes todavía). No fue bloqueante porque las
+instrucciones directas ya eran lo bastante concretas para implementar sin
+ambigüedad, pero se avisó de la discrepancia en vez de asumir en silencio
+que sí estaban actualizadas. Un TERCER mensaje, ya con la etiqueta acortada
+a "Icono", sí citó un commit real y concreto (`4311b49`, confirmado —
+`design-system.md` documenta ahí las 4 vueltas seguidas de ajuste sobre
+este mismo campo, incluida esta última) — se aplicó ese cambio de texto
+antes de dar la ronda por terminada y exportar, sin necesidad de volver a
+preguntar.
+
+**Evidencia:** verificado en navegador real. Primera pasada (super-admin,
+calendario de prueba creado específicamente para esto, borrado en la
+propia verificación): la etiqueta dice "Icono"; el icono no tiene fondo
+relleno (zoom visual); un solo clic en el icono abre el diálogo de galería
+(sin botón aparte); el botón dice "Eliminar calendario"; al pulsarlo se
+abre un diálogo propio (no un `confirm()` del navegador) con el texto
+exacto pedido; el foco inicial cae en "Cancelar" (confirmado con
+`document.activeElement`); Escape cierra el diálogo y devuelve el foco al
+botón que lo abrió (confirmado también); el flujo completo de eliminar
+(clic en "Sí, eliminar calendario") borra de verdad el calendario —
+confirmado tanto por la redirección a `/admin` como directamente contra
+Convex (`npx convex data calendars`, ya no aparece). Segunda pasada, tras
+los ajustes de copy de los mensajes 3º/4º (calendario de prueba "Test
+TAL-13", sin tocar sus datos): la etiqueta del icono dice "Icono" (no ya
+"Selecciona un icono"), el diálogo de galería se sigue abriendo con un
+clic; la etiqueta del marcador de cuenta atrás dice "Fecha objetivo",
+sigue siendo un `<input type="text">` con el valor de texto libre ya
+guardado ("la Navidad") intacto, y la vista previa de la cuenta atrás
+sigue funcionando igual.
+
+`npx eslint .`/`npx tsc --noEmit` limpios. `AGENTS.md` intacto. No toca
+Convex — los 5 ajustes son puramente de presentación (el borrado en sí ya
+existía, `deleteCalendarAction`/`deleteCalendarAsUserHandler` sin cambios,
+solo cambia cómo se pide confirmación en el cliente).
+
+**Verificación mobile (requisito del PM, 2026-08-17, retroactivo a toda
+tarea sin mergear):** repasado a ~500px de ancho de viewport — el suelo
+mínimo de ventana disponible en el entorno de automatización de esta
+sesión, pero por debajo del único breakpoint real de `globals.css`
+(`@media (max-width: 640px)`), así que ejerce la misma ruta de CSS que a
+375px. Confirmado sin recorte de texto ni desbordamiento: los campos
+("Icono", "Fecha objetivo" incluidos) se apilan en una columna con la
+etiqueta encima; el icono clicable abre su diálogo sin problemas; "Eliminar
+calendario" ocupa el ancho completo y su diálogo de confirmación se ve
+completo; flujo de borrado probado de nuevo de punta a punta a este ancho.
+
+## Vista previa en vivo — cableada en el editor (TAL-29)
+
+**Fuente**: `design/design-system.md` § "Vista previa en vivo (TAL-29)" / "Editor de
+calendario", validadas con Aitor 2026-08-17. Mockup: `design/propuesta-editor-
+calendario.html`. Dos rondas: fase 1 (este mismo ciclo, ya con GO y en main) construyó
+`CalendarPreview` (`calendar-preview.tsx`) en aislamiento, con datos de ejemplo, sin
+tocar `edit-calendar-form.tsx` — esperando a que T2 mergease sus 5 ajustes sobre ese
+mismo fichero (ver sección anterior) para evitar chocar en el mismo archivo. Esta
+sección documenta la fase 2: cablearlo de verdad.
+
+**Reordena "Datos del calendario"** (el orden que ya describía `design-system.md` desde
+antes de TAL-33, pero que TAL-33 no llegó a aplicar — su propio alcance literal decía
+"nombre en la columna derecha", ver sección anterior): izquierda = nombre del
+calendario (ahora primero), fecha de inicio, fecha de fin; derecha = **vista previa en
+vivo (primero)**, título de portada, icono, skin, fecha objetivo, imagen de fondo —
+`coverImageUrl` ("Foto de portada") se queda al final, fuera del mockup igual que antes
+de esta tarea.
+
+**`CalendarPreview` recibe los valores EN VIVO del formulario** (`fieldValues`, no lo
+guardado en servidor): `coverIcon`/`coverTitle`/`countdownLabel`/`endDate`/
+`backgroundImageUrl` tal cual, y el `background` del skin resuelto por
+`skins.find((s) => s.id === fieldValues.skinId)?.background ?? DEFAULT_SKIN_APPEARANCE.background`
+— mismo respaldo que ya usa `SkinPicker` para una fila sin `background` todavía (nunca
+se llama a `resolveSkinAppearance`, que espera `_id`, no `id` — `SkinOption` del
+picker usa `id`, tipos distintos a propósito, ver `skin-picker.tsx`). Sustituye por
+completo el texto suelto "Vista previa: Faltan X días" (y el `useTodayStr`/
+`previewDaysRemaining` que solo servían para él) que vivía junto al marcador de cuenta
+atrás desde TAL-27.
+
+**Bug real encontrado y corregido en `coverBackgroundStyle` (`skin-appearance.ts`,
+TAL-39):** al escribir en el campo "Imagen de fondo" con la consola abierta, React
+avisaba en cada tecla ("don't mix shorthand and non-shorthand properties for the same
+value... Updating background backgroundPosition/backgroundSize") — la rama
+"con imagen" de esa función devolvía `background` (shorthand) JUNTO a `backgroundSize`/
+`backgroundPosition` (longhand) en el mismo objeto de estilo, lo cual React marca como
+riesgo real de bug de estilos. No se detectó en la auditoría de TAL-39 porque sus 3
+consumidores (`door-grid.tsx`/`days-grid-editor.tsx`/`page.tsx`) montan
+`backgroundImageUrl` una sola vez por carga de página server-renderizada — nunca
+cambia en vivo ahí, así que el aviso de React (que solo dispara al re-renderizar con un
+estilo que mezcla ambos tipos) nunca llegó a manifestarse en esos flujos. `CalendarPreview`
+sí lo cambia en vivo (reactivo a lo que teclea el Admin), y ahí sí se manifestó.
+Corregido cambiando esa rama a `backgroundImage` (longhand, el mismo criterio que ya
+usan las miniaturas "visto" del grid en `door-grid.tsx`/`days-grid-editor.tsx` —
+`style.backgroundImage = ...` + `backgroundSize`/`backgroundPosition`, sin mezclar con
+el shorthand) — beneficia también a los 3 consumidores previos, aunque ellos no
+manifestaran el síntoma. `CoverBackgroundStyle` pasa de un tipo con todo opcional a una
+unión discriminada (`{background} | {backgroundImage, backgroundSize, backgroundPosition}`)
+para que TypeScript no permita reintroducir la mezcla por accidente en el futuro.
+
+**Evidencia:** verificado en navegador real (calendario de prueba, super-admin). Título,
+icono, skin y "Fecha objetivo" cambian la miniatura y el diálogo AL MOMENTO, antes de
+guardar (confirmado escribiendo en cada campo y viendo el cambio sin recargar). Imagen
+de fondo: al escribir una URL real, la miniatura y el diálogo la muestran con la capa de
+oscurecimiento (mismo tratamiento que el resto de la app); al borrar el campo, vuelve al
+color/degradado del skin. Consola sin errores tras la corrección (confirmado
+explícitamente: 0 mensajes de error tras recargar y repetir la secuencia completa —
+antes de la corrección había decenas del aviso de React descrito arriba). Diálogo:
+clic en la miniatura lo abre a tamaño de producción con el mismo fondo; Escape lo
+cierra. **Mobile** (375px real, vía iframe inyectado en la propia página —
+`resize_window` no reproduce un viewport estrecho de verdad en este entorno, mismo
+motivo ya documentado en la verificación de TAL-33/"5 ajustes" más arriba): "Datos del
+calendario" colapsa a una columna, "Vista previa" se apila con la etiqueta encima y la
+miniatura a ancho completo, sin recorte de texto; el diálogo también se ve completo y
+centrado a este ancho.
+
+`npx tsc --noEmit`/`npm run lint` limpios. Build limpio desde instalación limpia real
+(`rm -rf node_modules .next && npm install`). No toca Convex — puramente presentación +
+la corrección del estilo mencionada arriba.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
