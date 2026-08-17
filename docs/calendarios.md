@@ -38,9 +38,9 @@ listado si no es su Admin.
 
 ## Valores por defecto al crear
 
-Sin formulario de creación aparte — se crea con valores de partida y se
-edita todo después, igual que sugiere el mockup (botón "+ Nuevo calendario"
-sin diálogo intermedio):
+Salvo el nombre (ver TAL-26 más abajo), sin formulario de creación aparte —
+se crea con valores de partida y se edita todo después, igual que sugiere
+el mockup (botón "+ Nuevo calendario" sin diálogo intermedio):
 
 - Fechas: 1–24 de diciembre del próximo diciembre que llegue
   (`defaultCalendarDateRange` — si ya se pasó el 24 de diciembre de este
@@ -50,6 +50,72 @@ sin diálogo intermedio):
   vez de bloquear la creación. **TAL-12**: esta resolución vive ahora dentro
   de Convex (`resolveDefaultSkinId`, `convex/calendars.ts`) — la Server
   Action de creación no manda ningún `skinId`, igual que antes con Prisma.
+
+### Pedir nombre al crear (TAL-26)
+
+**Antes**: "+ Nuevo calendario" creaba directamente con `name: "Nuevo
+calendario"` fijo y navegaba al editor — con varios calendarios a la vez
+(caso ya real, pedido explícito de Aitor), no se podía identificar cuál
+era cuál sin entrar uno a uno a renombrarlo.
+
+**Ahora**: el botón "+ Nuevo calendario" (`src/components/new-calendar-submit.tsx`)
+lleva un `<input>` de nombre, obligatorio, en el MISMO formulario que ya
+mandaba `creationKey` — no hace falta un modal ni un paso posterior
+separado: el nombre se pide (y se manda) antes de que exista el registro,
+en la misma petición atómica. Se descartó la alternativa (crear con
+nombre vacío/placeholder + paso obligatorio inmediato después) porque deja
+una ventana real en la que puede quedar un calendario "sin nombre" a medio
+crear si el Admin abandona ese paso — el enfoque elegido no tiene ese
+estado intermedio en absoluto.
+
+`name` ya existía como campo (TAL-9) — esta tarea no crea ninguno nuevo,
+solo empieza a pedirlo de verdad. Validación (no vacío, cota de 100
+caracteres — sin precedente similar que reutilizar: ni `name` ni
+`coverTitle` tenían hasta ahora ninguna cota de longitud, así que se elige
+una nueva, defensiva, no de producto, mismo criterio que
+`MAX_COVER_ICON_LENGTH`/`MAX_VIDEO_URL_LENGTH`) vive por partida doble,
+mismo criterio que el resto de este documento:
+- Convex (`convex/calendars.ts::assertValidCalendarName`, aplicada en
+  `createCalendarHandler`) — la comprobación real y definitiva, imposible
+  de saltarse aunque alguien llame a `createCalendarPublic` sin pasar por
+  la Server Action.
+- `src/app/admin/actions.ts::createCalendarAction` — comprobación rápida
+  para el caso común (campo vacío/demasiado largo) sin ida y vuelta a
+  Convex; ahora usa `useActionState` (mismo patrón que
+  `updateCalendarAction`, TAL-20) para pintar el error como texto normal
+  del formulario en vez de una excepción sin capturar.
+
+Constante compartida `MAX_CALENDAR_NAME_LENGTH` en
+`convex/calendarNameConstants.ts` (mismo patrón que
+`convex/coverIconConstants.ts`/`convex/calendarErrorMessages.ts`) —
+importable tanto desde Convex como desde Next.js sin arrastrar ningún
+grafo de módulos de más.
+
+**Deliberadamente NO se valida en `updateCalendarHandler`** (edición) —
+el brief acota el trabajo a "pedir nombre AL CREAR"; el formulario de
+edición ya exigía "no vacío" del lado de Next.js desde TAL-5, pero nunca
+tuvo cota de longitud ni la re-verifica en Convex. Inconsistencia real y
+menor, documentada aquí a propósito en vez de ampliar el alcance de esta
+tarea sin que nadie lo pidiera.
+
+`creationKey` sigue viviendo exactamente igual que en TAL-19 — generado
+en cliente tras montar (`useEffect`, nunca en el render/SSR), como campo
+oculto CONTROLADO por React (no `defaultValue`), así que el `<input>` de
+nombre y el `creationKey` sobreviven intactos a un envío fallido por
+validación: un reintento tras un error usa la MISMA clave, no una nueva —
+la idempotencia de "+ Nuevo calendario" sigue intacta.
+
+**Evidencia**: verificado en navegador real (dev-login) — nombre escrito
+antes de crear, aparece correcto en `/admin` sin renombrar. Validación de
+servidor comprobada de forma independiente al navegador, con `npx convex
+run calendars:createCalendar` directo (saltándose la Server Action y el
+`required` del HTML por completo): nombre vacío → rechazado; nombre solo
+espacios → rechazado (recortado antes de validar); nombre de 101
+caracteres → rechazado con el mensaje de longitud; 100 exactos → aceptado
+(cota, no límite estricto por debajo). Idempotencia de `creationKey`
+reconfirmada con dos llamadas reales idénticas → mismo `_id`, una sola
+fila en Convex. `npx next build`/`npx eslint .` limpios; `npx convex dev
+--once --typecheck=enable` limpio; `AGENTS.md` intacto.
 
 ## Validación en las server actions, no solo en la UI
 

@@ -7,6 +7,7 @@ import { fetchMutation } from "convex/nextjs";
 import { api } from "../../../convex/_generated/api";
 import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "../../../convex/calendarErrorMessages";
 import type { Id } from "../../../convex/_generated/dataModel";
+import { MAX_CALENDAR_NAME_LENGTH } from "../../../convex/calendarNameConstants";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
 import { MAX_COVER_ICON_LENGTH } from "@/lib/cover-icons";
@@ -30,17 +31,52 @@ async function requireCalendarAdmin(calendarId: string) {
   return user;
 }
 
-export async function createCalendarAction(formData: FormData) {
+export type CreateCalendarState = {
+  error: string | null;
+  name: string;
+};
+
+/**
+ * TAL-26 — "Pedir nombre al crear": antes esta Server Action era
+ * "de fuego y olvido" (`<form action={createCalendarAction}>` plano, sin
+ * ningún dato de usuario que pudiera fallar validación — solo
+ * `creationKey`, generado por el propio cliente). Ahora que el Admin
+ * escribe un nombre real, hace falta el mismo tratamiento que
+ * `updateCalendarAction` (TAL-20): `useActionState` le da a la acción un
+ * canal de vuelta normal, para que un nombre vacío/demasiado largo (si
+ * alguien salta el `required`/`maxLength` del HTML) se pinte como error
+ * de formulario normal en vez de una excepción sin capturar que Next.js
+ * trataría como un fallo genérico de la página entera.
+ */
+export async function createCalendarAction(
+  _prevState: CreateCalendarState,
+  formData: FormData
+): Promise<CreateCalendarState> {
   const user = await getAuthorizedUser();
   if (!user) redirect("/login?callbackUrl=/admin");
 
-  // La clave la genera la página en cada render (ver src/app/admin/page.tsx)
-  // — si por lo que sea no llega, se genera una aquí, pero entonces esa
-  // llamada concreta no queda protegida frente a un reenvío (no hay nada
-  // con lo que correlacionarlo).
+  const name = formData.get("name")?.toString().trim() ?? "";
+
+  // La clave la genera la página en cada render (ver
+  // src/components/new-calendar-submit.tsx) — si por lo que sea no llega,
+  // se genera una aquí, pero entonces esa llamada concreta no queda
+  // protegida frente a un reenvío (no hay nada con lo que correlacionarlo).
   const creationKey = formData.get("creationKey")?.toString() || randomUUID();
 
-  const calendar = await createCalendarForAdmin(user, creationKey);
+  // Mismo criterio que el resto de campos de este fichero: el `required`/
+  // `maxLength` del `<input>` ya limita en la UI normal, pero esto es un
+  // límite de seguridad — nunca confiar en que el cliente mandó algo
+  // razonable. La comprobación real y definitiva vive en Convex
+  // (`createCalendarHandler::assertValidCalendarName`); esto solo evita
+  // una ida y vuelta a Convex para el caso más común (campo vacío).
+  if (!name) {
+    return { error: "Ponle un nombre al calendario.", name };
+  }
+  if (name.length > MAX_CALENDAR_NAME_LENGTH) {
+    return { error: `El nombre no puede superar los ${MAX_CALENDAR_NAME_LENGTH} caracteres.`, name };
+  }
+
+  const calendar = await createCalendarForAdmin(user, creationKey, name);
   revalidatePath("/admin");
   redirect(`/admin/${calendar.id}`);
 }
