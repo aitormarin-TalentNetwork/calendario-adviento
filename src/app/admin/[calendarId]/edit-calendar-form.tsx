@@ -8,6 +8,7 @@ import {
   type UpdateCalendarState,
 } from "@/app/admin/actions";
 import { CoverIconPicker } from "@/app/admin/[calendarId]/cover-icon-picker";
+import { SkinPicker, type SkinOption } from "@/app/admin/[calendarId]/skin-picker";
 import { SubmitButton } from "@/components/submit-button";
 import { parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { DEFAULT_COUNTDOWN_LABEL, MAX_COUNTDOWN_LABEL_LENGTH, daysUntil, formatCountdownMessage } from "@/lib/countdown";
@@ -25,7 +26,7 @@ type EditCalendarFormProps = {
     skinId: string;
     coverImageUrl: string | null;
   };
-  skins: { id: string; name: string }[];
+  skins: SkinOption[];
 };
 
 function initialValues(calendar: EditCalendarFormProps["calendar"]): UpdateCalendarFieldValues {
@@ -50,7 +51,7 @@ function initialValues(calendar: EditCalendarFormProps["calendar"]): UpdateCalen
 type EditCalendarFieldsProps = {
   fieldValues: UpdateCalendarFieldValues;
   setField: <K extends keyof UpdateCalendarFieldValues>(key: K, value: UpdateCalendarFieldValues[K]) => void;
-  skins: { id: string; name: string }[];
+  skins: SkinOption[];
 };
 
 /**
@@ -101,6 +102,16 @@ function useTodayStr(): string | null {
  * `<input>` (eran hermanos en una fila `flex`, no anidados) — `htmlFor`/
  * `id` explícitos para mantener el mismo comportamiento de accesibilidad
  * (clic en la etiqueta enfoca el campo).
+ *
+ * TAL-37 — la fila "Skin" pasa de `<select>` de texto a `SkinPicker`
+ * (galería de muestras de color). Sin `htmlFor`/`id` (no es un `<input>`
+ * nativo, mismo motivo que el campo de icono) y con la clase adicional
+ * `.editor-field-skin` (`globals.css`, no un `style` inline: un inline
+ * `alignItems` ganaría también en mobile y rompería el `align-items:
+ * stretch` que el `@media` de `.editor-field` necesita ahí — ver el
+ * comentario en `globals.css`) — en desktop alinea la etiqueta arriba en
+ * vez de centrada, porque la galería puede envolver a varias líneas con
+ * 22+ skins, más alta que una fila de texto normal.
  */
 function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();
@@ -174,22 +185,19 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
               este formulario. */}
           <input type="hidden" name="coverIcon" value={fieldValues.coverIcon} />
         </div>
-        <div className="editor-field">
-          <label htmlFor="calendar-skinId">Skin</label>
-          <select
-            id="calendar-skinId"
-            name="skinId"
+        <div className="editor-field editor-field-skin">
+          <label>Skin</label>
+          <SkinPicker
             value={fieldValues.skinId}
-            onChange={(e) => setField("skinId", e.target.value)}
+            onChange={(skinId) => setField("skinId", skinId)}
+            skins={skins}
             disabled={pending}
-            required
-          >
-            {skins.map((skin) => (
-              <option key={skin.id} value={skin.id}>
-                {skin.name}
-              </option>
-            ))}
-          </select>
+          />
+          {/* Campo oculto: la galería de muestras no es un <select> nativo
+              (son botones), así que el valor elegido se manda al form
+              explícitamente — mismo criterio que `coverIcon` (CoverIconPicker)
+              más arriba. */}
+          <input type="hidden" name="skinId" value={fieldValues.skinId} />
         </div>
         <div className="editor-field">
           <label htmlFor="calendar-countdownLabel">Marcador de cuenta atrás</label>
