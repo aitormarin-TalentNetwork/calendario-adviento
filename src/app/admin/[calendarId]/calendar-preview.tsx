@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { CoverText } from "@/components/cover-text";
 import { parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { daysUntil, formatCountdownMessage } from "@/lib/countdown";
-import { coverBackgroundStyle } from "@/lib/skin-appearance";
+import { resolveCoverTextTreatment, skinBackgroundStyle } from "@/lib/skin-appearance";
 
 export type CalendarPreviewProps = {
   coverIcon: string;
@@ -12,10 +13,12 @@ export type CalendarPreviewProps = {
   // "YYYY-MM-DD" — puede llegar vacío/inválido mientras el Admin edita el
   // campo de fecha de fin (ver `useCountdownText` más abajo).
   endDate: string;
-  // Ya resuelto por quien llama (`resolveSkinAppearance(skinId, skins).background`)
+  // Ya resuelto por quien llama (`resolveSkinAppearance(skinId, skins)`)
   // — este componente no conoce Convex ni el catálogo de skins.
   background: string;
   backgroundImageUrl: string | null;
+  textColor: string;
+  textPill: boolean;
 };
 
 /**
@@ -51,23 +54,38 @@ function useCountdownText(endDate: string, countdownLabel: string): string {
  * miniatura abre un diálogo con el mismo contenido a tamaño de
  * producción (3:4, ancho máx. 420px).
  *
- * Fondo (miniatura y diálogo, mismo criterio): `coverBackgroundStyle`
+ * Fondo (miniatura y diálogo, mismo criterio): `skinBackgroundStyle`
  * (`src/lib/skin-appearance.ts`, ya usado por `door-grid.tsx`/
  * `c/[calendarId]/page.tsx`) — imagen de fondo con capa de oscurecimiento
- * si `backgroundImageUrl` está puesto, si no el color/degradado del skin.
- * Un solo cálculo compartido entre miniatura y diálogo (no dos
+ * si `backgroundImageUrl` está puesto, si no el color/degradado del skin
+ * SIN esa capa (TAL-47 — reconciliación, ronda 3: réplica en miniatura de
+ * la portada real, así que reutiliza el mismo `resolveCoverTextTreatment`/
+ * `CoverText` que ya aplican portada/cabecera de mes/modal, en vez del
+ * `var(--paper)` fijo que tenía esta vista previa desde TAL-29 — icono y
+ * título/countdown ya no dependen de una capa oscura fija para su
+ * contraste). Un solo cálculo compartido entre miniatura y diálogo (no dos
  * implementaciones del mismo fondo).
  *
  * Patrón de diálogo (backdrop cierra al clicar fuera, Escape cierra, foco
  * inicial en el botón de cerrar, foco devuelto al disparador al cerrar) —
  * mismo ya establecido en `cover-icon-picker.tsx`, no un mecanismo nuevo.
  */
-export function CalendarPreview({ coverIcon, coverTitle, countdownLabel, endDate, background, backgroundImageUrl }: CalendarPreviewProps) {
+export function CalendarPreview({
+  coverIcon,
+  coverTitle,
+  countdownLabel,
+  endDate,
+  background,
+  backgroundImageUrl,
+  textColor,
+  textPill,
+}: CalendarPreviewProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const countdownText = useCountdownText(endDate, countdownLabel);
-  const backgroundStyle = coverBackgroundStyle(background, backgroundImageUrl);
+  const backgroundStyle = skinBackgroundStyle(background, backgroundImageUrl);
+  const textTreatment = resolveCoverTextTreatment({ textColor, textPill }, !!backgroundImageUrl);
 
   function closeDialog() {
     setOpen(false);
@@ -106,7 +124,6 @@ export function CalendarPreview({ coverIcon, coverTitle, countdownLabel, endDate
           padding: "8px",
           textAlign: "center",
           cursor: "pointer",
-          color: "var(--paper)",
           ...backgroundStyle,
         }}
       >
@@ -125,22 +142,17 @@ export function CalendarPreview({ coverIcon, coverTitle, countdownLabel, endDate
             overflow: "hidden",
           }}
         >
-          {coverTitle}
+          {/* CoverText anidado, no como elemento externo — su rama "pill"
+              fuerza `display: inline-block`, que rompería el clamp de 2
+              líneas de este `span` si se lo aplicáramos directo a él. */}
+          <CoverText treatment={textTreatment}>{coverTitle}</CoverText>
         </span>
-        <span
-          style={{
-            fontFamily: "var(--font-mono)",
-            fontSize: "0.46rem",
-            letterSpacing: "0.02em",
-            opacity: 0.9,
-            background: "rgba(0,0,0,0.22)",
-            padding: "1px 6px",
-            borderRadius: "999px",
-            whiteSpace: "nowrap",
-          }}
+        <CoverText
+          treatment={textTreatment}
+          style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", letterSpacing: "0.02em", whiteSpace: "nowrap" }}
         >
           {countdownText}
-        </span>
+        </CoverText>
       </button>
 
       {open && (
@@ -176,7 +188,6 @@ export function CalendarPreview({ coverIcon, coverTitle, countdownLabel, endDate
               textAlign: "center",
               padding: "40px 32px",
               gap: "22px",
-              color: "var(--paper)",
               ...backgroundStyle,
             }}
           >
@@ -217,22 +228,16 @@ export function CalendarPreview({ coverIcon, coverTitle, countdownLabel, endDate
             >
               {coverIcon}
             </div>
-            <div style={{ fontFamily: "var(--font-display)", fontSize: "1.9rem", lineHeight: 1.25, textWrap: "balance" }}>
+            <CoverText as="div" treatment={textTreatment} style={{ fontFamily: "var(--font-display)", fontSize: "1.9rem", lineHeight: 1.25, textWrap: "balance" }}>
               {coverTitle}
-            </div>
-            <div
-              style={{
-                fontFamily: "var(--font-mono)",
-                fontSize: "1rem",
-                letterSpacing: "0.03em",
-                opacity: 0.92,
-                background: "rgba(0,0,0,0.22)",
-                padding: "6px 18px",
-                borderRadius: "999px",
-              }}
+            </CoverText>
+            <CoverText
+              as="div"
+              treatment={textTreatment}
+              style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", letterSpacing: "0.03em" }}
             >
               {countdownText}
-            </div>
+            </CoverText>
           </div>
         </div>
       )}

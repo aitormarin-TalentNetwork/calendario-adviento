@@ -11,6 +11,12 @@ export type SkinOption = {
   // más abajo.
   background?: string;
   accent?: string;
+  // TAL-47 — no lo usa `SkinPicker` (las muestras solo pintan `background`),
+  // pero viaja en el mismo `SkinOption` porque `edit-calendar-form.tsx`
+  // reutiliza este array para resolver el skin SELECCIONADO EN VIVO y
+  // pasárselo a `CalendarPreview` (ver el comentario completo ahí).
+  textColor?: string;
+  textPill?: boolean;
 };
 
 type SkinPickerProps = {
