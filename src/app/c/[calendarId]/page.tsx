@@ -129,18 +129,7 @@ export default async function GuestCalendarPage({
   // garantiza contraste ≥4.5:1 incluso en ese caso límite), así que el
   // texto blanco + sombra sigue siendo legible de verdad en vez de
   // "normalmente".
-  //
-  // TAL-47 — sombra reforzada (doble capa: un trazo ceñido y oscuro para
-  // el borde del glifo + un halo más ancho y suave para separarlo del
-  // fondo) al bajar la opacidad del overlay de 0.6 a 0.55
-  // (`coverBackgroundCss`/`coverBackgroundStyle`) — compensa la
-  // legibilidad perdida por el overlay más claro sin depender de ella
-  // para el cálculo de contraste WCAG (que no reconoce `text-shadow`,
-  // ver el comentario completo en `skin-appearance.ts`).
-  const coverTextStyle = {
-    color: "#fff",
-    textShadow: "0 1px 2px rgba(0,0,0,0.9), 0 2px 8px rgba(0,0,0,0.6)",
-  };
+  const coverTextStyle = { color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.5)" };
 
   // TAL-47 — resuelto en una variable propia (tipada como
   // `React.CSSProperties`, no con un `as` inline) antes de mezclarla con
