@@ -16,7 +16,10 @@ export default async function AdminCalendarsPage() {
   const calendars = await listAdminCalendars(user.id);
 
   return (
-    <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
+    <main
+      className="session-page-main"
+      style={{ flex: 1, paddingLeft: "2rem", paddingRight: "2rem", paddingBottom: "2rem", maxWidth: "480px" }}
+    >
       {/* TAL-28, sugerencia no bloqueante de auditoría ronda 1: a diferencia
           de admin/[calendarId]/page.tsx y superadmin/page.tsx, esta página
           no es específica de un calendario (lista TODOS los que administra

@@ -168,3 +168,54 @@ a {
     color-scheme: dark;
   }
 }
+
+/* TAL-28, ronda de seguimiento (mobile) — `SessionIndicator`
+   (`src/components/session-indicator.tsx`) necesita un `@media`, que un
+   `style` inline de React no puede expresar; por eso esta única regla de
+   posicionamiento vive aquí en vez de en el propio componente. Breakpoint
+   estándar del Design System (`design/design-system.md` § "Responsive /
+   Mobile"): 640px. */
+.session-indicator {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .session-indicator {
+    top: 0.5rem;
+    right: 0.5rem;
+    gap: 0.35rem;
+  }
+}
+
+/* TAL-28, ronda de seguimiento — hallazgo real (no solo teórico): en las
+   4 pantallas con `SessionIndicator`, `<main>` fija su `padding` como
+   shorthand inline (`padding: "2rem"`, en cada `page.tsx`) — un inline
+   style siempre gana sobre cualquier regla externa, con o sin `@media`,
+   así que esta clase NO puede simplemente sobreescribir `padding-top`
+   sin `!important` mientras el inline siga fijando las 4 direcciones a
+   la vez. Por eso cada `<main>` pasó a fijar en línea solo
+   `paddingLeft`/`paddingRight`/`paddingBottom` (deja `padding-top` libre
+   para esta clase) — sin `!important` en ningún sitio, ni aquí ni en
+   React. Verificado con un iframe de 375px de ancho inyectado en la
+   propia página (viewport real, no una ventana de SO redimensionada —
+   `resize_window` no reproducía un viewport estrecho de verdad en este
+   entorno): SIN esta regla, el título ("Editar calendario", "¡Feliz
+   cuenta atrás, equipo!") solapaba de verdad con el avatar/botón fijos
+   — confirmado visualmente antes de aplicar el arreglo, no solo
+   sospechado. Con esta regla, el contenido empieza por debajo del
+   indicador en las 4 pantallas a 375px, sin solape. */
+.session-page-main {
+  padding-top: 2rem;
+}
+
+@media (max-width: 640px) {
+  .session-page-main {
+    padding-top: 4.5rem;
+  }
+}

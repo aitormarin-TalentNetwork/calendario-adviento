@@ -96,7 +96,10 @@ export default async function AdminCalendarPage({
   const { calendar, skins, skinAccent, skinBackground } = data;
 
   return (
-    <main style={{ flex: 1, padding: "2rem", maxWidth: "900px" }}>
+    <main
+      className="session-page-main"
+      style={{ flex: 1, paddingLeft: "2rem", paddingRight: "2rem", paddingBottom: "2rem", maxWidth: "900px" }}
+    >
       <SessionIndicator
         email={user.email}
         image={user.image}

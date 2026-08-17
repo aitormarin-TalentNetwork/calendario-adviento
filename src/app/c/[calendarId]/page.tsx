@@ -96,10 +96,13 @@ export default async function GuestCalendarPage({
 
   return (
     <main
+      className="session-page-main"
       style={
         {
           flex: 1,
-          padding: "2rem",
+          paddingLeft: "2rem",
+          paddingRight: "2rem",
+          paddingBottom: "2rem",
           maxWidth: "900px",
           // Se sobreescribe `--accent` a nivel de página para que TODO lo
           // que ya usa `var(--accent)` más abajo (incluida `DoorGrid`,

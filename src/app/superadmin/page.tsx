@@ -110,7 +110,10 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
   ]);
 
   return (
-    <main style={{ flex: 1, padding: "2rem", display: "flex", flexDirection: "column", gap: "2rem" }}>
+    <main
+      className="session-page-main"
+      style={{ flex: 1, paddingLeft: "2rem", paddingRight: "2rem", paddingBottom: "2rem", display: "flex", flexDirection: "column", gap: "2rem" }}
+    >
       <SessionIndicator email={user.email} image={user.image} roleLabel="Super Admin" />
       <div>
         <h1>Todos los calendarios</h1>
