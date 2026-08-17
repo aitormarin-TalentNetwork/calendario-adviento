@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { deleteDayAction, saveDayAction } from "@/app/admin/[calendarId]/days-actions";
+import { useActionState, useEffect, useRef, useState } from "react";
+import { deleteDayAction, saveDayAction, type SaveDayState } from "@/app/admin/[calendarId]/days-actions";
 import { SubmitButton } from "@/components/submit-button";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { coverBackgroundStyle } from "@/lib/skin-appearance";
@@ -365,8 +365,10 @@ export function DaysGridEditor({
             {/* key: al cambiar de día, se desmonta y vuelve a montar en vez de
                 reutilizar — si no, los `defaultValue` (inputs no
                 controlados) y la pestaña del segmentado se quedarían con lo
-                del día anterior. */}
-            <DayDialogForm key={openDay.dateStr} calendarId={calendarId} day={openDay} />
+                del día anterior. También reinicia `useActionState` a su
+                estado inicial en cada apertura (TAL-45) — nunca arranca ya
+                con el resultado de un guardado anterior. */}
+            <DayDialogForm key={openDay.dateStr} calendarId={calendarId} day={openDay} onSaveSuccess={closeDialog} />
           </div>
         </div>
       )}
@@ -403,15 +405,65 @@ export function DaysGridEditor({
  * a ningún sitio, la pestaña "Subir archivo" muestra un aviso y desactiva
  * "Guardar día" mientras está activa — la única fuente de vídeo que
  * funciona de verdad hoy sigue siendo "Link externo".
+ *
+ * TAL-45 — `useActionState` le da un canal de vuelta a `saveDayAction`
+ * (mismo patrón que `NewCalendarSubmit`/`EditCalendarForm`, TAL-20/26):
+ * `state.status === "success"` es la única señal fiable de que ESTE envío
+ * en concreto guardó con éxito (nunca el estado inicial ni el de un envío
+ * anterior — ver el comentario completo en `days-actions.ts`), y el efecto
+ * la usa para cerrar el diálogo solo, devolviendo el foco a la casilla que
+ * lo abrió (`onSaveSuccess`, la misma `closeDialog` de siempre — nada
+ * nuevo en el propio mecanismo de foco). Un guardado fallido deja
+ * `status: "error"` — el diálogo NO se cierra (el efecto solo actúa sobre
+ * "success"), y el mensaje se pinta arriba del formulario para poder
+ * corregir y reintentar sin perder lo ya escrito (campos no controlados,
+ * intactos porque el diálogo nunca se desmonta en este caso).
  */
-function DayDialogForm({ calendarId, day }: { calendarId: string; day: DayInfo }) {
+function DayDialogForm({
+  calendarId,
+  day,
+  onSaveSuccess,
+}: {
+  calendarId: string;
+  day: DayInfo;
+  onSaveSuccess: () => void;
+}) {
   const [videoSource, setVideoSource] = useState<"link" | "upload">("link");
+  const initialState: SaveDayState = { status: "idle", error: null };
+  const [state, formAction, pending] = useActionState(saveDayAction.bind(null, calendarId, day.dateStr), initialState);
+  const rafIdsRef = useRef<number[]>([]);
+
+  // Hallazgo al verificar en navegador real (no solo teórico, dos rondas de
+  // prueba): cerrar en cuanto `state.status === "success"` cambia perdía el
+  // foco a `<body>` en vez de devolverlo a la casilla — `saveDayAction`
+  // llama a `revalidatePath`, y Next.js sustituye el nodo de la casilla por
+  // uno nuevo (ahora con miniatura) en un commit POSTERIOR al que trae el
+  // `state` de éxito. `pending` (tercer valor de `useActionState`) NO
+  // basta — ya es `false` antes de que ese commit posterior llegue,
+  // comprobado en el propio navegador. Se difieren cierre+foco dos
+  // `requestAnimationFrame` (deja pasar el/los repintados donde ese commit
+  // posterior aterriza) en vez de un `setTimeout` con un número arbitrario
+  // de milisegundos adivinado.
+  useEffect(() => {
+    if (pending || state.status !== "success") return;
+    const raf1 = requestAnimationFrame(() => {
+      const raf2 = requestAnimationFrame(() => onSaveSuccess());
+      rafIdsRef.current.push(raf2);
+    });
+    rafIdsRef.current.push(raf1);
+    return () => {
+      rafIdsRef.current.forEach(cancelAnimationFrame);
+      rafIdsRef.current = [];
+    };
+  }, [pending, state, onSaveSuccess]);
 
   return (
-    <form
-      action={saveDayAction.bind(null, calendarId, day.dateStr)}
-      style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}
-    >
+    <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
+      {state.status === "error" && state.error ? (
+        <p role="alert" style={{ color: "#c00" }}>
+          {state.error}
+        </p>
+      ) : null}
       <div
         style={{
           display: "flex",

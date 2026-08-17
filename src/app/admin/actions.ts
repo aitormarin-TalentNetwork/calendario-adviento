@@ -10,6 +10,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { MAX_CALENDAR_NAME_LENGTH } from "../../../convex/calendarNameConstants";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { extractConvexErrorMessage } from "@/lib/convex-error";
 import { MAX_COUNTDOWN_LABEL_LENGTH } from "@/lib/countdown";
 import { MAX_COVER_ICON_LENGTH } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
@@ -264,30 +265,18 @@ export async function updateCalendarAction(
       skinId: skinId as Id<"skins">,
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    // fetchMutation envuelve el `Error` del handler de Convex en un mensaje
-    // con formato fijo (comprobado contra un throw real):
-    //   "[Request ID: …] Server Error\nUncaught Error: <mensaje>\n    at …\n    at …"
-    // — la primera línea es un identificador de petición y el resto, tras
-    // el mensaje real, es la traza de pila del lado de Convex. Extraemos la
-    // primera línea que no sea ninguna de esas dos cosas y le quitamos el
-    // prefijo "Uncaught Error:"/"Error:" que antepone Convex — pero el
-    // resultado SOLO se le enseña al usuario si coincide EXACTAMENTE con un
-    // mensaje de validación de negocio que ya conocemos y ya está pensado
-    // para leerse tal cual (`DAY_OUTSIDE_RANGE_ERROR_MESSAGE`, importado de
-    // `convex/calendarErrorMessages.ts` — fichero compartido sin
-    // dependencias de runtime de Convex a propósito, para que este texto no
-    // pueda divergir entre los dos sitios). Cualquier otro mensaje —
-    // incluida cualquier extracción con este mismo formato pero de un
-    // `Error` que no reconocemos — se trata como fallo NO reconocido: se
-    // registra en el servidor (para que quede rastro real de que algo se
-    // rompió) y al usuario se le da un mensaje genérico, nunca el texto
-    // crudo de una excepción no reconocida.
-    const messageLine = message
-      .split("\n")
-      .map((line) => line.trim())
-      .find((line) => line.length > 0 && !line.startsWith("[Request ID") && !line.startsWith("at "));
-    const cleaned = (messageLine ?? "").replace(/^Uncaught Error:\s*/, "").replace(/^Error:\s*/, "");
+    // El resultado de `extractConvexErrorMessage` (ver ese fichero para el
+    // porqué del formato) SOLO se le enseña al usuario si coincide
+    // EXACTAMENTE con un mensaje de validación de negocio que ya conocemos
+    // y ya está pensado para leerse tal cual (`DAY_OUTSIDE_RANGE_ERROR_MESSAGE`,
+    // importado de `convex/calendarErrorMessages.ts` — fichero compartido
+    // sin dependencias de runtime de Convex a propósito, para que este
+    // texto no pueda divergir entre los dos sitios). Cualquier otro
+    // mensaje se trata como fallo NO reconocido: se registra en el
+    // servidor (para que quede rastro real de que algo se rompió) y al
+    // usuario se le da un mensaje genérico, nunca el texto crudo de una
+    // excepción no reconocida.
+    const cleaned = extractConvexErrorMessage(err);
 
     if (cleaned === DAY_OUTSIDE_RANGE_ERROR_MESSAGE) {
       return { error: cleaned, values };

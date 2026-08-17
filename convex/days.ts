@@ -2,6 +2,7 @@ import { internal } from "./_generated/api";
 import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
+import { CALENDAR_NO_LONGER_EXISTS_ERROR_MESSAGE, DAY_OUTSIDE_CALENDAR_RANGE_ERROR_MESSAGE } from "./calendarErrorMessages";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
 
@@ -74,9 +75,9 @@ async function upsertDayHandler(
   assertValidMessage(args.message);
 
   const calendar = await ctx.db.get(args.calendarId);
-  if (!calendar) throw new Error("El calendario ya no existe.");
+  if (!calendar) throw new Error(CALENDAR_NO_LONGER_EXISTS_ERROR_MESSAGE);
   if (args.date < calendar.startDate || args.date > calendar.endDate) {
-    throw new Error("Esa fecha no está dentro del rango del calendario.");
+    throw new Error(DAY_OUTSIDE_CALENDAR_RANGE_ERROR_MESSAGE);
   }
 
   const existing = await ctx.db

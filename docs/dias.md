@@ -774,3 +774,82 @@ como fuente exacta de valores.
   tarea. El relleno de alineación de semana (días que no pertenecen a
   ningún mes, ni siquiera fuera de rango) sigue en blanco sin numerar,
   sin tocar — concepto distinto, no confundir con "fuera de rango".
+
+## Diálogo de "Guardar día" — cierre automático al guardar con éxito (TAL-45)
+
+Pedido explícito de Aitor (2026-08-17), probando el editor real: el
+guardado se completaba (la casilla del grid se actualizaba) pero el
+diálogo se quedaba abierto — había que cerrarlo a mano. Ajusta
+`days-grid-editor.tsx` (`DaysGridEditor`/`DayDialogForm`) y
+`days-actions.ts::saveDayAction`.
+
+- **`saveDayAction` deja de ser "de fuego y olvido"**: antes tiraba
+  (`throw`) en cualquier fallo de validación, escapando como una
+  excepción sin capturar que Next.js trataba como un crash genérico de
+  la página entera — y un guardado con éxito no le daba a
+  `days-grid-editor.tsx` ninguna señal fiable para cerrar el diálogo
+  solo. Se cablea con `useActionState` (mismo patrón ya auditado en
+  `updateCalendarAction`/`createCalendarAction`, TAL-20/26): la action ya
+  no lanza para errores de validación esperables, devuelve
+  `SaveDayState = { status: "idle" | "error" | "success"; error: string |
+  null }`. `status === "success"` es la única señal fiable de que ESE
+  envío en concreto guardó con éxito — nunca el estado inicial ni el de
+  un envío anterior (el envío siguiente siempre produce un objeto nuevo).
+- **Reglas de negocio de Convex, ahora reconocidas por texto exacto**:
+  `upsertDayHandler` (`convex/days.ts`) puede lanzar dos errores reales —
+  calendario borrado entre medias, fecha que quedó fuera de rango tras un
+  cambio de rango en otra pestaña — antes escapaban sin capturar. Ahora
+  se capturan y se reconocen por su texto exacto
+  (`convex/calendarErrorMessages.ts::DAY_OUTSIDE_CALENDAR_RANGE_ERROR_MESSAGE`/
+  `CALENDAR_NO_LONGER_EXISTS_ERROR_MESSAGE`, mismo criterio que
+  `DAY_OUTSIDE_RANGE_ERROR_MESSAGE` ya existente para el cambio de rango
+  del propio calendario); cualquier otro fallo no reconocido usa un
+  mensaje genérico, nunca el texto crudo de una excepción. La extracción
+  del mensaje real desde el envoltorio de `fetchMutation` (formato fijo:
+  `"[Request ID: …] Server Error\nUncaught Error: <mensaje>\n    at …"`)
+  se sacó a un helper compartido nuevo, `src/lib/convex-error.ts::extractConvexErrorMessage`,
+  al aparecer un segundo llamador real con la misma necesidad —
+  `updateCalendarAction` (`src/app/admin/actions.ts`) se refactorizó para
+  usarlo también, en vez de mantener la misma lógica duplicada en los dos
+  sitios.
+- **Error de verdad probado, no solo NO-GO de validación HTML**:
+  verificado en navegador con una URL `ftp://` (pasa el `type="url"` del
+  `<input>`, la rechaza el servidor) — el diálogo se queda abierto, el
+  mensaje "El vídeo debe ser una URL https:// — no se aceptan otros
+  esquemas por seguridad." se pinta arriba del formulario (`role="alert"`,
+  mismo patrón que `NewCalendarSubmit`/`EditCalendarForm`), campos listos
+  para corregir y reintentar.
+- **Hallazgo real de foco al verificar en navegador (no solo teórico —
+  costó dos rondas de prueba)**: cerrar el diálogo en cuanto
+  `state.status === "success"` cambia, sin más, devolvía el foco a
+  `<body>` en vez de a la casilla que abrió el diálogo.
+  `saveDayAction` llama a `revalidatePath`, y Next.js sustituye el nodo
+  de la casilla por uno nuevo (ahora con miniatura) en un commit
+  POSTERIOR al que trae el `state` de éxito — cerrar+enfocar antes de que
+  ese commit llegue devuelve el foco a un botón que el propio refresco
+  desmonta justo después. Ni siquiera `pending` (tercer valor de
+  `useActionState`) bastaba — comprobado en vivo que ya es `false` antes
+  de que ese commit posterior aterrice. Solución: diferir cierre+foco dos
+  `requestAnimationFrame` encadenados (deja pasar el/los repintados donde
+  aterriza ese commit posterior) en vez de un `setTimeout` con un número
+  de milisegundos adivinado — con limpieza (`cancelAnimationFrame`) si el
+  componente se desmonta antes de que lleguen a disparar.
+- **Verificado en navegador real** (super-admin, calendario de prueba
+  "Verificacion TAL-45", creado y borrado en la propia comprobación,
+  cuatro días guardados con éxito seguidos + un intento fallido):
+  cada guardado con éxito cierra el diálogo solo y confirma el foco
+  devuelto a la casilla correcta vía `document.activeElement` (no solo
+  visual) — `"N/12/2026 — vídeo asignado"`, nunca `<body>` — en los
+  cuatro casos. El intento fallido deja el diálogo abierto con el
+  mensaje de error visible. Repetido también a ~500px de ancho de
+  viewport (por debajo del único breakpoint real de `globals.css`,
+  640px — requisito retroactivo del PM, 2026-08-17): mismo
+  comportamiento, sin recortes ni desbordamiento en el mensaje de error
+  ni en el resto del diálogo.
+- `npx eslint .`/`npx tsc --noEmit` limpios. Ningún cambio de CSS/layout
+  — el único elemento visual nuevo (`<p role="alert">` del mensaje de
+  error) reutiliza el patrón de color plano ya establecido, no la
+  variante blanco+sombra de `door-grid.tsx` (esa es específica de
+  modales sobre imagen de fondo arbitraria — este diálogo se apoya en
+  `var(--bg-raised)`, mismo criterio que el resto de diálogos del editor
+  de Admin).
