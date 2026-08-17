@@ -81,11 +81,9 @@ export function coverBackgroundCss(background: string): string {
   return `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), ${background}`;
 }
 
-export type CoverBackgroundStyle = {
-  background: string;
-  backgroundSize?: string;
-  backgroundPosition?: string;
-};
+export type CoverBackgroundStyle =
+  | { background: string; backgroundImage?: never; backgroundSize?: never; backgroundPosition?: never }
+  | { background?: never; backgroundImage: string; backgroundSize: string; backgroundPosition: string };
 
 /**
  * TAL-39 — cuando el calendario tiene `backgroundImageUrl`, la imagen
@@ -99,19 +97,30 @@ export type CoverBackgroundStyle = {
  *
  * Misma capa de oscurecimiento uniforme que `coverBackgroundCss` (mismo
  * motivo/contraste verificado matemáticamente ahí arriba), antepuesta a la
- * imagen en vez de al `background` del skin. `backgroundSize`/
- * `backgroundPosition` como propiedades aparte del `background` shorthand
- * — mismo criterio ya establecido en `days-grid-editor.tsx`/`door-grid.tsx`
- * para las miniaturas de vídeo de las casillas "visto" (el shorthand
- * `background` no expresa tamaño/posición de una imagen de forma legible
- * él solo). Sin imagen, se comporta exactamente igual que antes
- * (`coverBackgroundCss` a secas, sin tamaño/posición — no hacen falta
- * para un color/degradado).
+ * imagen en vez de al `background` del skin. `backgroundImage` (longhand),
+ * no el shorthand `background`, para poder acompañarla de
+ * `backgroundSize`/`backgroundPosition` — mismo criterio ya establecido en
+ * `days-grid-editor.tsx`/`door-grid.tsx` para las miniaturas de vídeo de
+ * las casillas "visto" (`style.backgroundImage = ...`). Corregido
+ * (TAL-29): la primera versión de esta función SÍ mezclaba el shorthand
+ * `background` con `backgroundSize`/`backgroundPosition` en el mismo
+ * objeto de estilo — válido en CSS estático de una sola pasada (el
+ * shorthand gana y ya, sin re-render de por medio), pero React avisa en
+ * consola ("don't mix shorthand and non-shorthand properties") en cuanto
+ * ese estilo se aplica a través de un componente que puede re-renderizar
+ * con esos valores — no se detectó en TAL-39 porque sus 3 consumidores
+ * (`door-grid.tsx`/`days-grid-editor.tsx`/`page.tsx`) montan
+ * `backgroundImageUrl` una vez por carga de página, sin cambiar en vivo;
+ * TAL-29 sí lo cambia en vivo (vista previa reactiva a lo que teclea el
+ * Admin) y ahí se manifestó en consola por primera vez. Sin imagen, se
+ * comporta exactamente igual que antes (`coverBackgroundCss` a secas,
+ * shorthand `background` SOLO — sin mezclar con las otras dos, así que no
+ * hace falta tocar ese caso).
  */
 export function coverBackgroundStyle(background: string, backgroundImageUrl?: string | null): CoverBackgroundStyle {
   if (backgroundImageUrl) {
     return {
-      background: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("${backgroundImageUrl}")`,
+      backgroundImage: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("${backgroundImageUrl}")`,
       backgroundSize: "cover",
       backgroundPosition: "center",
     };

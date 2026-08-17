@@ -1043,6 +1043,75 @@ etiqueta encima; el icono clicable abre su diálogo sin problemas; "Eliminar
 calendario" ocupa el ancho completo y su diálogo de confirmación se ve
 completo; flujo de borrado probado de nuevo de punta a punta a este ancho.
 
+## Vista previa en vivo — cableada en el editor (TAL-29)
+
+**Fuente**: `design/design-system.md` § "Vista previa en vivo (TAL-29)" / "Editor de
+calendario", validadas con Aitor 2026-08-17. Mockup: `design/propuesta-editor-
+calendario.html`. Dos rondas: fase 1 (este mismo ciclo, ya con GO y en main) construyó
+`CalendarPreview` (`calendar-preview.tsx`) en aislamiento, con datos de ejemplo, sin
+tocar `edit-calendar-form.tsx` — esperando a que T2 mergease sus 5 ajustes sobre ese
+mismo fichero (ver sección anterior) para evitar chocar en el mismo archivo. Esta
+sección documenta la fase 2: cablearlo de verdad.
+
+**Reordena "Datos del calendario"** (el orden que ya describía `design-system.md` desde
+antes de TAL-33, pero que TAL-33 no llegó a aplicar — su propio alcance literal decía
+"nombre en la columna derecha", ver sección anterior): izquierda = nombre del
+calendario (ahora primero), fecha de inicio, fecha de fin; derecha = **vista previa en
+vivo (primero)**, título de portada, icono, skin, fecha objetivo, imagen de fondo —
+`coverImageUrl` ("Foto de portada") se queda al final, fuera del mockup igual que antes
+de esta tarea.
+
+**`CalendarPreview` recibe los valores EN VIVO del formulario** (`fieldValues`, no lo
+guardado en servidor): `coverIcon`/`coverTitle`/`countdownLabel`/`endDate`/
+`backgroundImageUrl` tal cual, y el `background` del skin resuelto por
+`skins.find((s) => s.id === fieldValues.skinId)?.background ?? DEFAULT_SKIN_APPEARANCE.background`
+— mismo respaldo que ya usa `SkinPicker` para una fila sin `background` todavía (nunca
+se llama a `resolveSkinAppearance`, que espera `_id`, no `id` — `SkinOption` del
+picker usa `id`, tipos distintos a propósito, ver `skin-picker.tsx`). Sustituye por
+completo el texto suelto "Vista previa: Faltan X días" (y el `useTodayStr`/
+`previewDaysRemaining` que solo servían para él) que vivía junto al marcador de cuenta
+atrás desde TAL-27.
+
+**Bug real encontrado y corregido en `coverBackgroundStyle` (`skin-appearance.ts`,
+TAL-39):** al escribir en el campo "Imagen de fondo" con la consola abierta, React
+avisaba en cada tecla ("don't mix shorthand and non-shorthand properties for the same
+value... Updating background backgroundPosition/backgroundSize") — la rama
+"con imagen" de esa función devolvía `background` (shorthand) JUNTO a `backgroundSize`/
+`backgroundPosition` (longhand) en el mismo objeto de estilo, lo cual React marca como
+riesgo real de bug de estilos. No se detectó en la auditoría de TAL-39 porque sus 3
+consumidores (`door-grid.tsx`/`days-grid-editor.tsx`/`page.tsx`) montan
+`backgroundImageUrl` una sola vez por carga de página server-renderizada — nunca
+cambia en vivo ahí, así que el aviso de React (que solo dispara al re-renderizar con un
+estilo que mezcla ambos tipos) nunca llegó a manifestarse en esos flujos. `CalendarPreview`
+sí lo cambia en vivo (reactivo a lo que teclea el Admin), y ahí sí se manifestó.
+Corregido cambiando esa rama a `backgroundImage` (longhand, el mismo criterio que ya
+usan las miniaturas "visto" del grid en `door-grid.tsx`/`days-grid-editor.tsx` —
+`style.backgroundImage = ...` + `backgroundSize`/`backgroundPosition`, sin mezclar con
+el shorthand) — beneficia también a los 3 consumidores previos, aunque ellos no
+manifestaran el síntoma. `CoverBackgroundStyle` pasa de un tipo con todo opcional a una
+unión discriminada (`{background} | {backgroundImage, backgroundSize, backgroundPosition}`)
+para que TypeScript no permita reintroducir la mezcla por accidente en el futuro.
+
+**Evidencia:** verificado en navegador real (calendario de prueba, super-admin). Título,
+icono, skin y "Fecha objetivo" cambian la miniatura y el diálogo AL MOMENTO, antes de
+guardar (confirmado escribiendo en cada campo y viendo el cambio sin recargar). Imagen
+de fondo: al escribir una URL real, la miniatura y el diálogo la muestran con la capa de
+oscurecimiento (mismo tratamiento que el resto de la app); al borrar el campo, vuelve al
+color/degradado del skin. Consola sin errores tras la corrección (confirmado
+explícitamente: 0 mensajes de error tras recargar y repetir la secuencia completa —
+antes de la corrección había decenas del aviso de React descrito arriba). Diálogo:
+clic en la miniatura lo abre a tamaño de producción con el mismo fondo; Escape lo
+cierra. **Mobile** (375px real, vía iframe inyectado en la propia página —
+`resize_window` no reproduce un viewport estrecho de verdad en este entorno, mismo
+motivo ya documentado en la verificación de TAL-33/"5 ajustes" más arriba): "Datos del
+calendario" colapsa a una columna, "Vista previa" se apila con la etiqueta encima y la
+miniatura a ancho completo, sin recorte de texto; el diálogo también se ve completo y
+centrado a este ancho.
+
+`npx tsc --noEmit`/`npm run lint` limpios. Build limpio desde instalación limpia real
+(`rm -rf node_modules .next && npm install`). No toca Convex — puramente presentación +
+la corrección del estilo mencionada arriba.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
