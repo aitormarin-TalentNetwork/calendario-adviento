@@ -89,17 +89,17 @@
   }
   .field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 
-  /* ---- selector de skin (ajuste 2026-08-17, segunda vuelta: Aitor prefiere el
-     círculo de color solo, sin el nombre siempre visible al lado — el nombre
-     aparece con el hover/tooltip nativo del `title`, nada más) ---- */
-  .skin-picker-gallery { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* ---- selector de skin (ajuste 2026-08-17, tercera vuelta: cuadrados, no
+     círculos, en matriz — envuelve fila a fila desde el final de la etiqueta
+     hasta el ancho de los inputs de la misma columna, nombre solo por hover) ---- */
+  .skin-picker-gallery { display: flex; flex-wrap: wrap; gap: 8px; flex: 1; }
   .skin-swatch {
-    width: 26px; height: 26px; padding: 2px; border-radius: 999px; border: 1px solid transparent;
+    width: 26px; height: 26px; padding: 2px; border-radius: 8px; border: 1px solid transparent;
     background: transparent; cursor: pointer;
   }
   .skin-swatch:hover { border-color: var(--gold); }
   .skin-swatch.selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,154,61,0.25); }
-  .skin-swatch-color { display: block; width: 100%; height: 100%; border-radius: 999px; }
+  .skin-swatch-color { display: block; width: 100%; height: 100%; border-radius: 5px; }
 
   /* ---- selector de icono (ajuste 2026-08-17: el propio icono ES el botón de
      "cambiar icono", no hay un botón de texto aparte — la galería vive en un

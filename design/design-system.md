@@ -160,12 +160,15 @@ insertar un registro, no tocar código. Hoy el alta de un skin nuevo se hace por
 script/CLI (no hay UI de gestión en la app todavía — Aitor confirmó que esto es
 suficiente por ahora, no hace falta una pantalla de Super Admin para ello).
 
-**Selector de skin en el editor (TAL-37):** galería de círculos de color, no un
-`<select>` de texto — cada círculo lleva el color/degradado real del skin, con un anillo
-`--gold` en el seleccionado. **Ajuste 2026-08-17 (segunda vuelta), pedido explícito de
-Aitor:** el nombre del skin NO va siempre visible junto al círculo (primer intento,
-descartado) — solo aparece como `title` al hacer hover (tooltip nativo del navegador),
-igual que el resto de swatches del sistema. Envuelve en varias líneas con 22+ filas
+**Selector de skin en el editor (TAL-37):** galería de **cuadrados** de color (radio
+`~5-8px`, no círculos — ajuste 2026-08-17, tercera vuelta), no un `<select>` de texto —
+cada cuadrado lleva el color/degradado real del skin, con un anillo `--gold` en el
+seleccionado. **Ajuste 2026-08-17 (segunda vuelta), pedido explícito de Aitor:** el
+nombre del skin NO va siempre visible junto al cuadrado (primer intento, descartado) —
+solo aparece como `title` al hacer hover (tooltip nativo del navegador), igual que el
+resto de swatches del sistema. **Matriz que envuelve fila a fila** ocupando el mismo
+ancho que los inputs de texto de la misma columna (no todo el ancho de la columna, ni
+una sola fila) — con 22+ filas la galería crece hacia abajo, envolviendo en varias filas
 (`flex-wrap`), sin forzar una sola fila ni alargar el resto del formulario.
 
 **Skin #23 — "Tira Cómica"** (pedido 2026-08-17): colores compatibles con una imagen
