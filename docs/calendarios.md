@@ -494,6 +494,33 @@ valor nuevo persiste tras recargar.
 `npx next build`/`npx eslint .` limpios (ambas rondas); `npx convex dev
 --typecheck=enable` limpio; `AGENTS.md` intacto.
 
+## Panel de Admin como tabla (TAL-32)
+
+**Antes**: `/admin` mostraba los calendarios como una lista de `<Link>` sueltos (todo el
+texto de la fila era el enlace, sin distinguir visualmente qué era clicable), y el botón
+"+ Nuevo calendario" aparecía DESPUÉS del mensaje "todavía no administras ningún
+calendario" — abajo del todo, no como primer elemento de la pantalla.
+
+**Ahora**: lista como tabla real (columnas Nombre/Fechas/Skin), botón "+ Nuevo
+calendario" ENCIMA de la tabla (o del mensaje de lista vacía). El nombre en la tabla se
+ve explícitamente como link — subrayado + color `--accent` — pedido explícito de Aitor:
+antes toda la fila era un `<Link>` sin ningún estilo propio de enlace, así que en una
+tabla (con más columnas de texto plano al lado) no quedaba claro qué se podía pinchar.
+Solo el nombre es clicable, no la fila entera — el resto de columnas son texto plano.
+
+Al pulsar "+ Nuevo calendario" se sigue abriendo directamente la página de configuración
+(sin cambios, ya funcionaba así) — y en esa página, el primer campo sigue siendo el
+nombre del calendario (TAL-26, verificado que no ha regresado con las tareas
+posteriores — TAL-23/27 añadieron campos, pero después de `name` en el formulario).
+
+**Mobile**: la tabla vive en un contenedor con `overflow-x: auto` propio
+(`design/design-system.md` § "Responsive / Mobile") — si las 3 columnas no caben a
+375px, scrollea la tabla sola, la página nunca lo hace en horizontal. Verificado con dos
+calendarios reales (uno con nombre largo) en navegador real: aparece un scrollbar
+horizontal dentro del contenedor de la tabla, la página en sí no se mueve; sin solape con
+`SessionIndicator` (mismo `className="session-page-main"` que ya tenía la página, sin
+cambios en ese mecanismo).
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
