@@ -9,3 +9,11 @@
 // y `src/app/admin/actions.ts::updateCalendarAction` (quien la reconoce).
 export const DAY_OUTSIDE_RANGE_ERROR_MESSAGE =
   "No se puede cambiar el rango: hay al menos un día con vídeo asignado que quedaría fuera del rango nuevo.";
+
+// TAL-45 — mismo motivo/patrón que `DAY_OUTSIDE_RANGE_ERROR_MESSAGE` arriba,
+// para las dos reglas de negocio que `days.ts::upsertDayHandler` puede
+// lanzar (dueño real) y que `days-actions.ts::saveDayAction` necesita
+// reconocer para mostrarlas como error normal del diálogo de día en vez de
+// un fallo genérico.
+export const DAY_OUTSIDE_CALENDAR_RANGE_ERROR_MESSAGE = "Esa fecha no está dentro del rango del calendario.";
+export const CALENDAR_NO_LONGER_EXISTS_ERROR_MESSAGE = "El calendario ya no existe.";
