@@ -463,15 +463,10 @@ a {
 
 .skin-swatch {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 12px 6px 6px;
-  border-radius: 999px;
+  padding: 3px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--bg-raised);
-  color: var(--text);
-  font-family: var(--font-body);
-  font-size: 0.82rem;
   cursor: pointer;
 }
 
@@ -485,9 +480,9 @@ a {
 }
 
 .skin-swatch-color {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
   flex-shrink: 0;
   border: 1px solid rgba(0, 0, 0, 0.15);
 }

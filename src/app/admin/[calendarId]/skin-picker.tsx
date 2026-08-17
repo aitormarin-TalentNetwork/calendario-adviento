@@ -62,7 +62,6 @@ export function SkinPicker({ value, onChange, skins, disabled }: SkinPickerProps
             }
           >
             <span className="skin-swatch-color" style={{ background }} />
-            <span>{skin.name}</span>
           </button>
         );
       })}
