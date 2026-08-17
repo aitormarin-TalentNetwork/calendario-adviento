@@ -102,10 +102,19 @@ del MVP original.** Fuente: `design/propuesta-grid-calendario.html`.
   número grande en estilo "marca de agua" — muy atenuado (opacity baja, p. ej. `0.15`),
   sin candado, sin fondo de estado, sin click. Antes de este ajuste, esos días
   aparecían como casillas vacías al principio/final del calendario, lo cual quedaba
-  raro visualmente — ya no. (TAL-31, implementado en la vista de Invitado — el relleno
-  de alineación de semana fuera del propio mes sigue en blanco sin numerar, sin
-  cambios; el editor de Admin no cambia de comportamiento, ver `docs/dias.md` § "Mes
-  completo sin huecos".)
+  raro visualmente — ya no. **Ajuste 2026-08-17 (segunda vuelta), pedido explícito de
+  Aitor — mismo criterio, ahora también en el editor de Admin:** el "mes completo
+  siempre" pasa a aplicar en **las dos vistas** (Invitado y editor de Admin), no solo en
+  la del Invitado como se decidió la primera vez — corrige el hueco que TAL-31 dejó a
+  propósito en el editor. Además, la casilla fuera de rango pierde el fondo propio: pasa
+  a **fondo transparente** (se funde con la tarjeta del calendario, no destaca como un
+  bloque aparte — mismo tratamiento que ya tenía el relleno de alineación de semana). El
+  relleno de alineación de semana (días que no pertenecen a ningún mes, ni siquiera fuera
+  de rango) sigue en blanco sin numerar, sin cambios — es un concepto distinto.
+  **Validado con Aitor:** además, la casilla lleva una **línea fina que la tacha** —
+  diagonal, `1px` de grosor, `opacity: 0.4`, mismo color `--text-dim` — para reforzar de
+  un vistazo que ese día no forma parte del rango. Ver
+  `design/propuesta-grid-calendario.html`.
 - Modal de vídeo: `<iframe>` de YouTube/Vimeo/Drive centrado, mensaje del día debajo —
   sin cambios respecto al MVP shippeado, esta parte no se toca.
 
@@ -129,8 +138,10 @@ casilla **bloqueada** (día futuro, sin abrir todavía):
   de "primera apertura"). No abre nada, el vídeo sigue bloqueado.
 - Aparece un **letrero centrado en la pantalla** (overlay, se desvanece solo a los
   ~2.5s o al pinchar fuera): *"Calma tu ansiedad. Te quedan **{X}** días para abrir este
-  regalo"* — X = días naturales que faltan hasta la fecha de esa casilla concreta
-  (singular "día" cuando X=1). Tono cercano/con humor, no un error.
+  regalo"* — X = días naturales que faltan hasta la fecha de esa casilla concreta.
+  **Concordancia singular/plural completa cuando X=1** (ajuste 2026-08-17, pedido de
+  Aitor): no solo el sustantivo ("día", no "días") sino también el verbo ("Te **queda**
+  1 día", no "Te quedan 1 día"). Tono cercano/con humor, no un error.
 - Ver `design/propuesta-grid-calendario.html` — pincha cualquier casilla con candado
   para probarlo.
 

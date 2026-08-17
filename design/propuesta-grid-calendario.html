@@ -63,8 +63,12 @@
   .day.today::after {
     content: ""; position: absolute; inset: 3px; border: 2px dashed var(--gold); border-radius: 6px; pointer-events: none;
   }
-  .day.out-of-range { cursor: default; }
+  .day.out-of-range { cursor: default; background: var(--bg-raised); }
   .day.out-of-range .num { opacity: 0.15; font-weight: 800; }
+  .day.out-of-range::after {
+    content: ""; position: absolute; left: 14%; right: 14%; top: 50%; height: 1px;
+    background: var(--text-dim); opacity: 0.4; transform: rotate(-18deg); pointer-events: none; z-index: 5;
+  }
   .day.watched { cursor: pointer; background-size: cover; background-position: center; }
   .day.watched .num {
     position: absolute; bottom: 5px; right: 8px; font-size: 0.82rem; font-weight: 600;
@@ -160,8 +164,10 @@
     <span><span class="sw" style="background:var(--bg); opacity:0.5; border:1px solid var(--border);"></span> Bloqueado (candado)</span>
     <span><span class="sw f1"></span> Ya visto (fotograma de fondo)</span>
     <span><span class="sw" style="border:1.5px dashed var(--gold);"></span> Hoy</span>
-    <span><span class="sw" style="background:var(--bg); opacity:0.25;"></span> Fuera del rango del calendario (marca de agua)</span>
+    <span><span class="sw" style="background:var(--bg-raised); border:1px solid var(--border); position:relative;"><span style="position:absolute; left:14%; right:14%; top:50%; height:1px; background:var(--text-dim); opacity:0.4; transform:rotate(-18deg);"></span></span> Fuera de rango (marca de agua, fondo transparente, tachado)</span>
   </div>
+
+  <p class="footnote" style="margin-top:26px;"><strong>Nuevo — mes completo siempre + fuera de rango más discreto:</strong> ya no hay casillas en blanco al principio/final del mes (siempre se ve el mes entero). Los días fuera del rango del calendario (antes de la fecha de inicio o después de la de fin) llevan el número grande en marca de agua, el fondo de la casilla transparente y una línea fina que los tacha — se funde con la tarjeta, no destaca como un bloque propio, y queda claro de un vistazo que no forman parte del rango.</p>
 
   <p class="footnote" style="margin-top:26px;"><strong>Nuevo — efecto de primera apertura:</strong> pincha cualquier casilla clara ("Abierto, sin ver") del grid de arriba para probarlo. Piñata que explota + confeti por toda la pantalla + sonido de premio, y al terminar se abre el reproductor.</p>
   <p class="footnote"><strong>Nuevo — efecto de impaciencia:</strong> pincha cualquier casilla con candado (bloqueada, día futuro) — la casilla da un pulso y aparece un letrero en el centro con la cuenta atrás real hasta ese día.</p>
@@ -429,9 +435,11 @@
 
     const msPerDay = 24 * 60 * 60 * 1000;
     const daysLeft = Math.round((date - TODAY) / msPerDay);
-    const dayWord = daysLeft === 1 ? "día" : "días";
+    const isSingular = daysLeft === 1;
+    const verb = isSingular ? "queda" : "quedan";
+    const dayWord = isSingular ? "día" : "días";
     const banner = document.getElementById("patienceBanner");
-    banner.innerHTML = "Calma tu ansiedad.<br>Te quedan <strong>" + daysLeft + "</strong> " + dayWord + " para abrir este regalo.";
+    banner.innerHTML = "Calma tu ansiedad.<br>Te " + verb + " <strong>" + daysLeft + "</strong> " + dayWord + " para abrir este regalo.";
     banner.classList.add("show");
 
     clearTimeout(patienceTimeout);
