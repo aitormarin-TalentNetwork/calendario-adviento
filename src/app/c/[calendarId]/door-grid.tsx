@@ -780,7 +780,7 @@ export function DoorGrid({
       >
         {patienceInfo && (
           <>
-            Calma tu ansiedad.
+            ¡Respira!
             <br />
             Te {patienceInfo.days === 1 ? "queda" : "quedan"}{" "}
             <strong style={{ color: "var(--gold-2)" }}>{patienceInfo.days}</strong>{" "}
