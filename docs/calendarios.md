@@ -965,9 +965,11 @@ juntos en un solo ciclo).
 2. **Fondo del icono, transparente** — antes relleno (`--paper-2`/
    `--pine-2`); ahora solo el borde `--gold` en hover/foco indica que es
    clicable, sin casilla rellena de fondo.
-3. **Etiqueta**: "Icono de portada" → "Selecciona un icono" (describe la
+3. **Etiqueta**: "Icono de portada" → "Selecciona un icono" → acortada de
+   nuevo, en un tercer mensaje, a simplemente **"Icono"** (describe la
    acción directa sobre el icono, ya no una etiqueta pasiva junto a un
-   botón separado).
+   botón separado; el texto intermedio "Selecciona un icono" nunca llegó
+   a comitearse solo — se corrigió antes de exportar, ver nota siguiente).
 4. **"Borrar calendario" → "Eliminar calendario", con diálogo real en vez
    de `window.confirm()`** — nuevo `delete-calendar-button.tsx`,
    deliberadamente un componente propio de esta pantalla (no un cambio al
@@ -983,18 +985,24 @@ juntos en un solo ciclo).
    que no se puede deshacer + dos botones ("Sí, eliminar calendario" en
    rojo / "Cancelar").
 
-**Nota sobre las fuentes de diseño:** tanto este mensaje como el anterior
-(icono clicable) afirmaban que `design/design-system.md` y el mockup ya
-estaban actualizados con el detalle exacto — comprobado en ambos casos que
-NO era así en el momento de implementar (ni la sección "Selector de icono
-de portada" ni "Editor de calendario" mencionaban estos ajustes). No fue
-bloqueante porque las instrucciones directas ya eran lo bastante concretas
-para implementar sin ambigüedad, pero se avisó de la discrepancia en vez
-de asumir en silencio que sí estaban actualizadas.
+**Nota sobre las fuentes de diseño:** los dos primeros mensajes (icono
+clicable; borrar → eliminar + diálogo) afirmaban que `design/design-
+system.md` y el mockup ya estaban actualizados con el detalle exacto —
+comprobado en ambos casos que NO era así en el momento de implementar (ni
+la sección "Selector de icono de portada" ni "Editor de calendario"
+mencionaban estos ajustes todavía). No fue bloqueante porque las
+instrucciones directas ya eran lo bastante concretas para implementar sin
+ambigüedad, pero se avisó de la discrepancia en vez de asumir en silencio
+que sí estaban actualizadas. Un TERCER mensaje, ya con la etiqueta acortada
+a "Icono", sí citó un commit real y concreto (`4311b49`, confirmado —
+`design-system.md` documenta ahí las 4 vueltas seguidas de ajuste sobre
+este mismo campo, incluida esta última) — se aplicó ese cambio de texto
+antes de dar la ronda por terminada y exportar, sin necesidad de volver a
+preguntar.
 
 **Evidencia:** verificado en navegador real (super-admin, calendario de
 prueba creado y borrado en la propia verificación). Confirmado: la
-etiqueta dice "Selecciona un icono"; el icono no tiene fondo relleno
+etiqueta dice "Icono"; el icono no tiene fondo relleno
 (zoom visual); un solo clic en el icono abre el diálogo de galería (sin
 botón aparte); el botón dice "Eliminar calendario"; al pulsarlo se abre un
 diálogo propio (no un `confirm()` del navegador) con el texto exacto

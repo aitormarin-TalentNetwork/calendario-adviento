@@ -26,7 +26,10 @@ type CoverIconPickerProps = {
  * resto de elementos clicables del sistema, p. ej. `.skin-swatch` TAL-37).
  * Fondo del icono ahora transparente (antes `--paper-2`/`--pine-2`
  * relleno) — sin la casilla rellena, solo el borde `--gold` en hover/foco
- * indica que es clicable.
+ * indica que es clicable. Etiqueta del campo acortada dos veces seguidas
+ * ("Icono de portada" → "Selecciona un icono" → simplemente "Icono",
+ * `edit-calendar-form.tsx`) — se replica el texto final en `aria-label`/
+ * `title` de este botón, no el intermedio.
  *
  * Patrón de diálogo (abrir/cerrar con Escape, foco inicial en el botón
  * de cerrar, foco devuelto al disparador al cerrar) — mismo ya
@@ -84,8 +87,8 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
         className="cover-icon-trigger"
         onClick={openDialog}
         disabled={disabled}
-        aria-label="Selecciona un icono"
-        title="Selecciona un icono"
+        aria-label="Icono"
+        title="Icono"
         style={{
           width: "44px",
           height: "44px",
