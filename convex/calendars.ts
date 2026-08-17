@@ -99,18 +99,29 @@ async function assertNoDayOutsideRange(
 }
 
 /**
- * "pine" es el skin por defecto (histórico `prisma/seed.ts`, "Verde pino
+ * "pino" es el skin por defecto (histórico `prisma/seed.ts`, "Verde pino
  * con acentos dorados — skin por defecto") — si no existe en este
  * deployment (seed distinto, entorno sin sembrar del todo), cae al primer
  * skin por `key` en vez de bloquear la creación del calendario, mismo
  * criterio que `defaultSkin()` en la versión Prisma (TAL-5).
+ *
+ * TAL-30, hallazgo de T3 verificando TAL-24: la key aquí decía "pine"
+ * (inglés), pero el catálogo real sembrado por TAL-22
+ * (`convex/skins.ts::SKIN_CATALOG`) usa "pino" (español, consistente con
+ * el resto — "dorado", "grosella", "medianoche"). "pine" nunca existía en
+ * la tabla, así que este lookup fallaba SIEMPRE y caía al fallback
+ * alfabético — "+ Nuevo calendario" (que nunca manda `skinId` explícito)
+ * llevaba desde que se publicó TAL-22 asignando el primer skin por orden
+ * alfabético de key ("adolescente") en vez de Pino a todo calendario
+ * nuevo. Reproducido y confirmado contra el deployment de dev compartido
+ * antes de este fix (ver evidencia del export).
  */
 async function resolveDefaultSkinId(ctx: MutationCtx): Promise<Id<"skins">> {
-  const pine = await ctx.db
+  const pino = await ctx.db
     .query("skins")
-    .withIndex("by_key", (q) => q.eq("key", "pine"))
+    .withIndex("by_key", (q) => q.eq("key", "pino"))
     .unique();
-  if (pine) return pine._id;
+  if (pino) return pino._id;
 
   const all = await ctx.db.query("skins").collect();
   if (all.length === 0) {
