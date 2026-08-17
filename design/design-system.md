@@ -153,7 +153,32 @@ inicial de **22 skins** (los 4 del MVP shippeado — Dorado/Grosella/Medianoche/
 18 nuevas: Nochebuena, Nieve, Confeti, Dorado Real, Bosque Nórdico, Neón Fiesta,
 Historieta, Enamorados, Oficina, Superhéroe, Bebé, Adolescente, Memorias de Familia,
 Amigas, K-pop, Gótico, Baloncesto, Fútbol). Cada skin es, como mínimo, un color/degradado
-de fondo + un color de acento.
+de fondo + un color de acento **+ un color de texto** (ajuste 2026-08-17, ver más abajo).
+
+**Ajuste 2026-08-17 (tercera vuelta), validado con Aitor — color de texto propio, sin
+capa ni sombra:** en vez de forzar texto blanco siempre y compensar la legibilidad con
+una capa oscura sólida encima (`rgba(0,0,0,0.6)`, TAL-24 original) — lo que apagaba el
+color real de skins claros/vivos como "K-pop" o "Confeti" —, **cada skin lleva su propio
+color de texto como campo nativo**, igual que ya lo son `background` y `accent`: se
+decide en el mismo momento en que se diseña el skin (junto con su fondo y su acento), no
+se calcula en tiempo real a partir del degradado (parsear un `background` que puede ser
+un `conic-gradient` con 6 paradas para estimar su luminancia es exactamente la
+complejidad que TAL-24 quería evitar en su momento — con el campo explícito, ese
+problema no existe) ni se fuerza igual para todos los skins. Sin capa oscura de por
+medio, sin `text-shadow` — el color de fondo del skin se ve tal cual es. Ver
+`design/propuesta-skin-pantalla-completa.html` (K-pop/Nieve/Medianoche, tres casos con
+fondos muy distintos, cada uno con su propio color de texto resuelto).
+
+- **Nuevo campo del skin: `textColor`** (hex), junto a `key`/`name`/`description`/
+  `background`/`accent` — obligatorio para los 23 skins existentes, se rellena al mismo
+  tiempo que se define `background`/`accent` de cada uno (no es un campo opcional ni un
+  cálculo derivado).
+- Se aplica en las mismas superficies donde ya se aplica `background`/`accent`: portada,
+  cabecera de mes del grid, modal, y (tras el ajuste de "toda la pantalla" de más abajo)
+  el fondo general de página.
+- Nieve (el caso más exigente del catálogo, casi blanco puro) ya no necesita ningún
+  tratamiento especial — simplemente lleva `textColor` oscuro como cualquier otro skin
+  claro.
 
 **Ajuste 2026-08-17 (segunda vuelta), pedido explícito de Aitor probando en real:** el
 fondo del skin ya NO se limita a portada + cabecera de mes del grid + modal (TAL-24

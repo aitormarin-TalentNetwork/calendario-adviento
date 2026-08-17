@@ -1,0 +1,144 @@
+<title>Propuesta Skin Pantalla Completa</title>
+<style>
+  :root {
+    --pine: #1b3a2f; --pine-2: #234a3b; --paper: #f6f1e4; --paper-2: #efe7d4;
+    --gold: #c99a3d; --gold-2: #e3bb63; --berry: #8c2f39; --ink: #16211c;
+    --text-dim: #57604f; --border: #ded3ba; --bg: var(--paper); --bg-raised: #ffffff;
+    --text: var(--ink); --shadow: 0 1px 2px rgba(20,30,20,0.06), 0 8px 24px rgba(20,30,20,0.08);
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436; }
+  }
+  :root[data-theme="dark"] { --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+  h1, h2 { font-family: var(--font-display); margin: 0; text-wrap: balance; }
+  .wrap { max-width: 1200px; margin: 0 auto; padding: 44px 24px 90px; }
+  .intro h1 { font-size: 1.6rem; margin-bottom: 8px; }
+  .intro p { color: var(--text-dim); max-width: 76ch; line-height: 1.55; }
+  .section-title { font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-dim); margin: 40px 0 14px; }
+
+  .old-take { margin-top: 10px; padding: 14px 18px; border-radius: 12px; background: var(--bg-raised); border: 1px solid var(--border); font-size: 0.85rem; color: var(--text-dim); line-height: 1.55; }
+  .old-take strong { color: var(--text); }
+
+  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 8px; }
+  @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+  .col-label { font-family: var(--font-display); font-size: 1rem; margin-bottom: 3px; }
+  .col-note { color: var(--text-dim); font-size: 0.8rem; margin-bottom: 12px; line-height: 1.45; }
+
+  .skin-page { border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--border); display: flex; flex-direction: column; }
+  .portada { padding: 22px 20px; }
+  .portada .icon { font-size: 1.4rem; }
+  .portada h2 { font-size: 1.1rem; margin-top: 6px; }
+  .portada .sub { font-family: var(--font-mono); font-size: 0.78rem; opacity: 0.85; margin-top: 8px; }
+  .cal-frame { overflow: hidden; }
+  .month-header { font-family: var(--font-display); font-size: 0.95rem; padding: 8px 16px; }
+  .weekday-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; font-family: var(--font-mono); font-size: 0.58rem; text-transform: uppercase; }
+  .weekday-row span { text-align: center; padding: 5px 0; opacity: 0.7; }
+  .week-row { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+  .day { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; }
+  .day .num { font-size: 1.2rem; font-weight: 800; }
+
+  /* ---- Cada skin decide su propio color de texto Y su propio fondo de
+     casilla — todo en colores sólidos explícitos del propio skin, nunca
+     dependiente del tema claro/oscuro del sistema (ese era el bug: los
+     días quedaban traslúcidos sobre el fondo de la página, no del skin) ---- */
+  .kpop .portada, .kpop .month-header { background: linear-gradient(120deg, #ffd6ec 0%, #d8ccff 30%, #bdf3ff 60%, #ffe4fb 100%); }
+  .kpop .cal-frame, .kpop .weekday-row span, .kpop .week-row { background: #fff8fd; }
+  .kpop .day { background: #ffeaf7; }
+  .kpop .portada, .kpop .month-header, .kpop .weekday-row span, .kpop .num { color: #4a2f66; }
+
+  .nieve .portada, .nieve .month-header { background: linear-gradient(160deg, #eef6fa 0%, #ffffff 100%); }
+  .nieve .cal-frame, .nieve .weekday-row span, .nieve .week-row { background: #ffffff; }
+  .nieve .day { background: #f3f9fc; }
+  .nieve .portada, .nieve .month-header, .nieve .weekday-row span, .nieve .num { color: #1c3a4a; }
+
+  .medianoche .portada, .medianoche .month-header { background: linear-gradient(160deg, #0f1e17 0%, #1b3a2f 100%); }
+  .medianoche .cal-frame, .medianoche .weekday-row span, .medianoche .week-row { background: #142720; }
+  .medianoche .day { background: #1b3a2f; }
+  .medianoche .portada, .medianoche .month-header, .medianoche .weekday-row span, .medianoche .num { color: #f6f1e4; }
+
+  .verdict { margin-top: 30px; padding: 18px 20px; border-radius: 12px; background: var(--bg-raised); border: 1px solid var(--border); font-size: 0.9rem; line-height: 1.6; }
+  .verdict strong { color: var(--gold); }
+  .footnote { margin-top: 20px; color: var(--text-dim); font-size: 0.85rem; max-width: 76ch; line-height: 1.55; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Cada skin decide su propio texto — sin capa negra, sin sombra</h1>
+    <p>Replanteado desde cero, como pediste: nada de forzar texto blanco + capa oscura + sombra en todos los skins por igual. Cada skin lleva su color de texto (oscuro o claro) elegido según lo claro/oscuro que sea su propio fondo — así los colores del skin se ven tal cual son, sin velo encima.</p>
+  </div>
+
+  <div class="old-take">
+    <strong>Por qué existía la capa negra:</strong> el sistema forzaba texto blanco siempre (más simple de construir), y sin una capa oscura debajo, el blanco se volvía ilegible en skins claros como "Nieve". La capa fue el parche para ese problema — pero el parche penalizaba a TODOS los skins, incluidos los vivos como "K-pop", que nunca tuvieron ese problema. La solución de raíz es más simple: texto oscuro en skins claros, texto claro en skins oscuros. Cada uno con lo suyo.
+  </div>
+
+  <div class="section-title">Tres skins reales, cada uno con su propio color de texto</div>
+  <div class="row">
+    <div>
+      <div class="col-label">K-pop</div>
+      <div class="col-note">Fondo pastel muy claro → texto morado oscuro directo. Sin capa, sin sombra — el degradado se ve tal cual es.</div>
+      <div class="skin-page kpop">
+        <div class="portada">
+          <div class="icon">🎉</div>
+          <h2>¡Feliz cuenta atrás, equipo!</h2>
+          <div class="sub">Faltan 14 días para la Navidad</div>
+        </div>
+        <div class="cal-frame">
+          <div class="month-header">AGOSTO 2026</div>
+          <div class="weekday-row"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+          <div class="week-row">
+            <div class="day"><span class="num">17</span></div><div class="day"><span class="num">18</span></div><div class="day"><span class="num">19</span></div><div class="day"><span class="num">20</span></div><div class="day"><span class="num">21</span></div><div class="day"><span class="num">22</span></div><div class="day"><span class="num">23</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="col-label">Nieve</div>
+      <div class="col-note">El caso más exigente del catálogo (casi blanco puro) → texto azul-gris oscuro. Este era el que originalmente "obligaba" a la capa negra para todos — resuelto sin ella.</div>
+      <div class="skin-page nieve">
+        <div class="portada">
+          <div class="icon">❄️</div>
+          <h2>¡Feliz cuenta atrás, equipo!</h2>
+          <div class="sub">Faltan 14 días para la Navidad</div>
+        </div>
+        <div class="cal-frame">
+          <div class="month-header">AGOSTO 2026</div>
+          <div class="weekday-row"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+          <div class="week-row">
+            <div class="day"><span class="num">17</span></div><div class="day"><span class="num">18</span></div><div class="day"><span class="num">19</span></div><div class="day"><span class="num">20</span></div><div class="day"><span class="num">21</span></div><div class="day"><span class="num">22</span></div><div class="day"><span class="num">23</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="col-label">Medianoche</div>
+      <div class="col-note">Fondo oscuro → texto claro (paper). Este caso ya funcionaba bien antes; sigue igual de bien sin la capa, porque nunca la necesitó.</div>
+      <div class="skin-page medianoche">
+        <div class="portada">
+          <div class="icon">🌙</div>
+          <h2>¡Feliz cuenta atrás, equipo!</h2>
+          <div class="sub">Faltan 14 días para la Navidad</div>
+        </div>
+        <div class="cal-frame">
+          <div class="month-header">AGOSTO 2026</div>
+          <div class="weekday-row"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+          <div class="week-row">
+            <div class="day"><span class="num">17</span></div><div class="day"><span class="num">18</span></div><div class="day"><span class="num">19</span></div><div class="day"><span class="num">20</span></div><div class="day"><span class="num">21</span></div><div class="day"><span class="num">22</span></div><div class="day"><span class="num">23</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="verdict">
+    <strong>Lo que cambia en los datos:</strong> el color de texto pasa a ser un campo más del propio skin — igual que ya lo son <code>background</code> y <code>accent</code>, no un cálculo aparte ni un paso extra después. Se decide en el mismo momento en que se diseña el skin (junto con su fondo y su acento), no se calcula en tiempo real a partir del degradado ni se fuerza igual para todos.
+  </div>
+
+  <p class="footnote">Sigue aplicando lo mismo que ya hablamos en TAL-47: esto cubre toda la pantalla, no solo la tarjeta, y también el editor de Admin. En cuanto confirmes que este es el criterio correcto, actualizo el Design System y se lo paso al equipo con el catálogo completo (color de texto por cada uno de los 23 skins).</p>
+</div>
