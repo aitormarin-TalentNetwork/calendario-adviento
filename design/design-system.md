@@ -232,6 +232,22 @@ se llama y describe de forma genérica, sin mencionar la obra o personaje de ori
   rojo, azul y amarillo con contorno negro, sobre fondo claro. Pensado para combinar con
   una foto de portada propia."*
 
+**Skin #24 — "Rojiblanco"** (pedido 2026-08-17): rayas verticales rojo/blanco tipo
+camiseta de fútbol clásica. Misma regla dura de marcas que el resto del catálogo — colores
+genéricos inspirados libremente, **sin nombre de club, ciudad, escudo ni liga concreta**
+(mismo criterio ya aplicado a "Fútbol", que tampoco lleva escudo/nombre del Barça).
+
+- **Fondo:** rayas verticales `repeating-linear-gradient(90deg, #d61f26 0 20px, #ffffff
+  20px 40px)` — rojo vivo y blanco alternos, ancho de raya igual (20px), sin degradado
+  (colores planos, como una camiseta de rayas real).
+- **Acento:** negro `#1a1a1a` (pantalón/detalle clásico de este tipo de equipación).
+- **Color de texto:** este skin entra en el grupo de "difíciles" (rayas alternas, ningún
+  color de texto plano funciona sobre las dos a la vez) — usa **píldora de fondo**
+  detrás del título/número, mismo tratamiento que nochebuena/confeti/historieta/
+  enamorados/adolescente (ver TAL-47 en Linear para el detalle de la píldora).
+- Nombre: **"Rojiblanco"**. Descripción sugerida: *"Rayas verticales de camiseta de
+  fútbol clásica, rojo y blanco — sin escudo ni nombre de equipo."*
+
 ### Imagen de fondo del calendario (nuevo campo, distinto de "Foto de portada")
 
 **Pedido explícito de Aitor, 2026-08-17.** Hoy `coverImageUrl` ("Foto de portada") solo
