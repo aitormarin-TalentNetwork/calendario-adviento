@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { markDayViewedAction } from "@/app/c/[calendarId]/actions";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC } from "@/lib/calendar-grid";
+import { createConfettiEngine, type ConfettiEngine } from "@/lib/confetti-canvas";
+import { playRewardSound } from "@/lib/reward-sound";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 import type { DoorInfo } from "@/lib/guest-calendar";
 import { coverBackgroundStyle } from "@/lib/skin-appearance";
@@ -176,6 +178,35 @@ export function DoorGrid({
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const lastTriggerRef = useRef<HTMLButtonElement | null>(null);
 
+  // TAL-40 — el motor de confeti vive en un <canvas> propio, fuera del
+  // árbol de React (ver `confetti-canvas.ts`): se crea una sola vez
+  // cuando el canvas se monta, no en cada `burst()`.
+  const confettiCanvasRef = useRef<HTMLCanvasElement>(null);
+  const confettiEngineRef = useRef<ConfettiEngine | null>(null);
+  const [burstingDate, setBurstingDate] = useState<string | null>(null);
+  const burstTimeoutsRef = useRef<number[]>([]);
+
+  useEffect(() => {
+    if (!confettiCanvasRef.current) return;
+    const engine = createConfettiEngine(confettiCanvasRef.current);
+    confettiEngineRef.current = engine;
+    return () => {
+      engine.destroy();
+      confettiEngineRef.current = null;
+    };
+  }, []);
+
+  // Si el componente se desmonta a mitad del efecto (~0.62s), cancela los
+  // timeouts pendientes — sin esto, un `setState` tardío sobre un
+  // componente ya desmontado sería un fallo silencioso real, no solo
+  // teórico (basta con pinchar un día y navegar fuera muy rápido).
+  useEffect(() => {
+    const timeouts = burstTimeoutsRef.current;
+    return () => {
+      timeouts.forEach((id) => window.clearTimeout(id));
+    };
+  }, []);
+
   function closeModal() {
     setOpenDate(null);
     // Devuelve el foco a la puerta que abrió el modal — sin esto, tras
@@ -197,10 +228,7 @@ export function DoorGrid({
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [openDoor]);
 
-  function handleOpen(door: DoorInfo, trigger: HTMLButtonElement) {
-    if (door.state === "locked") return;
-    lastTriggerRef.current = trigger;
-    setMarkError(false);
+  function completeOpen(door: DoorInfo) {
     setOpenDate(door.dateStr);
 
     // Solo hay algo que marcar como visto si el día tiene vídeo asignado
@@ -223,6 +251,69 @@ export function DoorGrid({
         }
       });
     }
+  }
+
+  /**
+   * TAL-40 — efecto de "primera apertura" (design-system.md § "Grid de
+   * días"): solo para "abierto, sin ver" (nunca "bloqueado" — no llega
+   * aquí, `handleOpen` corta antes — ni "visto", que reabre directo sin
+   * repetir el efecto cada vez). Pop dorado en la casilla + confeti por
+   * toda la pantalla + sonido sintetizado, y solo AL TERMINAR (~0.62s) se
+   * abre el reproductor — `completeOpen` (que marca "visto" en el
+   * servidor Y abre el modal) se llama al final del timeout, no antes.
+   *
+   * `prefers-reduced-motion`: salta confeti/pop Y sonido (el brief deja el
+   * sonido "a discreción" por no ser visual, pero un fanfarria sin ningún
+   * acompañamiento visual puede sentirse igual de "ruido inesperado" para
+   * alguien que pidió explícitamente menos movimiento/estímulo — más
+   * simple y más seguro tratar el ajuste como "todo o nada").
+   */
+  function triggerFirstOpenEffect(door: DoorInfo, trigger: HTMLButtonElement) {
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReducedMotion) {
+      completeOpen(door);
+      return;
+    }
+
+    const rect = trigger.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+
+    setBurstingDate(door.dateStr);
+    confettiEngineRef.current?.burst(cx, cy);
+    try {
+      playRewardSound();
+    } catch {
+      // Web Audio puede fallar/estar bloqueado en algún navegador — no
+      // debe impedir que el día se abra igualmente, el sonido es
+      // decorativo, no parte del flujo funcional.
+    }
+
+    // Segunda oleada de confeti a mitad de la animación, para que se
+    // sienta "más grande" — portado tal cual del prototipo de referencia
+    // (`design/propuesta-grid-calendario.html`).
+    burstTimeoutsRef.current.push(
+      window.setTimeout(() => confettiEngineRef.current?.burst(cx, cy), 260)
+    );
+    burstTimeoutsRef.current.push(
+      window.setTimeout(() => {
+        setBurstingDate(null);
+        completeOpen(door);
+      }, 620)
+    );
+  }
+
+  function handleOpen(door: DoorInfo, trigger: HTMLButtonElement) {
+    if (door.state === "locked") return;
+    lastTriggerRef.current = trigger;
+    setMarkError(false);
+
+    if (door.state === "unseen") {
+      triggerFirstOpenEffect(door, trigger);
+      return;
+    }
+
+    completeOpen(door);
   }
 
   const months = groupIntoMonths(doors);
@@ -268,6 +359,42 @@ export function DoorGrid({
         }
         .dg-lock-icon {
           font-size: 0.7rem;
+        }
+        /* TAL-40 — efecto de "primera apertura": pop de escala + destello
+           dorado en la casilla, portado de design/propuesta-grid-calendario.html
+           (misma curva/tiempos). El número se oculta durante el pop — el
+           confeti/sonido ya comunican "premio", un número reduciéndose de
+           tamaño a la vez sería ruido visual de más. */
+        @keyframes dg-reveal-pop {
+          0% {
+            transform: scale(1);
+            filter: brightness(1);
+          }
+          18% {
+            transform: scale(0.88);
+            filter: brightness(1.3);
+          }
+          42% {
+            transform: scale(1.22);
+            filter: brightness(1.6);
+          }
+          65% {
+            transform: scale(0.97);
+            filter: brightness(1.15);
+          }
+          100% {
+            transform: scale(1);
+            filter: brightness(1);
+          }
+        }
+        .dg-bursting {
+          animation: dg-reveal-pop 0.62s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+          z-index: 3;
+          box-shadow: 0 0 0 3px var(--gold), 0 8px 26px rgba(201, 154, 61, 0.55);
+        }
+        .dg-bursting .dg-num {
+          opacity: 0;
+          transition: opacity 0.15s;
         }
         @media (max-width: 640px) {
           .dg-month-header {
@@ -421,6 +548,7 @@ export function DoorGrid({
                         disabled={door.state === "locked"}
                         aria-label={`${door.label}${door.state === "locked" ? " — bloqueado" : door.state === "watched" ? " — ya visto" : ""}`}
                         onClick={(event) => handleOpen(door, event.currentTarget)}
+                        className={burstingDate === door.dateStr ? "dg-bursting" : undefined}
                         style={style}
                       >
                         <span className={numClassName} style={numStyle(door, isWeekend)}>
@@ -444,6 +572,15 @@ export function DoorGrid({
           ))}
         </div>
       </div>
+
+      {/* TAL-40 — un único <canvas> full-screen para el confeti, fuera del
+          flujo del grid (position: fixed) — el motor que lo dibuja vive en
+          `confetti-canvas.ts`, ver el efecto arriba en `useEffect`. */}
+      <canvas
+        ref={confettiCanvasRef}
+        aria-hidden="true"
+        style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 60 }}
+      />
 
       {openDoor && (
         <div
