@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { signOut } from "@/lib/auth";
+import { SessionIndicator } from "@/components/session-indicator";
 import { getAuthorizedUser } from "@/lib/current-user";
 import {
   addAdmin,
@@ -111,21 +111,10 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
 
   return (
     <main style={{ flex: 1, padding: "2rem", display: "flex", flexDirection: "column", gap: "2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-        <div>
-          <h1>Todos los calendarios</h1>
-          <p style={{ color: "var(--accent)" }}>
-            Sesión: {user.email} — visión global, cualquier calendario de cualquier Admin.
-          </p>
-        </div>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/login" });
-          }}
-        >
-          <button type="submit">Cerrar sesión</button>
-        </form>
+      <SessionIndicator email={user.email} image={user.image} roleLabel="Super Admin" />
+      <div>
+        <h1>Todos los calendarios</h1>
+        <p style={{ color: "var(--accent)" }}>Visión global, cualquier calendario de cualquier Admin.</p>
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>

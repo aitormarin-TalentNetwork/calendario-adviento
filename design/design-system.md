@@ -123,6 +123,22 @@ icono fijo en código (🎄) por un selector real en el editor de calendario:
 - Mismo patrón de "catálogo sin límite fijo" que los skins — la lista de iconos puede
   crecer sin tocar código si en algún momento se decide.
 
+### Indicador de sesión
+
+**TAL-28.** Sustituye el texto plano "Sesión: email (ROL)" + botón "Cerrar sesión" en
+las 4 pantallas autenticadas (Admin, editor de calendario, Super Admin, Invitado) por un
+indicador fijo en la esquina superior derecha:
+- Foto de perfil de Gmail del usuario (viene del perfil OAuth de Google — se guarda en
+  `users.image`, Convex, y se refresca en cada login si cambia). Si no hay foto (login de
+  desarrollo, o el usuario todavía no tiene una guardada): círculo `--pine-2` con la
+  inicial del email en `--paper`, tipografía `--font-display`.
+- Botón de cerrar sesión SOLO icono ("🚪"), sin texto visible — evita palabras en un
+  idioma concreto.
+- El email (y el rol, si aplica) sigue disponible como `title`/`aria-label` del avatar —
+  no se pierde la información, solo deja de ocupar espacio permanente en pantalla.
+- Componente compartido `SessionIndicator` (`src/components/session-indicator.tsx`),
+  `position: fixed`, mismo patrón en las 4 pantallas.
+
 ## Cómo se usa este documento
 
 1. Toda tarea de Linear que toque UI enlaza a este fichero explícitamente en su

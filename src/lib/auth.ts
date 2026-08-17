@@ -44,6 +44,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             serverSecret: convexAppServerSecret(),
             email,
             name: user.name ?? undefined,
+            // TAL-28 — foto de perfil de Gmail: `user.image` la rellena el
+            // proveedor de Google (perfil OAuth estándar); el login de
+            // desarrollo (`Credentials`) nunca la manda, así que llega
+            // `undefined` ahí — `createUserHandler` ya trata "no llegó
+            // nada esta vez" como "no tocar lo que ya hubiera guardado",
+            // igual que con `name`.
+            image: user.image ?? undefined,
             // Solo se aplica al crear el usuario — una vez existe,
             // promover o degradar a Super Admin es cosa del panel
             // (TAL-4/TAL-15), no de esta variable de entorno en cada
