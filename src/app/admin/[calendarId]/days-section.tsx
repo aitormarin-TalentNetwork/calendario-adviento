@@ -76,7 +76,26 @@ async function fetchCalendarDays(calendarId: string) {
   });
 }
 
-export async function DaysSection({ calendarId }: { calendarId: string }) {
+/**
+ * `skinAccent`/`skinBackground` (TAL-24) — se aplican solo a esta
+ * `<section>`, no a toda la página de Admin (esa es un formulario de
+ * edición, no una "portada" — el brief solo pide que el GRID de días
+ * refleje el skin). `skinAccent` se sobreescribe como `--accent` aquí
+ * (`DaysGridEditor` ya usa `var(--accent)` en sus bordes de casilla —
+ * hereda por el árbol del DOM sin importar límites de componente
+ * Server/Client); `skinBackground` se pasa directo a `DaysGridEditor`,
+ * que lo aplica solo a la cabecera de mes (ver el comentario completo
+ * ahí de por qué no se toca el fondo de las casillas individuales).
+ */
+export async function DaysSection({
+  calendarId,
+  skinAccent,
+  skinBackground,
+}: {
+  calendarId: string;
+  skinAccent: string;
+  skinBackground: string;
+}) {
   // Solo se atrapa el fallo de la propia llamada (Convex no disponible,
   // secreto mal configurado, red caída) — un mensaje de "no disponible"
   // es la degradación honesta correcta para ESTE fallo concreto. Un error
@@ -140,9 +159,9 @@ export async function DaysSection({ calendarId }: { calendarId: string }) {
   });
 
   return (
-    <section style={{ marginTop: "2rem" }}>
+    <section style={{ marginTop: "2rem", "--accent": skinAccent } as React.CSSProperties}>
       <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
-      <DaysGridEditor calendarId={calendarId} days={dayInfos} />
+      <DaysGridEditor calendarId={calendarId} days={dayInfos} background={skinBackground} />
     </section>
   );
 }

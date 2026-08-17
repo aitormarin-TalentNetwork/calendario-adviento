@@ -425,3 +425,68 @@ cookie `tz` real):
 
 Scripts de prueba no comprometidos al repo (mismo criterio que el resto
 del proyecto); los resultados quedan documentados aquí.
+
+## Aplicación visual de skins en el grid y el modal (TAL-24)
+
+`skin.background`/`skin.accent` (TAL-22, `src/lib/skin-appearance.ts` para
+el respaldo cuando faltan) llegan a `DoorGrid`/`DaysGridEditor` así:
+
+- **`--accent`** se sobreescribe a nivel de página (`page.tsx` de
+  Invitado; a nivel de `<section>` en `days-section.tsx` para el editor
+  de Admin, no de toda la página — es un formulario de edición, no una
+  "portada") — las custom properties CSS heredan por el árbol del DOM sin
+  importar límites de componente Server/Client, así que el borde
+  punteado de "hoy" (que ya usaba `var(--accent)` desde TAL-21) refleja
+  el skin sin tocar la lógica de `cellStyle`/`numStyle` en ninguno de los
+  dos ficheros.
+- **`background`** (el skin completo, gradiente incluido) se pasa como
+  prop explícita y se aplica SOLO a la cabecera sticky de cada mes (antes
+  un `var(--pine)` fijo) — texto blanco + sombra en vez de `var(--paper)`,
+  porque el fondo ya no es siempre oscuro (mismo criterio que la portada
+  de Invitado, `src/app/c/[calendarId]/page.tsx`, que documenta el porqué
+  no se calcula un color de texto por skin: TAL-22 no guarda uno,
+  ampliar el schema para esto está fuera de alcance de TAL-24).
+- **Deliberadamente NO tocado**: el fondo de las casillas individuales
+  (`cellStyle`) — codifican los 4 estados de TAL-21 (bloqueado/abierto-
+  sin-ver/visto/hoy en el Invitado; sin-vídeo/con-vídeo/hoy/seleccionada
+  en el editor de Admin), ya auditados; aplicar un degradado arbitrario
+  del skin ahí arriesgaba romper ese contraste ya validado. El brief
+  ofrecía "el fondo general O las casillas abierto-sin-ver" como
+  alternativas — se eligió el fondo general (cabecera de mes) por ese
+  motivo.
+- **Modal de vídeo** (`DoorGrid`, no tiene equivalente en el editor de
+  Admin): gana `border: "2px solid var(--accent)"` (antes sin borde) —
+  el iframe en sí no se toca, como pide el brief. Solo depende de
+  `--accent` ya heredado, no necesita ninguna prop nueva.
+
+### Corrección de auditoría, ronda 1 — contraste y verificación real
+
+La ronda 1 llevó texto blanco + `text-shadow` directamente sobre
+`skin.background`, sin más. El auditor encontró NO-GO por dos motivos:
+
+1. **Contraste insuficiente en skins claros**: el skin "Nieve"
+   (`linear-gradient(160deg, #cfe3ee 0%, #eef5f8 55%, #ffffff 100%)`)
+   llega a `#ffffff` puro — blanco sobre blanco, y la `text-shadow` sola
+   no lo compensa. Corregido con `coverBackgroundCss()`
+   (`src/lib/skin-appearance.ts`): antepone una capa de oscurecimiento
+   uniforme semitransparente (`rgba(0,0,0,0.6)`) ANTES del `background`
+   del skin, aprovechando que `background` en CSS acepta capas
+   separadas por comas — mismo mecanismo (opacidad de referencia
+   similar) que ya usaba este código para el degradado de las
+   miniaturas de vídeo. Contraste verificado matemáticamente (fórmula
+   WCAG 2.x): en el peor caso posible (blanco puro) el compuesto da
+   `rgb(102,102,102)`, luminancia ≈0,133, contraste con texto blanco
+   ≈5,74:1 — por encima del 4.5:1 mínimo de AA, con margen. Aplicado en
+   los tres sitios que antes usaban `skin.background` crudo bajo texto
+   blanco: cabecera de portada de Invitado (`page.tsx`), cabecera de
+   mes en `door-grid.tsx` y en `days-grid-editor.tsx`.
+2. **Verificación en navegador real, pendiente en ronda 1**: hecha en
+   esta ronda con la Chrome tool (ya disponible), login por
+   `dev-login` real y capturas de las tres superficies con DOS skins
+   distintos — "Nieve" (el caso límite señalado por el auditor,
+   `#ffffff` puro) y "Neón Fiesta" (gradiente oscuro,
+   `#0d0221→#1a0b3d`, acento `#ff2e88`), confirmando en ambos: cabecera
+   de portada de Invitado legible, cabecera de mes legible en las dos
+   vistas (Invitado y editor de Admin), y el borde de acento del modal
+   de vídeo visible alrededor del `<iframe>` (sin tocarlo) al abrir un
+   día con vídeo asignado.

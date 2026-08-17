@@ -195,3 +195,21 @@ Ningún componente de frontend — el `<select>` de
 `background`/`accent`. Aplicar estos colores de verdad a portada/grid de
 días/modal es TAL-24, bloqueada por esta tarea, para otra terminal más
 adelante.
+
+## Actualización — TAL-24 (aplicación visual real)
+
+TAL-24 ya consume `background`/`accent` en la portada de Invitado y en el
+grid de días de las dos vistas — ver `src/lib/skin-appearance.ts` para el
+respaldo (`DEFAULT_SKIN_APPEARANCE`, tokens `--pine`/`--gold`) que usa
+cuando un skin referenciado no tiene esos campos, exactamente el caso que
+esta tarea dejó como `v.optional` a propósito (§ "Migración segura" más
+arriba). El `<select>` del editor de Admin sigue sin tocar (fuera de
+alcance también de TAL-24, ver su propio brief).
+
+Ronda 1 de TAL-24 tuvo un NO-GO de auditoría por contraste insuficiente
+sobre skins claros (el caso límite es justo este catálogo: "Nieve" llega
+a `#ffffff` puro) — corregido con una capa de oscurecimiento uniforme
+(`coverBackgroundCss()`) antes de pintar el `background` del skin bajo
+texto blanco; verificado en navegador real con "Nieve" y "Neón Fiesta".
+Detalle completo del fix y de la verificación en `docs/dias.md` §
+"Corrección de auditoría, ronda 1".

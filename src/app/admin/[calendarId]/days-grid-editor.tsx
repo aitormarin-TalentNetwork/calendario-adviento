@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { deleteDayAction, saveDayAction } from "@/app/admin/[calendarId]/days-actions";
 import { SubmitButton } from "@/components/submit-button";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
+import { coverBackgroundCss } from "@/lib/skin-appearance";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 
 export type DayInfo = {
@@ -88,8 +89,22 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
  * un formulario montado a la vez (el del día seleccionado), no uno por
  * cada día del rango — de paso reduce el DOM/trabajo por render frente a
  * la versión anterior.
+ *
+ * TAL-24 — `background` (el `background` real del skin del calendario) se
+ * aplica solo a la cabecera sticky de cada mes, mismo criterio que
+ * `door-grid.tsx` (ver el comentario completo ahí): no se toca el fondo de
+ * las casillas individuales, que codifican los estados de este editor
+ * (sin vídeo/con vídeo/hoy/seleccionada) ya auditados en TAL-21.
  */
-export function DaysGridEditor({ calendarId, days }: { calendarId: string; days: DayInfo[] }) {
+export function DaysGridEditor({
+  calendarId,
+  days,
+  background,
+}: {
+  calendarId: string;
+  days: DayInfo[];
+  background: string;
+}) {
   const [selectedDate, setSelectedDate] = useState(days[0]?.dateStr ?? null);
   const selectedDay = days.find((day) => day.dateStr === selectedDate);
   const months = groupIntoMonths(days);
@@ -130,8 +145,11 @@ export function DaysGridEditor({ calendarId, days }: { calendarId: string; days:
                   position: "sticky",
                   top: 0,
                   zIndex: 2,
-                  background: "var(--pine)",
-                  color: "var(--paper)",
+                  // Corrección de auditoría, ronda 1 (TAL-24) — ver el
+                  // comentario completo en `door-grid.tsx`, mismo motivo.
+                  background: coverBackgroundCss(background),
+                  color: "#fff",
+                  textShadow: "0 1px 4px rgba(0,0,0,0.5)",
                   fontFamily: "var(--font-display)",
                   fontSize: "1.15rem",
                   padding: "10px 20px",
