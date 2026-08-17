@@ -644,6 +644,71 @@ diálogo se centra igual de bien a ese ancho.
 fichero de Convex (schema/mutations/queries) tocado — tarea puramente de
 presentación, tal como pedía el brief.
 
+## Link de invitación único con icono de copiar (TAL-35)
+
+Brief (design/design-system.md § "Invitados — link de invitación único",
+design/propuesta-editor-calendario.html `.invite-link-row`/`.btn-icon`/
+`.toast`): restilar el campo de solo lectura del link de invitación
+(`guests-section.tsx`) y sustituir `CopyLinkButton` (botón de texto
+"Copiar link"/"¡Copiado!") por un icono de línea minimalista sin texto, con
+confirmación tipo toast en vez de cambiar el texto del propio botón.
+
+**Investigación previa del ticket (comentario de Aitor en Linear, ya
+resuelta antes de repartir la tarea):** el backend YA funciona con un único
+link por calendario, sin token por invitado — el control de acceso real lo
+hace el login con Google contra la lista de invitados
+(`src/lib/roles.ts`), no un secreto en la URL (documentado en el propio
+`guests-section.tsx` desde TAL-7). Tampoco existía ya una acción de copiar
+individual por fila de invitado que hubiera que quitar — la tabla ya solo
+tenía "Quitar del calendario"/"Borrar por completo". Confirma que esta
+tarea es puramente de presentación, sin tocar Convex.
+
+Cambios:
+- `guests-section.tsx`: el `<p>` con el link en texto corrido pasa a un
+  `<div className="invite-link-row">` (label + `<code>` + botón), mismo
+  recuadro que el mockup.
+- `copy-link-button.tsx`: reescrito — icono SVG de línea ("copy", dos
+  rectángulos superpuestos, igual que el icono de "Quitar del calendario"
+  de la propia tabla de invitados en cuanto a criterio visual) en vez de
+  texto; confirmación mediante una pastilla `.toast` fija en la parte
+  inferior de la pantalla (aparece 1.4s), no cambiando el texto del botón.
+- `globals.css`: nuevas clases `.invite-link-row`/`.invite-link-label`/
+  `.invite-link-url`/`.copy-icon-button`/`.toast` (con `@media` para mobile
+  — la fila se envuelve, el link pasa a ancho completo con elipsis — y
+  `:hover`/`:focus-visible`, que un `style` inline de React no puede
+  expresar). Nuevo token `--invite-link-bg` (mismo patrón que
+  `--day-open-bg`, TAL-21): fondo `--paper-2` en claro, `--pine-2` en
+  oscuro, reutilizado tanto para el fondo de la fila como para el `:hover`
+  del icono — token propio en vez de reutilizar `--day-open-bg` (concepto
+  distinto, el grid de días) o `--bg-sunken` (semántico pero de un tono
+  distinto).
+
+**Evidencia:** verificado en navegador real (super-admin, calendario de
+prueba "Test TAL-13"). Confirmado visualmente que la tabla de invitados no
+tiene ninguna acción de copiar por fila (nunca la tuvo). Icono de copiar
+renderiza correctamente (línea, sin relleno, sin texto). Copiado real
+confirmado por dos vías independientes: (a) directamente contra el
+portapapeles del sistema operativo (`pbpaste` en una terminal aparte, fuera
+del navegador) tras un clic real en el botón — el valor copiado coincidía
+exactamente con el link mostrado; (b) el toast (`Link copiado`) se
+construye correctamente en el DOM con el texto esperado tras el clic. La
+propia comprobación automatizada del toast por temporizador resultó poco
+fiable en este entorno concreto (el toast se autooculta a 1.4s y el
+tiempo de ida y vuelta de las herramientas de navegador superaba
+sistemáticamente esa ventana al comprobarlo después del clic) — para
+verificar el estilo visual real de la pastilla se forzó su clase `.show`
+directamente vía consola y se confirmó por captura que se renderiza
+correctamente (posición fija, centrada, abajo, colores/tipografía acorde
+al resto del sistema). Layout de la fila del link comprobado sin
+regresiones en mobile (~605px real) y desktop (~896px, iframe inyectado —
+`resize_window` sigue sin reproducir un viewport ancho fiable en este
+entorno): en desktop la fila no se envuelve (label + link en la misma
+línea), en mobile se envuelve.
+
+`npx eslint .`/`npx tsc --noEmit` limpios; `AGENTS.md` intacto. Ningún
+fichero de Convex (schema/mutations/queries) tocado — tarea puramente de
+presentación, tal como confirmaba la investigación previa del ticket.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma

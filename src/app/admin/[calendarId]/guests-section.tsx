@@ -57,10 +57,18 @@ export async function GuestsSection({ calendarId }: { calendarId: string }) {
       <h2>Invitados</h2>
 
       {link ? (
-        <p style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap" }}>
-          Link de invitación: <code>{link}</code>
+        // TAL-35 (design/design-system.md § "Invitados — link de
+        // invitación único") — antes, un <p> con el label y el link en
+        // texto corrido. `.invite-link-row` (globals.css) reproduce el
+        // recuadro del mockup (fondo --paper-2/--pine-2, borde, radio) —
+        // ya no hace falta un botón de copiar por fila de invitado (nunca
+        // existió una acción de copiar individual en la tabla, confirmado
+        // en la investigación del ticket): un único link por calendario.
+        <div className="invite-link-row">
+          <span className="invite-link-label">Link de invitación</span>
+          <code className="invite-link-url">{link}</code>
           <CopyLinkButton link={link} />
-        </p>
+        </div>
       ) : (
         <p style={{ color: "var(--accent)" }}>
           Falta configurar la variable de entorno APP_URL para mostrar el link de invitación de
