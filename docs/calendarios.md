@@ -331,18 +331,22 @@ superficie de seguridad — no algo que decidir dentro de este ticket) —
 hasta entonces, esa página sigue mostrando solo la portada genérica
 (🎄 + texto sin el emoji dentro), igual que antes de esta tarea.
 
-**Tokens del Design System — hallazgo de esta tarea**: `design/design-system.md`
-es normativo (`--gold`, `--paper-2`, etc.), pero `src/app/globals.css`
-todavía solo tiene el esquema viejo del MVP (`--accent`/`--background`/
-`--foreground`) — ninguna página de la app usa los tokens nuevos
-todavía. Consultado con el PM (factory-e9): el set completo tiene que
-acabar en `globals.css` tal cual, pero coordinar quién lo añade primero
-(para no chocar con TAL-21, mismo Design System, en paralelo) es
-decisión de la Directora — se lo asignó a T3 como paso aparte. Mientras
-tanto, `cover-icon-picker.tsx` usa los valores hex exactos de la tabla
-de tokens directamente (`#c99a3d` gold, `#efe7d4` paper-2), sin depender
-de variables CSS que todavía no existen — a actualizar a `var(--gold)`/
-`var(--paper-2)` en cuanto la migración de tokens esté hecha.
+**Tokens del Design System — hallazgo de esta tarea, ya resuelto**:
+`design/design-system.md` es normativo (`--gold`, `--paper-2`, etc.),
+pero `src/app/globals.css` todavía solo tenía el esquema viejo del MVP
+(`--accent`/`--background`/`--foreground`) cuando se detectó esto —
+ninguna página de la app usaba los tokens nuevos todavía. Consultado
+con el PM (factory-e9): el set completo tiene que acabar en
+`globals.css` tal cual, pero coordinar quién lo añade primero (para no
+chocar con TAL-21, mismo Design System, en paralelo) era decisión de
+la Directora — se lo asignó a T3 como paso aparte. Mientras tanto,
+`cover-icon-picker.tsx` usó temporalmente los valores hex exactos de
+la tabla de tokens (`#c99a3d` gold, `#efe7d4` paper-2), sin depender de
+variables CSS que todavía no existían. T3 publicó la migración completa
+a `main` (commit `f345950`); tras traer `main` a esta rama,
+`cover-icon-picker.tsx` quedó actualizado para usar `var(--gold)`/
+`var(--paper-2)` de verdad — ya no quedan hex hardcodeados en este
+componente.
 
 ### Evidencia (TAL-23)
 

@@ -3,19 +3,6 @@
 import { useMemo, useState } from "react";
 import { COVER_ICON_CATEGORIES } from "@/lib/cover-icons";
 
-// Valores hex exactos de design/design-system.md § "Tokens" (`--gold`,
-// `--paper-2`) — hardcodeados aquí a propósito, NO como variables CSS
-// compartidas: el resto de la app (`src/app/globals.css`) todavía no
-// tiene el set de tokens del Design System, solo el esquema viejo del
-// MVP (`--accent`/`--background`/`--foreground`). Migrar `globals.css` al
-// set completo es más que esta tarea y afecta a TAL-21 (grid de días,
-// mismo Design System) en paralelo — decisión de coordinación de la
-// Directora, no mía (consultado con el PM, factory-e9). El resto del
-// selector usa `var(--accent)` para quedar consistente con el resto de
-// la app tal como está hoy.
-const GOLD = "#c99a3d";
-const PAPER_2 = "#efe7d4";
-
 type CoverIconPickerProps = {
   value: string;
   onChange: (icon: string) => void;
@@ -121,8 +108,8 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                   style={{
                     aspectRatio: "1",
                     borderRadius: "8px",
-                    border: `1px solid ${selected ? GOLD : "var(--accent)"}`,
-                    background: selected ? PAPER_2 : "transparent",
+                    border: `1px solid ${selected ? "var(--gold)" : "var(--accent)"}`,
+                    background: selected ? "var(--paper-2)" : "transparent",
                     fontSize: "1.2rem",
                     cursor: disabled ? "default" : "pointer",
                     display: "flex",
