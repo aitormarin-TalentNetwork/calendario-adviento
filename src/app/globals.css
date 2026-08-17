@@ -219,3 +219,97 @@ a {
     padding-top: 4.5rem;
   }
 }
+
+/* TAL-33 — Editor de calendario, sección "Datos del calendario"
+   (design/design-system.md § "Editor de calendario" / "Formularios").
+   Necesitan `@media` (colapso a 1 columna / etiquetas apiladas por
+   debajo de 640px, design-system.md § "Responsive / Mobile"), que un
+   `style` inline de React no puede expresar — por eso viven aquí, mismo
+   motivo que `.session-indicator`/`.session-page-main` (TAL-28). */
+.editor-columns {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.editor-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.editor-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-field > label {
+  flex: 0 0 152px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.editor-field > input,
+.editor-field > select {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+@media (max-width: 640px) {
+  .editor-columns {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .editor-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .editor-field > label {
+    flex: none;
+    text-align: left;
+  }
+}
+
+/* "Borrar calendario" — botón rojo relleno al final de la pantalla
+   (antes, botón fantasma de solo texto en la cabecera). A ancho
+   completo en mobile cuando queda solo al final de una pantalla
+   (design-system.md § "Responsive / Mobile" — mejor objetivo táctil). */
+.editor-danger-zone {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  /* Hallazgo real al verificar en navegador (no solo teórico): el mockup
+     usa `justify-content: stretch` para expandir el <form> hijo al ancho
+     completo, pero no se comportó así de forma fiable aquí — el botón
+     quedaba con su ancho de contenido, no a ancho completo. `column` +
+     `align-items: stretch` consigue lo mismo de forma bien soportada:
+     estira el <form> (hijo flex directo) al ancho del contenedor, y de
+     ahí el `width: 100%` del botón (abajo) llena el <form>. */
+  .editor-danger-zone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editor-danger-zone button {
+    width: 100%;
+  }
+}

@@ -521,6 +521,66 @@ horizontal dentro del contenedor de la tabla, la página en sí no se mueve; sin
 `SessionIndicator` (mismo `className="session-page-main"` que ya tenía la página, sin
 cambios en ese mecanismo).
 
+## Editor de calendario — 2 columnas, icono en diálogo, borrar al final (TAL-33)
+
+**Fuente**: `design/design-system.md` § "Editor de calendario (pantalla de
+configuración del Admin)" / "Formularios" / "Selector de icono de portada", validadas
+con Aitor 2026-08-17. Mockup: `design/propuesta-editor-calendario.html`. Alcance
+acotado deliberadamente al brief literal de TAL-33 (2 columnas, etiqueta a la izquierda,
+icono en diálogo, borrar al final) — la sección "Editor de calendario" del Design
+System también describe cambios al grid de días (diálogo por día, fotograma de vídeo) y
+a "Invitados" (link único) que NO son parte de esta tarea; quedan para TAL-34/35/37 y
+siguientes, sin tocar `days-section.tsx`/`guests-section.tsx` aquí.
+
+**"Datos del calendario" en dos columnas**: izquierda = fecha de inicio/fin;
+derecha = nombre, título de portada, icono de portada, skin — y, al final de esa misma
+columna derecha (no están en el mockup, que es previo a TAL-27 y nunca tuvo foto de
+portada), marcador de cuenta atrás + vista previa y foto de portada (URL). Clases
+nuevas `.editor-columns`/`.editor-col`/`.editor-field` (`globals.css`) — necesitan
+`@media` para colapsar a 1 columna y apilar etiquetas por debajo de 640px
+(design-system.md § "Responsive / Mobile"), que un `style` inline de React no puede
+expresar (mismo motivo que `.session-indicator`, TAL-28).
+
+**Selector de icono de portada — ahora en diálogo**: la página solo muestra el icono
+elegido (casilla `44px`, `--paper-2`/`--border`) + botón "Cambiar icono". Al pulsarlo
+se abre un diálogo modal con la galería completa (buscador + categorías, sin cambios de
+contenido respecto a TAL-23) — mismo patrón de diálogo ya establecido en `door-grid.tsx`
+(modal de vídeo del Invitado): `role="dialog"`/`aria-modal`, cierre con Escape o clic en
+el fondo, foco inicial en el botón de cerrar, foco devuelto al disparador al cerrar. Al
+elegir un icono, el diálogo se cierra solo — no hace falta un botón "Guardar" aparte.
+
+**"Borrar calendario" — botón rojo relleno al final**: se mueve de la cabecera (botón
+fantasma de solo texto, junto al título) al final de la pantalla, después de
+"Invitados", separado por un divisor (`.editor-danger-zone`). Nuevo `variant="danger"`
+en `ConfirmSubmitButton` (opcional, por defecto no cambia nada para otros llamadores).
+Excepción explícita al estilo general "Peligro: solo texto" que sigue describiendo
+`design-system.md` § "Botones" para el resto de acciones de borrar de la app — solo
+este botón concreto pasa a relleno, por pedido directo del brief de TAL-33.
+
+**Hallazgo real durante la verificación (no solo teórico)**: el mockup usa
+`justify-content: stretch` para expandir el botón a ancho completo en mobile — probado
+en navegador real y NO se comportó así de forma fiable (el botón quedaba con su ancho
+de contenido). Corregido con `flex-direction: column` + `align-items: stretch` en la
+media query (bien soportado, estira el `<form>` hijo al ancho del contenedor, y de ahí
+el `width: 100%` del botón llena el `<form>`) — reverificado tras el cambio: botón
+genuinamente a ancho completo por debajo de 640px.
+
+**Evidencia**: verificado en navegador real, dos anchos distintos (una ventana física
+que resultó estar en ~605px — por debajo del breakpoint, sin necesidad de emulación — y
+un iframe de 900px inyectado en la propia página para el ancho de escritorio, mismo
+método ya usado en el seguimiento de TAL-28 porque `resize_window` no reproduce un
+viewport ancho/estrecho de verdad en este entorno). A 605px: campos apilados (etiqueta
+arriba), "Borrar calendario" a ancho completo tras el arreglo. A 900px: dos columnas
+reales lado a lado (fechas a la izquierda, resto a la derecha), etiquetas a la
+izquierda de cada input. Diálogo de icono: abre con el icono actual marcado, buscador
+filtra igual que antes (TAL-23), Escape cierra, seleccionar un icono cierra el diálogo
+y actualiza la casilla — confirmado también contra el dato real en Convex tras guardar
+(`coverIcon` persistido correctamente, `npx convex data calendars --format
+jsonLines`).
+
+`npx next build`/`npx eslint .` limpios; `npx convex dev --once --typecheck=enable`
+limpio; `AGENTS.md` intacto.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
