@@ -131,6 +131,15 @@ export default async function GuestCalendarPage({
   // "normalmente".
   const coverTextStyle = { color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.5)" };
 
+  // TAL-47 — resuelto en una variable propia (tipada como
+  // `React.CSSProperties`, no con un `as` inline) antes de mezclarla con
+  // `"--accent"` más abajo: `coverBackgroundStyle` devuelve una unión
+  // discriminada (TAL-29) que TypeScript no deja "castear" junto a una
+  // custom property arbitraria en el mismo objeto literal ("neither type
+  // sufficiently overlaps") — asignarla primero a una variable con tipo
+  // declarado la resuelve a un `CSSProperties` concreto sin ese conflicto.
+  const mainBackgroundStyle: React.CSSProperties = coverBackgroundStyle(appearance.background, backgroundImageUrl);
+
   return (
     <main
       className="session-page-main"
@@ -141,12 +150,48 @@ export default async function GuestCalendarPage({
           paddingRight: "2rem",
           paddingBottom: "2rem",
           maxWidth: "900px",
+          // TAL-46 — `<body>` es un flex container en columna
+          // (`globals.css`), así que este `<main>` es un flex item cuyo eje
+          // CRUZADO es el horizontal. Antes, sin ningún margen `auto`,
+          // `align-items: stretch` (heredado del padre) lo estiraba al
+          // ancho de `<body>` y `maxWidth` recortaba ese resultado a 900px
+          // — pero SIEMPRE anclado al borde izquierdo, sin ninguna forma de
+          // centrado. Corrección real, no solo "añadir margin: auto":
+          // un margen `auto` en el eje cruzado tiene prioridad ABSOLUTA
+          // sobre `stretch` (la propia spec de Flexbox — el `align-self`
+          // efectivo deja de ser `stretch` en cuanto hay un margen `auto`
+          // en ese eje), así que `margin: auto` SIN `width` explícito hace
+          // que el item deje de estirarse del todo y pase a encogerse a su
+          // contenido (~549px medido en un caso de prueba real, muy por
+          // debajo de los 900px pretendidos) — confirmado con
+          // `getBoundingClientRect()` en el navegador, no solo a ojo. Hace
+          // falta `width: "100%"` para devolverle un tamaño cruzado
+          // definido (100% del `<body>`, recortado por `maxWidth` a 900px
+          // igual que antes) — con eso, los márgenes `auto` sí reparten el
+          // espacio sobrante en partes iguales a los lados. No hizo falta
+          // tocar `<body>` ni ningún padre — no es un flex ROW, así que
+          // `justify-content` no aplica aquí.
+          width: "100%",
+          marginLeft: "auto",
+          marginRight: "auto",
+          // TAL-47 — el fondo del skin (o `backgroundImageUrl`, mismo
+          // criterio que ya usaba solo el bloque de portada) cubre ahora
+          // TODA la pantalla del Invitado, no solo las tarjetas concretas
+          // que ya lo tenían — antes este `<main>` se quedaba con el `--bg`
+          // fijo de la app (pine) alrededor/entre ellas. El bloque de
+          // portada de abajo sigue aplicando `coverBackgroundStyle` por su
+          // cuenta (mismo degradado/imagen, misma capa de oscurecimiento) —
+          // como es opaco, no se superpone/oscurece de más con este fondo,
+          // simplemente continúa visualmente el mismo patrón dentro de su
+          // propia tarjeta redondeada.
+          ...mainBackgroundStyle,
           // Se sobreescribe `--accent` a nivel de página para que TODO lo
           // que ya usa `var(--accent)` más abajo (incluida `DoorGrid`,
           // componente cliente — las custom properties CSS heredan por el
           // árbol del DOM sin importar límites de componente/Server-Client)
           // refleje el acento del skin sin tocar `door-grid.tsx` más de lo
-          // necesario.
+          // necesario. Sin cambios en esta tarea — el acento no cambia de
+          // alcance (brief de TAL-47), solo el fondo.
           "--accent": appearance.accent,
         } as React.CSSProperties
       }
