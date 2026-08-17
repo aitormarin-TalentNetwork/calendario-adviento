@@ -89,18 +89,17 @@
   }
   .field input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
 
-  /* ---- selector de skin (ajuste 2026-08-17: coincide con SkinPicker real,
-     src/app/admin/[calendarId]/skin-picker.tsx, TAL-37 — nombre visible junto
-     al color, no solo en el title del hover) ---- */
+  /* ---- selector de skin (ajuste 2026-08-17, segunda vuelta: Aitor prefiere el
+     círculo de color solo, sin el nombre siempre visible al lado — el nombre
+     aparece con el hover/tooltip nativo del `title`, nada más) ---- */
   .skin-picker-gallery { display: flex; flex-wrap: wrap; gap: 8px; }
   .skin-swatch {
-    display: flex; align-items: center; gap: 7px; padding: 4px 12px 4px 4px; border-radius: 999px;
-    border: 1px solid var(--border); background: var(--bg-raised); cursor: pointer;
-    font-family: var(--font-body); font-size: 0.78rem; color: var(--text);
+    width: 26px; height: 26px; padding: 2px; border-radius: 999px; border: 1px solid transparent;
+    background: transparent; cursor: pointer;
   }
   .skin-swatch:hover { border-color: var(--gold); }
   .skin-swatch.selected { border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,154,61,0.25); }
-  .skin-swatch-color { width: 20px; height: 20px; border-radius: 999px; flex-shrink: 0; }
+  .skin-swatch-color { display: block; width: 100%; height: 100%; border-radius: 999px; }
 
   /* ---- selector de icono (ajuste 2026-08-17: el propio icono ES el botón de
      "cambiar icono", no hay un botón de texto aparte — la galería vive en un
@@ -270,17 +269,14 @@
         </div>
         <div class="field"><label>Skin</label>
           <div class="skin-picker-gallery" id="skinSwatches">
-            <button type="button" class="skin-swatch selected" data-bg="linear-gradient(155deg,#7a5a1e,#1b3a2f)" title="Dorado">
+            <button type="button" class="skin-swatch selected" data-bg="linear-gradient(155deg,#7a5a1e,#1b3a2f)" title="Dorado" aria-label="Dorado">
               <span class="skin-swatch-color" style="background:linear-gradient(155deg,#7a5a1e,#1b3a2f);"></span>
-              <span>Dorado</span>
             </button>
-            <button type="button" class="skin-swatch" data-bg="linear-gradient(155deg,#8c2f39,#2b3f22)" title="Nochebuena">
+            <button type="button" class="skin-swatch" data-bg="linear-gradient(155deg,#8c2f39,#2b3f22)" title="Nochebuena" aria-label="Nochebuena">
               <span class="skin-swatch-color" style="background:linear-gradient(155deg,#8c2f39,#2b3f22);"></span>
-              <span>Nochebuena</span>
             </button>
-            <button type="button" class="skin-swatch" data-bg="linear-gradient(155deg,#2b3f6b,#6b3f2b)" title="Bosque Nórdico">
+            <button type="button" class="skin-swatch" data-bg="linear-gradient(155deg,#2b3f6b,#6b3f2b)" title="Bosque Nórdico" aria-label="Bosque Nórdico">
               <span class="skin-swatch-color" style="background:linear-gradient(155deg,#2b3f6b,#6b3f2b);"></span>
-              <span>Bosque Nórdico</span>
             </button>
           </div>
           <p class="helptext" style="margin:2px 0 0;">Solo 3 de ejemplo aquí — el real son 23 (ver Design System, sección "Skins").</p>
