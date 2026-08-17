@@ -733,3 +733,44 @@ de referencia que TAL-40. Solo vista de Invitado.
 - **`prefers-reduced-motion`**: salta solo el pulso de la casilla
   (`classList` nunca se toca) — el letrero se muestra igual, sin
   condición, tal como pide el brief ("mostrar el letrero sin el pulso").
+
+## Días "fuera de rango" — fondo transparente + tachado + editor de Admin (TAL-44)
+
+Segunda vuelta sobre TAL-31. Tres cambios, `design/design-system.md` §
+"Grid de días" → "Fuera de rango" y `design/propuesta-grid-calendario.html`
+como fuente exacta de valores.
+
+- **Editor de Admin (`days-grid-editor.tsx`) entra en alcance**: antes
+  `groupIntoMonths` ya devolvía celdas `"out-of-range"` para el rango del
+  editor (mismo tipo genérico `MonthCell<T>` que usa `door-grid.tsx`),
+  pero el editor las colapsaba junto con el relleno de alineación de
+  semana (`if (cell.kind !== "item")`) — a propósito, fuera de alcance de
+  TAL-31 en su momento (comentario explícito en el código). Ahora se
+  separan en dos ramas: `"padding"` sigue en blanco sin numerar
+  (sin cambios), `"out-of-range"` recibe el mismo tratamiento que ya
+  tenía el Invitado — nuevas `outOfRangeCellStyle`/`outOfRangeNumStyle`
+  locales a este fichero, mismos valores que las de `door-grid.tsx`
+  (ningún estilo compartido entre los dos ficheros, mismo patrón que ya
+  tenían `cellStyle`/`numStyle` — cada vista mantiene su propia copia).
+- **Fondo transparente**: `outOfRangeCellStyle.background` pasa de
+  `var(--bg)` (bloque propio, destacaba) a `var(--bg-raised)` — el mismo
+  que ya usaba el relleno de alineación de semana — en los dos ficheros.
+  Se funde con la tarjeta del calendario en vez de marcar un bloque
+  aparte.
+- **Tachado**: línea diagonal fina portada 1:1 del prototipo
+  (`.day.out-of-range::after` → `.dg-out-of-range::after` en
+  `door-grid.tsx`, `.dge-out-of-range::after` en `days-grid-editor.tsx`
+  — prefijo distinto por fichero, mismo patrón que el resto de clases
+  scoped de cada uno): `1px` de grosor, `opacity: 0.4`, color
+  `var(--text-dim)`, `rotate(-18deg)`, centrada al 50% vertical entre el
+  14% y el 86% horizontal. Va como `::after` de la propia casilla — no se
+  puede expresar en un objeto de estilos inline de React (`content`,
+  pseudo-elementos), así que vive en un `<style jsx>` en vez de en
+  `outOfRangeCellStyle`. `days-grid-editor.tsx` no tenía ningún `<style
+  jsx>` hasta ahora (todo el fichero usaba estilos inline) — se añadió
+  uno mínimo solo para esta regla.
+- **Nada más cambia**: número en marca de agua (`opacity: 0.15`), sin
+  candado, sin fondo de estado, sin click — igual que antes de esta
+  tarea. El relleno de alineación de semana (días que no pertenecen a
+  ningún mes, ni siquiera fuera de rango) sigue en blanco sin numerar,
+  sin tocar — concepto distinto, no confundir con "fuera de rango".
