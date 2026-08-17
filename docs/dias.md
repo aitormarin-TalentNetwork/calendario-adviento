@@ -634,3 +634,102 @@ diseñado desde cero.
   reduciéndose de tamaño a la vez sería ruido visual de más; reaparece
   solo cuando `completeOpen` ya cambió el estado a "visto" (pasa a
   `dg-num-pill`, la píldora pequeña habitual).
+
+## Efecto de "impaciencia" — pulso + letrero (TAL-41)
+
+Mismo fichero (`door-grid.tsx`), mismo patrón de port fiel del prototipo
+de referencia que TAL-40. Solo vista de Invitado.
+
+- **Días bloqueados pasan a ser clicables**: antes el botón llevaba
+  `disabled={door.state === "locked"}` (un `<button disabled>` no recibe
+  eventos `click` del DOM en absoluto) — se quitó, y `cellStyle` cambia
+  `cursor: "default"` a `cursor: "pointer"` para ese estado. El vídeo
+  sigue sin desbloquearse; lo único nuevo es la reacción visual/textual
+  al clic.
+- **Pulso vía `classList` directo, no `className` de React**: igual que
+  el prototipo (quitar la clase, forzar un reflow con `offsetWidth`,
+  volver a añadirla), para que la animación se REINICIE de verdad si se
+  pincha el mismo día bloqueado varias veces seguidas — con `className`
+  gestionado por React, pinchar dos veces seguidas dejaría el mismo
+  string de clase entre renders y la animación CSS no se reiniciaría.
+  Como el botón bloqueado nunca recibe `className` desde JSX, tocarlo
+  así con `classList` no choca con ningún re-render de React.
+- **`daysUntil` (`countdown.ts`, ya auditado en TAL-27)** reutilizado tal
+  cual para calcular X — hoy se resuelve con
+  `todayDateStrInTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone)`
+  (la zona horaria real del navegador, mismo criterio que el resto del
+  fichero), nunca en el servidor.
+- **Letrero SIEMPRE montado, no condicional**: el desvanecimiento de
+  0.25s necesita que el texto siga presente mientras `patienceVisible`
+  pasa a `false` — si el contenido desapareciera de golpe con el estado
+  (React condicional), no habría nada que desvanecer visualmente.
+  `patienceInfo` (contenido) y `patienceVisible` (visibilidad) son dos
+  estados separados a propósito, igual que el prototipo (nodo del
+  letrero permanente en el DOM, solo se le da o quita una clase `.show`).
+- **Cierre "al pinchar fuera/encima" — tres rondas de hallazgos reales**:
+  - Ronda 1 (verificación propia, antes de exportar): un
+    `window.addEventListener("click", dismiss)` registrado de forma
+    síncrona dentro del `useEffect` que muestra el letrero capturaba el
+    PROPIO clic que lo abría. Se "arregló" retrasando el registro a un
+    `window.setTimeout(…, 0)`.
+  - Ronda 1 de auditoría (NO-GO real): ese `setTimeout` resolvía el
+    autocierre en la apertura, pero una vez el listener quedaba
+    instalado, capturaba también cualquier clic POSTERIOR sobre OTRA
+    casilla bloqueada — como `patienceVisible` ya era `true` (sin
+    cambiar), el efecto no se volvía a ejecutar, así que el listener
+    viejo seguía vivo y cerraba el letrero justo después de que su
+    contenido se actualizara con el segundo clic.
+  - Fix de ronda 2: un ref booleano, `suppressNextDismissRef`, en vez de
+    jugar con el TIMING del registro del listener. `triggerImpatienceEffect`
+    lo pone a `true` de forma síncrona nada más entrar (antes de que el
+    propio clic termine de burbujear hasta `window`). El `dismiss` de
+    `window` comprueba el ref primero: si está a `true`, lo consume
+    (vuelve a `false`) y no cierra nada; si está a `false`, es un clic
+    genuinamente distinto y sí cierra. `pulseTimeoutsRef` pasó a ser un
+    `Map<dateStr, timeoutId>` en la misma ronda (ver más abajo).
+  - Ronda 2 de auditoría (NO-GO real, sutil): el `useEffect` que registra
+    `dismiss` seguía dependiendo de `[patienceVisible]` (con un
+    `if (!patienceVisible) return;` de guarda). En la apertura INICIAL
+    (`patienceVisible` pasa de `false` a `true` por primera vez), el
+    efecto se ejecuta DESPUÉS de que React confirme el commit — es decir,
+    después de que el clic nativo que disparó la apertura ya haya
+    terminado de burbujear hasta `window`. `suppressNextDismissRef` se
+    pone a `true` en ese clic, pero todavía no hay ningún `dismiss`
+    escuchando para consumirlo — el ref se queda "colgado" en `true`. El
+    listener se monta justo después, ya con ese `true` obsoleto. El
+    SIGUIENTE clic genuino (el primer intento real del usuario de cerrar
+    pinchando fuera) es el que el listener recién montado ve primero, y
+    lo consume por error en vez de cerrar. Solo desde el segundo intento
+    de cierre en adelante funcionaba bien.
+  - **Fix definitivo (ronda 3)**: el listener de `window` se monta de
+    forma PERMANENTE — `useEffect(..., [])` en vez de
+    `useEffect(..., [patienceVisible])`, sin el `if (!patienceVisible)
+    return;` — así queda activo desde el montaje del componente, mucho
+    antes de que pueda producirse NINGÚN clic (incluida la propia
+    apertura inicial). Ya no importa en qué orden lleguen "listener
+    montado" vs. "ref puesto a `true`", porque el listener existe siempre.
+    Verificado en vivo (inspección directa de `opacity`/`pointerEvents`
+    del letrero, no solo capturas, por la naturaleza de timing del
+    hallazgo): apertura inicial + un único clic fuera cierra a la
+    primera; los casos de la ronda 2 (clic sobre otra casilla actualiza
+    sin cerrar, reclic rápido sobre la misma casilla no corta el pulso)
+    se re-confirmaron intactos tras el cambio de dependencias del efecto.
+- **Pulso — timeout por día, no uno global (hallazgo de auditoría, ronda
+  1)**: si se pinchaba la MISMA casilla bloqueada dos veces antes de los
+  460ms, el `setTimeout` que quita `dg-pulsing` del primer clic
+  disparaba a mitad de la animación reiniciada por el segundo,
+  cortándola. Arreglado con `pulseTimeoutsRef` (`Map<dateStr,
+  timeoutId>`, no un único ref): antes de programar un timeout nuevo
+  para un día, se cancela el pendiente de ESE MISMO día si existe. Un
+  `Map` en vez de un solo ref porque dos casillas bloqueadas DISTINTAS sí
+  pueden estar pulsando a la vez, cada una con su propio temporizador
+  independiente.
+- **Reactivar sobre un letrero ya visible**: pinchar OTRO día bloqueado
+  mientras el letrero ya está en pantalla actualiza el contenido SIN
+  cerrarse y reinicia el temporizador de 2.5s (`clearTimeout` del
+  anterior antes de programar uno nuevo) — verificado en vivo tras el
+  fix (día 20 → "3 días", sin cerrarse, día 21 → pasa a "4 días" con el
+  letrero seguido abierto todo el rato).
+- **`prefers-reduced-motion`**: salta solo el pulso de la casilla
+  (`classList` nunca se toca) — el letrero se muestra igual, sin
+  condición, tal como pide el brief ("mostrar el letrero sin el pulso").
