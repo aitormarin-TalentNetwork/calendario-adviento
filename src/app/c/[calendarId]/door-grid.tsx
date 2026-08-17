@@ -622,12 +622,17 @@ export function DoorGrid({
           }
         }
       `}</style>
+      {/* TAL-50 — esta tarjeta ya NO pinta el fondo del skin por su cuenta
+          (antes: `background: "var(--bg-raised)"` aquí) — deja pasar la
+          ÚNICA capa de fondo real, la de `<main>` (`mainBackgroundStyle`,
+          `page.tsx`). Segura de dejar transparente porque no es
+          `position: sticky` — nada se desplaza "por debajo" de ella en un
+          sentido que pueda filtrarse. */}
       <div
         style={{
           border: "1px solid var(--border)",
           borderRadius: "16px",
           boxShadow: "var(--shadow)",
-          background: "var(--bg-raised)",
           overflow: "hidden",
         }}
       >
@@ -640,11 +645,28 @@ export function DoorGrid({
                   position: "sticky",
                   top: 0,
                   zIndex: 2,
-                  // TAL-47 — `skinBackgroundStyle` (sin la capa de
-                  // oscurecimiento cuando no hay `backgroundImageUrl`; el
-                  // contraste ya lo garantiza `textColor`/`textPill` vía
-                  // `resolveCoverTextTreatment`/`CoverText`, más abajo).
-                  // Ver `src/lib/skin-appearance.ts`.
+                  // TAL-50, corrección de auditoría (NO-GO, ronda 1): SÍ
+                  // necesita su propio fondo opaco, a diferencia de la
+                  // tarjeta que la envuelve (arriba) y de la tarjeta de
+                  // portada (`page.tsx`) — esas dos son estáticas, esta es
+                  // `position: sticky`. Sin fondo propio, mientras la
+                  // cabecera queda fija en pantalla las casillas de
+                  // semanas anteriores del MISMO mes (que sí siguen
+                  // desplazándose, ya que solo la cabecera se fija) pasan
+                  // VISUALMENTE por detrás de ella — confirmado en
+                  // navegador con scroll real y preciso (números de día de
+                  // la semana anterior bien visibles superpuestos con el
+                  // texto de la cabecera). `position: sticky` conserva el
+                  // espacio de la cabecera en el flujo normal, pero eso
+                  // solo describe el LAYOUT — no impide que otro contenido
+                  // en un nivel de pila inferior se pinte en ese mismo
+                  // rectángulo de pantalla una vez la cabecera queda fija;
+                  // sin una capa opaca propia ahí, ese contenido se ve.
+                  // Vuelve a repintar el skin (con el pequeño desajuste de
+                  // origen respecto a `<main>` que motivó TAL-50 en primer
+                  // lugar) — preferible una costura pequeña y estática a
+                  // un glitch real de contenido superpuesto durante el
+                  // scroll. Ver `src/lib/skin-appearance.ts`.
                   ...skinBackgroundStyle(background, backgroundImageUrl),
                   fontFamily: "var(--font-display)",
                 }}
@@ -828,9 +850,21 @@ export function DoorGrid({
               // `page.tsx`, así que no hace falta pasar el skin explícito
               // aquí también.
               border: "2px solid var(--accent)",
-              // TAL-47 — `skinBackgroundStyle` (mismo mecanismo que la
-              // cabecera de mes de arriba y la cabecera de portada,
-              // `page.tsx`) en vez del antiguo `coverBackgroundStyle`.
+              // TAL-47 — `skinBackgroundStyle` en vez del antiguo
+              // `coverBackgroundStyle`.
+              //
+              // TAL-50 — a diferencia de la tarjeta de portada y la
+              // cabecera de mes (arriba, ya sin fondo propio — dejan
+              // pasar la única capa continua de `<main>`), este modal SÍ
+              // mantiene su propio repintado del skin, a propósito: flota
+              // en un overlay `position: fixed` sobre un backdrop oscuro
+              // (`rgba(0,0,0,0.6)`, más abajo), no es parte del flujo
+              // continuo de la página — detrás de él, en el orden de
+              // pintado, no hay ninguna capa de `<main>` que dejar ver
+              // (el backdrop la tapa por completo), así que quitarle su
+              // propio fondo dejaría el modal sin fondo legible en
+              // absoluto, no "continuo con la página". Mismo criterio ya
+              // adelantado en el brief de TAL-50.
               ...skinBackgroundStyle(background, backgroundImageUrl),
               borderRadius: "1rem",
               maxWidth: "480px",
