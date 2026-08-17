@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CoverText } from "@/components/cover-text";
 import { parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { daysUntil, formatCountdownMessage } from "@/lib/countdown";
+import type { CoverTextTreatment } from "@/lib/skin-appearance";
 
 /**
  * TAL-27, parte 2 — mismo patrón que `DoorGridLoader`: en la primerísima
@@ -18,11 +20,11 @@ import { daysUntil, formatCountdownMessage } from "@/lib/countdown";
 export function CountdownMarkerLoader({
   endDate,
   label,
-  style,
+  treatment,
 }: {
   endDate: string;
   label: string;
-  style?: React.CSSProperties;
+  treatment: CoverTextTreatment;
 }) {
   const [message, setMessage] = useState<string | null>(null);
 
@@ -35,8 +37,10 @@ export function CountdownMarkerLoader({
   }, [endDate, label]);
 
   return (
-    <p style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 700, marginTop: "0.5rem", ...style }}>
-      {message ?? " "}
+    <p style={{ marginTop: "0.5rem" }}>
+      <CoverText treatment={treatment} style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 700 }}>
+        {message ?? " "}
+      </CoverText>
     </p>
   );
 }

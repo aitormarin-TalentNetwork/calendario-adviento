@@ -22,10 +22,14 @@ export function DoorGridLoader({
   calendarId,
   background,
   backgroundImageUrl,
+  textColor,
+  textPill,
 }: {
   calendarId: string;
   background: string;
   backgroundImageUrl: string | null;
+  textColor: string;
+  textPill: boolean;
 }) {
   const [result, setResult] = useState<GetDoorsResult | null>(null);
 
@@ -64,6 +68,13 @@ export function DoorGridLoader({
     );
   }
   return (
-    <DoorGrid calendarId={calendarId} doors={result.doors} background={background} backgroundImageUrl={backgroundImageUrl} />
+    <DoorGrid
+      calendarId={calendarId}
+      doors={result.doors}
+      background={background}
+      backgroundImageUrl={backgroundImageUrl}
+      textColor={textColor}
+      textPill={textPill}
+    />
   );
 }

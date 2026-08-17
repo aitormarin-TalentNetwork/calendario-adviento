@@ -44,6 +44,8 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
   skins: SkinOption[];
   skinAccent: string;
   skinBackground: string;
+  skinTextColor: string;
+  skinTextPill: boolean;
 } | null> {
   const serverSecret = convexAppServerSecret();
   const [calendar, skins] = await Promise.all([
@@ -85,6 +87,8 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
     // `--accent`/`background` solo a esa sección.
     skinAccent: appearance.accent,
     skinBackground: appearance.background,
+    skinTextColor: appearance.textColor,
+    skinTextPill: appearance.textPill,
   };
 }
 
@@ -102,7 +106,7 @@ export default async function AdminCalendarPage({
 
   const data = await getCalendarForAdminPage(calendarId);
   if (!data) notFound();
-  const { calendar, skins, skinAccent, skinBackground } = data;
+  const { calendar, skins, skinAccent, skinBackground, skinTextColor, skinTextPill } = data;
 
   return (
     <main
@@ -123,6 +127,8 @@ export default async function AdminCalendarPage({
         skinAccent={skinAccent}
         skinBackground={skinBackground}
         backgroundImageUrl={calendar.backgroundImageUrl}
+        skinTextColor={skinTextColor}
+        skinTextPill={skinTextPill}
       />
 
       <GuestsSection calendarId={calendar.id} />

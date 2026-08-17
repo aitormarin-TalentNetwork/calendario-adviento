@@ -14,7 +14,8 @@ import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { resolveCalendarAccess } from "@/lib/roles";
-import { coverBackgroundStyle, resolveSkinAppearance, type SkinAppearance } from "@/lib/skin-appearance";
+import { resolveCoverTextTreatment, resolveSkinAppearance, skinBackgroundStyle, type SkinAppearance } from "@/lib/skin-appearance";
+import { CoverText } from "@/components/cover-text";
 
 /**
  * TAL-14 — reconectada contra Convex (`calendars.getPublic`, TAL-12, ya
@@ -120,25 +121,27 @@ export default async function GuestCalendarPage({
     ? formatCountdownMessage(daysUntil(todayInTimeZone(new Date(), tz), endDate), countdownLabel)
     : null;
 
-  // TAL-24 — corrección de auditoría, ronda 1: texto blanco + sombra SOLO
-  // no bastaba (el skin "Nieve" llega a `#ffffff` puro, blanco sobre
-  // blanco). Ahora el fondo de la cabecera lleva una capa de
-  // oscurecimiento uniforme antes del `background` del skin (o de
-  // `backgroundImageUrl`, TAL-39 — `coverBackgroundStyle`,
-  // `src/lib/skin-appearance.ts` — ahí el cálculo completo de por qué
-  // garantiza contraste ≥4.5:1 incluso en ese caso límite), así que el
-  // texto blanco + sombra sigue siendo legible de verdad en vez de
-  // "normalmente".
-  const coverTextStyle = { color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.5)" };
+  // TAL-47 — reemplaza la capa de oscurecimiento + `text-shadow` fijos de
+  // TAL-24: `resolveCoverTextTreatment` decide, según el skin y si hay
+  // `backgroundImageUrl`, si el texto va con el `textColor` propio del
+  // skin (plano o en píldora) o con el tratamiento antiguo (blanco +
+  // sombra, todavía necesario cuando hay una foto arbitraria sin
+  // `textColor` verificado — ver el comentario completo en
+  // `skin-appearance.ts`). `CoverText` (`src/components/cover-text.tsx`)
+  // es el envoltorio compartido que renderiza cualquiera de los 3 casos.
+  const textTreatment = resolveCoverTextTreatment(appearance, !!backgroundImageUrl);
 
   // TAL-47 — resuelto en una variable propia (tipada como
   // `React.CSSProperties`, no con un `as` inline) antes de mezclarla con
-  // `"--accent"` más abajo: `coverBackgroundStyle` devuelve una unión
+  // `"--accent"` más abajo: `skinBackgroundStyle` devuelve una unión
   // discriminada (TAL-29) que TypeScript no deja "castear" junto a una
   // custom property arbitraria en el mismo objeto literal ("neither type
   // sufficiently overlaps") — asignarla primero a una variable con tipo
   // declarado la resuelve a un `CSSProperties` concreto sin ese conflicto.
-  const mainBackgroundStyle: React.CSSProperties = coverBackgroundStyle(appearance.background, backgroundImageUrl);
+  // `skinBackgroundStyle`, no `coverBackgroundStyle` — la primera ya no
+  // antepone la capa oscura cuando no hay foto (el contraste lo garantiza
+  // `textColor` ahora), ver `skin-appearance.ts`.
+  const mainBackgroundStyle: React.CSSProperties = skinBackgroundStyle(appearance.background, backgroundImageUrl);
 
   return (
     <main
@@ -216,36 +219,28 @@ export default async function GuestCalendarPage({
       <div
         style={{
           marginBottom: "1.5rem",
-          // TAL-39 — `coverBackgroundStyle` sustituye el color/degradado
-          // del skin por `backgroundImageUrl` cuando el calendario tiene
-          // uno puesto (misma capa de oscurecimiento de contraste que
-          // antes, ver `skin-appearance.ts`).
-          ...coverBackgroundStyle(appearance.background, backgroundImageUrl),
+          // Mismo fondo que `<main>` (misma llamada, mismos argumentos) —
+          // un único cálculo compartido, no dos implementaciones del
+          // mismo fondo (ver comentario completo junto a
+          // `mainBackgroundStyle` más arriba).
+          ...mainBackgroundStyle,
           borderRadius: "0.75rem",
           padding: "1.25rem 1.5rem",
         }}
       >
-        <h1 style={coverTextStyle}>
-          <span aria-hidden="true">{calendar.coverIcon}</span> {calendar.coverTitle}
+        <h1>
+          <CoverText treatment={textTreatment}>
+            <span aria-hidden="true">{calendar.coverIcon}</span> {calendar.coverTitle}
+          </CoverText>
         </h1>
         {countdownMessage ? (
-          <p
-            style={{
-              ...coverTextStyle,
-              fontFamily: "var(--font-display)",
-              fontSize: "1.5rem",
-              fontWeight: 700,
-              marginTop: "0.5rem",
-            }}
-          >
-            {countdownMessage}
+          <p style={{ marginTop: "0.5rem" }}>
+            <CoverText treatment={textTreatment} style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 700 }}>
+              {countdownMessage}
+            </CoverText>
           </p>
         ) : (
-          <CountdownMarkerLoader
-            endDate={endDate.toISOString().slice(0, 10)}
-            label={countdownLabel}
-            style={coverTextStyle}
-          />
+          <CountdownMarkerLoader endDate={endDate.toISOString().slice(0, 10)} label={countdownLabel} treatment={textTreatment} />
         )}
       </div>
 
@@ -256,9 +251,17 @@ export default async function GuestCalendarPage({
           timeZone={tz}
           background={appearance.background}
           backgroundImageUrl={backgroundImageUrl}
+          textColor={appearance.textColor}
+          textPill={appearance.textPill}
         />
       ) : (
-        <DoorGridLoader calendarId={calendarId} background={appearance.background} backgroundImageUrl={backgroundImageUrl} />
+        <DoorGridLoader
+          calendarId={calendarId}
+          background={appearance.background}
+          backgroundImageUrl={backgroundImageUrl}
+          textColor={appearance.textColor}
+          textPill={appearance.textPill}
+        />
       )}
     </main>
   );
@@ -270,12 +273,16 @@ async function ServerResolvedDoors({
   timeZone,
   background,
   backgroundImageUrl,
+  textColor,
+  textPill,
 }: {
   calendarId: string;
   userId: string;
   timeZone: string;
   background: string;
   backgroundImageUrl: string | null;
+  textColor: string;
+  textPill: boolean;
 }) {
   const today = todayInTimeZone(new Date(), timeZone);
   const result = await resolveDoors(calendarId, userId, today);
@@ -289,6 +296,13 @@ async function ServerResolvedDoors({
     );
   }
   return (
-    <DoorGrid calendarId={calendarId} doors={result.doors} background={background} backgroundImageUrl={backgroundImageUrl} />
+    <DoorGrid
+      calendarId={calendarId}
+      doors={result.doors}
+      background={background}
+      backgroundImageUrl={backgroundImageUrl}
+      textColor={textColor}
+      textPill={textPill}
+    />
   );
 }

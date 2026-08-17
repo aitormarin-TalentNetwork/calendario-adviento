@@ -4,7 +4,8 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { deleteDayAction, saveDayAction, type SaveDayState } from "@/app/admin/[calendarId]/days-actions";
 import { SubmitButton } from "@/components/submit-button";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
-import { coverBackgroundStyle } from "@/lib/skin-appearance";
+import { resolveCoverTextTreatment, skinBackgroundStyle } from "@/lib/skin-appearance";
+import { CoverText } from "@/components/cover-text";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 
 export type DayInfo = {
@@ -136,21 +137,31 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
  * (sin vídeo/con vídeo/hoy/diálogo abierto) ya auditados en TAL-21.
  *
  * TAL-39 — `backgroundImageUrl`, si el calendario tiene uno, sustituye ese
- * mismo `background` del skin en la cabecera de mes (`coverBackgroundStyle`,
- * `skin-appearance.ts`) — el resto de la cabecera (texto blanco + sombra)
- * no cambia, sigue siendo legible con la misma capa de oscurecimiento.
+ * mismo `background` del skin en la cabecera de mes (`skinBackgroundStyle`,
+ * `skin-appearance.ts`).
+ *
+ * TAL-47 — el texto de esa cabecera ya no es blanco + sombra fijos: usa
+ * `textColor`/`textPill` del skin (`resolveCoverTextTreatment`/`CoverText`),
+ * salvo con `backgroundImageUrl` puesto, donde se mantiene blanco + sombra
+ * (foto arbitraria, sin `textColor` verificado) — mismo criterio que
+ * `door-grid.tsx`, ver el comentario completo ahí.
  */
 export function DaysGridEditor({
   calendarId,
   days,
   background,
   backgroundImageUrl,
+  textColor,
+  textPill,
 }: {
   calendarId: string;
   days: DayInfo[];
   background: string;
   backgroundImageUrl: string | null;
+  textColor: string;
+  textPill: boolean;
 }) {
+  const textTreatment = resolveCoverTextTreatment({ textColor, textPill }, !!backgroundImageUrl);
   // TAL-34 — ya no arranca con el primer día "seleccionado" por defecto (la
   // ronda anterior abría el panel del día 1 nada más cargar la página, sin
   // que nadie hubiera hecho clic); el diálogo solo se abre tras un clic real
@@ -219,20 +230,17 @@ export function DaysGridEditor({
                   position: "sticky",
                   top: 0,
                   zIndex: 2,
-                  // Corrección de auditoría, ronda 1 (TAL-24) — ver el
-                  // comentario completo en `door-grid.tsx`, mismo motivo.
-                  // TAL-39: `coverBackgroundStyle` sustituye el color/
-                  // degradado del skin por `backgroundImageUrl` cuando el
-                  // calendario tiene uno puesto.
-                  ...coverBackgroundStyle(background, backgroundImageUrl),
-                  color: "#fff",
-                  textShadow: "0 1px 4px rgba(0,0,0,0.5)",
+                  // TAL-47 — `skinBackgroundStyle`/`resolveCoverTextTreatment`
+                  // en vez del antiguo `coverBackgroundStyle` + blanco fijo —
+                  // ver el comentario completo en `door-grid.tsx`, mismo
+                  // motivo/mecanismo.
+                  ...skinBackgroundStyle(background, backgroundImageUrl),
                   fontFamily: "var(--font-display)",
                   fontSize: "1.15rem",
                   padding: "10px 20px",
                 }}
               >
-                {month.label}
+                <CoverText treatment={textTreatment}>{month.label}</CoverText>
               </div>
               <div
                 style={{
