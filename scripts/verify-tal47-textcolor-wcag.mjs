@@ -15,9 +15,10 @@
 //   CUALQUIERA de las dos no alcanza el mínimo con el `textColor` fijo
 //   elegido.
 // - Si lleva píldora (`textPill: true`): el texto no se apoya en el
-//   fondo crudo sino en la píldora semitransparente
-//   (`rgba(15,24,18,0.6)`, mismo valor que ya usa la píldora de "visto"
-//   del grid) — compone esa píldora sobre CADA parada del fondo
+//   fondo crudo sino en la píldora semitransparente (`PILL_RGBA` más
+//   abajo — 0.7 de opacidad, NO el 0.6 de la píldora de "visto" del
+//   grid que fue la referencia original del brief, ver el comentario de
+//   `PILL_RGBA`) — compone esa píldora sobre CADA parada del fondo
 //   (composición alfa real, no solo el color de la píldora a secas) y
 //   calcula el contraste del `textColor` contra ESE compuesto, peor caso
 //   de todas las paradas.
