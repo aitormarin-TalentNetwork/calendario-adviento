@@ -350,16 +350,22 @@ componente.
 
 ### Evidencia (TAL-23)
 
-Verificado en navegador real (`npx next dev -p 3001`, dev-login):
-selector con las 5 categorías y 45 iconos exactos del mockup; buscador
-filtrando por término en español (`"unicornio"` → solo 🦄, en su
-categoría); selección visual correcta (borde/fondo distintivos, icono
-elegido persiste al guardar y se ve en la portada real de invitado,
-`/c/[calendarId]`); editar un calendario existente para cambiar el
-icono, confirmado que el valor nuevo persiste tras recargar.
+Verificado en navegador real (`npx next dev -p 3001`, dev-login), dos
+veces — primero con los valores hex temporales, y de nuevo tras el
+cambio a `var(--gold)`/`var(--paper-2)` reales (T3 ya había publicado la
+migración de tokens): selector con las 5 categorías y 45 iconos exactos
+del mockup; buscador filtrando por término en español (`"unicornio"` →
+solo 🦄, en su categoría); selección visual correcta (borde dorado +
+fondo `--paper-2` en el icono elegido, tanto en la rejilla como en la
+vista previa de "Icono de portada"); icono elegido persiste al guardar
+(confirmado también contra el dato real en Convex, `npx convex data
+calendars --format jsonLines`, no solo la UI) y se ve en la portada real
+de invitado (`/c/[calendarId]`, "🦄 ¡Feliz cuenta atrás, equipo!");
+editar un calendario existente para cambiar el icono, confirmado que el
+valor nuevo persiste tras recargar.
 
-`npx next build`/`npx eslint .` limpios; `npx convex dev --typecheck=enable`
-limpio; `AGENTS.md` intacto.
+`npx next build`/`npx eslint .` limpios (ambas rondas); `npx convex dev
+--typecheck=enable` limpio; `AGENTS.md` intacto.
 
 ## Fuera de alcance de esta tarea
 
