@@ -36,7 +36,17 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
     color: "inherit",
   };
   if (door.isToday) {
-    base.border = "1.5px dashed var(--accent)";
+    // Ajuste 2026-08-17 (design-system.md § "Grid de días"): "hoy" tiene
+    // que notarse claramente de un vistazo, no solo al fijarse — borde
+    // más grueso (2px, antes 1.5px) + fondo sutil en --gold al 10% de
+    // opacidad (token fijo, no --accent: "hoy" es una marca universal,
+    // no depende del skin elegido). `boxShadow` inset con spread grande
+    // en vez de `background`/`backgroundImage`: esta celda puede
+    // combinar "hoy" con cualquier otro estado (abierto, bloqueado,
+    // visto-con-miniatura) que ya ocupa esas dos propiedades más abajo —
+    // el box-shadow se pinta como una capa aparte encima, sin pisarlas.
+    base.border = "2px dashed var(--accent)";
+    base.boxShadow = "inset 0 0 0 999px color-mix(in srgb, var(--gold) 10%, transparent)";
   }
   if (door.state === "locked") {
     return { ...base, opacity: 0.4, cursor: "default" };
@@ -48,13 +58,54 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
   return { ...base, cursor: "pointer", background: "var(--day-open-bg)" };
 }
 
+/**
+ * TAL-31 — día real del mes pero fuera de [startDate, endDate] del
+ * calendario (p. ej. el calendario empieza el 12 de un mes que arranca en
+ * lunes 1: los días 1-11 existen en el mes pero no en el calendario).
+ * Antes esta celda quedaba en blanco, indistinguible del relleno de
+ * alineación de semana (fuera del propio mes) — Aitor pidió que el mes se
+ * vea siempre completo: número grande estilo "marca de agua" (opacity
+ * baja), sin candado, sin fondo de estado, sin click — no es un día
+ * "bloqueado" (ese sí es interactivo, dentro del rango pero en el
+ * futuro), es un día que no pertenece a este calendario en absoluto.
+ */
+const outOfRangeCellStyle: React.CSSProperties = {
+  aspectRatio: "1",
+  background: "var(--bg)",
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const outOfRangeNumStyle: React.CSSProperties = {
+  fontFamily: "var(--font-body)",
+  fontWeight: 800,
+  color: "var(--text)",
+  // Ajustado a 0.15 para encajar con el borrador en vivo de
+  // design-system.md § "Responsive / Mobile" (opacity baja, ejemplo
+  // explícito 0.15) confirmado por la Directora — no venía de ningún
+  // documento commiteado en el momento en que se escribió este valor,
+  // así que se corrige aquí en cuanto se conoció el número exacto.
+  opacity: 0.15,
+};
+
+/**
+ * `fontSize` deliberadamente FUERA de estos objetos (antes vivía aquí) —
+ * un `style` inline gana siempre a cualquier regla de una hoja de
+ * estilos, con o sin `@media`, así que si el tamaño de fuente se fija
+ * aquí no hay forma de que la regla `@media (max-width: ...)` del
+ * `<style jsx>` de más abajo la reduzca en mobile. El tamaño ahora lo
+ * pone `className` (`.dg-num`/`.dg-num-locked`/`.dg-num-pill`) — este
+ * objeto solo controla lo que SÍ varía por estado/día (posición, color,
+ * fondo), no el tamaño.
+ */
 function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
   if (door.state === "watched") {
     return {
       position: "absolute",
       bottom: "5px",
       right: "8px",
-      fontSize: "0.82rem",
       fontWeight: 600,
       background: "rgba(15,24,18,0.6)",
       // Hallazgo de auditoría, ronda 1: el color de "hoy" (--accent) tiene
@@ -63,14 +114,12 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
       // vídeo de hoy mismo (unseen → watched, cambio optimista) apagaba el
       // número dorado a --paper en el propio clic.
       color: door.isToday ? "var(--accent)" : "var(--paper)",
-      padding: "1px 6px",
       borderRadius: "999px",
       fontFamily: "var(--font-mono)",
     };
   }
   return {
     fontFamily: "var(--font-body)",
-    fontSize: door.state === "locked" ? "1.45rem" : "1.9rem",
     fontWeight: 800,
     color: door.isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--text)",
   };
@@ -180,6 +229,88 @@ export function DoorGrid({
 
   return (
     <>
+      {/*
+        Responsive del grid de días (design-system.md § "Responsive /
+        Mobile", ajuste 2026-08-17, pedido explícito de Aitor): "mantiene
+        siempre 7 columnas en cualquier ancho — nunca colapsa a menos
+        columnas. Lo que se reduce es tipografía/padding de cada
+        casilla, no la estructura" — antes el grid usaba
+        `minmax(64px, 1fr)` + scroll horizontal como salida de emergencia
+        en estrecho; con eso, el mes deja de leerse "de un vistazo" (hay
+        que desplazar para ver la semana completa), justo lo que el PM no
+        quiere. Ahora las columnas son `1fr` sin suelo mínimo (se
+        reparten el ancho disponible siempre, nunca desbordan) y en su
+        lugar se reduce tipografía/padding vía las clases de abajo — el
+        único breakpoint que pide el documento normativo es 640px; se
+        añade uno más estrecho (380px) porque a 640px, en un móvil
+        realmente angosto (~320-375px de viewport), la reducción de un
+        solo escalón no basta para que el número de día quepa cómodo en
+        una casilla de ~45-50px — sugerencia de implementación del PM
+        (dos escalones), no una desviación silenciosa.
+      */}
+      <style jsx>{`
+        .dg-month-header {
+          font-size: 1.15rem;
+          padding: 10px 20px;
+        }
+        .dg-weekday-row {
+          font-size: 0.68rem;
+        }
+        .dg-num {
+          font-size: 1.9rem;
+        }
+        .dg-num-locked {
+          font-size: 1.45rem;
+        }
+        .dg-num-pill {
+          font-size: 0.82rem;
+          padding: 1px 6px;
+        }
+        .dg-lock-icon {
+          font-size: 0.7rem;
+        }
+        @media (max-width: 640px) {
+          .dg-month-header {
+            font-size: 0.95rem;
+            padding: 8px 12px;
+          }
+          .dg-weekday-row {
+            font-size: 0.62rem;
+          }
+          .dg-num {
+            font-size: 1.5rem;
+          }
+          .dg-num-locked {
+            font-size: 1.15rem;
+          }
+          .dg-num-pill {
+            font-size: 0.7rem;
+            padding: 1px 4px;
+          }
+        }
+        @media (max-width: 380px) {
+          .dg-month-header {
+            font-size: 0.85rem;
+            padding: 6px 10px;
+          }
+          .dg-weekday-row {
+            font-size: 0.56rem;
+          }
+          .dg-num {
+            font-size: 1.15rem;
+          }
+          .dg-num-locked {
+            font-size: 0.9rem;
+          }
+          .dg-num-pill {
+            font-size: 0.6rem;
+            padding: 1px 3px;
+          }
+          .dg-lock-icon {
+            font-size: 0.6rem;
+          }
+        }
+      `}</style>
       <div
         style={{
           border: "1px solid var(--border)",
@@ -189,10 +320,11 @@ export function DoorGrid({
           overflow: "hidden",
         }}
       >
-        <div style={{ maxHeight: "70vh", overflowY: "auto", overflowX: "auto" }}>
+        <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
           {months.map((month) => (
             <div key={month.key}>
               <div
+                className="dg-month-header"
                 style={{
                   position: "sticky",
                   top: 0,
@@ -209,20 +341,18 @@ export function DoorGrid({
                   color: "#fff",
                   textShadow: "0 1px 4px rgba(0,0,0,0.5)",
                   fontFamily: "var(--font-display)",
-                  fontSize: "1.15rem",
-                  padding: "10px 20px",
                 }}
               >
                 {month.label}
               </div>
               <div
+                className="dg-weekday-row"
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "repeat(7, minmax(64px, 1fr))",
+                  gridTemplateColumns: "repeat(7, 1fr)",
                   gap: "1px",
                   background: "var(--border)",
                   fontFamily: "var(--font-mono)",
-                  fontSize: "0.68rem",
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
                   color: "var(--text-dim)",
@@ -248,15 +378,25 @@ export function DoorGrid({
                   key={weekIdx}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "repeat(7, minmax(64px, 1fr))",
+                    gridTemplateColumns: "repeat(7, 1fr)",
                     gap: "1px",
                     background: "var(--border)",
                   }}
                 >
-                  {week.map((door, dayIdx) => {
-                    if (!door) {
+                  {week.map((cell, dayIdx) => {
+                    if (cell.kind === "padding") {
                       return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--bg-raised)" }} />;
                     }
+                    if (cell.kind === "out-of-range") {
+                      return (
+                        <div key={cell.dateStr} aria-hidden="true" style={outOfRangeCellStyle}>
+                          <span className="dg-num" style={outOfRangeNumStyle}>
+                            {cell.dayNum}
+                          </span>
+                        </div>
+                      );
+                    }
+                    const door = cell.item;
                     const date = parseDateOnlyUTC(door.dateStr);
                     const isWeekend = isWeekendUTC(date);
                     const dayNum = date.getUTCDate();
@@ -272,6 +412,8 @@ export function DoorGrid({
                       style.backgroundSize = "cover";
                       style.backgroundPosition = "center";
                     }
+                    const numClassName =
+                      door.state === "watched" ? "dg-num-pill" : door.state === "locked" ? "dg-num-locked" : "dg-num";
                     return (
                       <button
                         key={door.dateStr}
@@ -281,11 +423,14 @@ export function DoorGrid({
                         onClick={(event) => handleOpen(door, event.currentTarget)}
                         style={style}
                       >
-                        <span style={numStyle(door, isWeekend)}>{dayNum}</span>
+                        <span className={numClassName} style={numStyle(door, isWeekend)}>
+                          {dayNum}
+                        </span>
                         {door.state === "locked" && (
                           <span
                             aria-hidden="true"
-                            style={{ position: "absolute", bottom: "6px", right: "8px", fontSize: "0.7rem" }}
+                            className="dg-lock-icon"
+                            style={{ position: "absolute", bottom: "6px", right: "8px" }}
                           >
                             🔒
                           </span>

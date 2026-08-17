@@ -102,7 +102,10 @@ del MVP original.** Fuente: `design/propuesta-grid-calendario.html`.
   número grande en estilo "marca de agua" — muy atenuado (opacity baja, p. ej. `0.15`),
   sin candado, sin fondo de estado, sin click. Antes de este ajuste, esos días
   aparecían como casillas vacías al principio/final del calendario, lo cual quedaba
-  raro visualmente — ya no.
+  raro visualmente — ya no. (TAL-31, implementado en la vista de Invitado — el relleno
+  de alineación de semana fuera del propio mes sigue en blanco sin numerar, sin
+  cambios; el editor de Admin no cambia de comportamiento, ver `docs/dias.md` § "Mes
+  completo sin huecos".)
 - Modal de vídeo: `<iframe>` de YouTube/Vimeo/Drive centrado, mensaje del día debajo —
   sin cambios respecto al MVP shippeado, esta parte no se toca.
 
