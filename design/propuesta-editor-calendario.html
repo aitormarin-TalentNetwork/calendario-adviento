@@ -29,9 +29,47 @@
   .pagehead h1 { font-size: 1.5rem; }
   .pagehead .sub { color: var(--text-dim); font-size: 0.85rem; margin-top: 4px; }
 
-  /* ---- Datos del calendario: dos columnas — fechas a la izquierda, resto a la derecha ---- */
+  /* ---- Datos del calendario: fechas (+ miniatura debajo) | datos (TAL-33, sin tocar) ---- */
   .datos-layout { display: grid; grid-template-columns: 1fr 1.4fr; gap: 28px; align-items: start; }
   .datos-col { display: flex; flex-direction: column; gap: 14px; }
+
+  /* ---- miniatura de vista previa (TAL-29, ajuste 2026-08-17: no cabe texto legible
+     en una columna estrecha — la miniatura es solo un indicio visual (color/icono,
+     sin texto), el contenido legible vive en el diálogo grande al pinchar. Vive debajo
+     de las fechas, en la misma columna izquierda — más armónico que una tercera
+     columna aparte, y esa columna tenía hueco libre de sobra.) ---- */
+  .preview-col { display: flex; flex-direction: column; gap: 8px; margin-top: 6px; }
+  .preview-eyebrow { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-dim); }
+  .preview-thumb {
+    border-radius: 14px; overflow: hidden; border: 1px solid var(--border);
+    box-shadow: var(--shadow); aspect-ratio: 16/10; display: flex; align-items: center; justify-content: center;
+    background-size: cover; background-position: center; transition: background 0.25s ease, transform 0.15s ease;
+    background-image: linear-gradient(155deg, #7a5a1e, #1b3a2f); cursor: pointer; border: none; padding: 0;
+    width: 100%;
+  }
+  .preview-thumb:hover { transform: scale(1.03); }
+  .preview-thumb:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  .preview-thumb-icon { font-size: 2rem; filter: drop-shadow(0 2px 6px rgba(0,0,0,0.35)); }
+  .preview-thumb-label {
+    font-size: 0.76rem; color: var(--text-dim); text-align: center; text-decoration: underline;
+    text-underline-offset: 2px; background: none; border: none; padding: 0; cursor: pointer; font-family: var(--font-body);
+  }
+  .preview-thumb-label:hover { color: var(--gold); }
+
+  /* ---- diálogo de vista previa a tamaño legible (~50% de un viewport real,
+     tipografía a escala de producción, no reducida) ---- */
+  .dialog-preview { max-width: 420px; padding: 0; overflow: hidden; }
+  .dialog-preview .preview-full {
+    aspect-ratio: 3/4; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 40px 32px; gap: 22px; position: relative; background-size: cover;
+    background-position: center; background-image: linear-gradient(155deg, #7a5a1e, #1b3a2f); color: var(--paper);
+  }
+  .dialog-preview .preview-full.has-photo::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(10,16,12,0.35), rgba(10,16,12,0.65)); }
+  .dialog-preview .preview-full > * { position: relative; z-index: 1; }
+  .dialog-preview .close-x { position: absolute; top: 12px; right: 12px; z-index: 2; background: rgba(0,0,0,0.35); color: var(--paper); border: none; width: 30px; height: 30px; border-radius: 999px; cursor: pointer; font-size: 1rem; }
+  .preview-icon { width: 84px; height: 84px; border-radius: 999px; background: rgba(246,241,228,0.16); border: 1px solid rgba(246,241,228,0.4); display: flex; align-items: center; justify-content: center; font-size: 2.4rem; }
+  .preview-title { font-family: var(--font-display); font-size: 1.9rem; line-height: 1.25; text-wrap: balance; }
+  .preview-countdown { font-family: var(--font-mono); font-size: 1rem; letter-spacing: 0.03em; opacity: 0.92; background: rgba(0,0,0,0.22); padding: 6px 18px; border-radius: 999px; }
 
   /* ---- campo: etiqueta junto al input, no apilados ---- */
   .field { display: flex; align-items: center; gap: 12px; }
@@ -177,7 +215,7 @@
 <div class="wrap">
   <div class="intro">
     <h1>Editor de calendario — v2</h1>
-    <p>Resumen visual de todo lo documentado hoy en el Design System: columna izquierda solo con las fechas, columna derecha con nombre/título/icono/skin; grid de días como calendario de pared real (7 columnas, lunes a domingo); un único link de invitación (el acceso real lo da el login con Google contra la lista de invitados, no el link); indicador de sesión arriba a la derecha con el icono de logout minimalista nuevo (ya no el emoji de puerta); y comportamiento mobile — reduce la ventana del navegador (o mira en el móvil) para verlo. Por debajo de 640px los campos con etiqueta a la izquierda pasan a apilarse (etiqueta arriba, campo abajo) por falta de espacio — única excepción documentada a la regla de "etiqueta junto al campo".</p>
+    <p>Resumen visual de todo lo documentado hoy en el Design System: columna de fechas (con una <strong>miniatura de vista previa en vivo (TAL-29)</strong> debajo — pincha "Click para ver vista previa" para abrirla a tamaño legible) y columna de datos (nombre/título/icono/skin/marcador de cuenta atrás/imagen de fondo); grid de días como calendario de pared real (7 columnas, lunes a domingo); un único link de invitación (el acceso real lo da el login con Google contra la lista de invitados, no el link); indicador de sesión arriba a la derecha con el icono de logout minimalista nuevo (ya no el emoji de puerta); y comportamiento mobile — reduce la ventana del navegador (o mira en el móvil) para verlo. Cambia el título, el icono, el skin o el marcador y abre el diálogo de vista previa para ver los cambios reflejados. Por debajo de 640px los campos con etiqueta a la izquierda pasan a apilarse (etiqueta arriba, campo abajo) por falta de espacio — única excepción documentada a la regla de "etiqueta junto al campo".</p>
   </div>
 
   <div class="card">
@@ -190,31 +228,47 @@
     <div class="datos-layout">
       <div class="datos-col">
         <div class="field"><label>Fecha de inicio</label><input type="date" value="2026-12-01" /></div>
-        <div class="field"><label>Fecha de fin</label><input type="date" value="2026-12-24" /></div>
+        <div class="field"><label>Fecha de fin</label><input id="fieldEndDate" type="date" value="2026-12-24" oninput="updatePreview()" /></div>
+        <div class="preview-col">
+          <span class="preview-eyebrow">Así lo ve el Invitado</span>
+          <button class="preview-thumb" id="previewThumb" onclick="openPreviewDialog()" aria-label="Ver vista previa a tamaño completo">
+            <span class="preview-thumb-icon" id="previewThumbIcon">🎁</span>
+          </button>
+          <button class="preview-thumb-label" onclick="openPreviewDialog()">Click para ver vista previa</button>
+        </div>
       </div>
       <div class="datos-col">
         <div class="field"><label>Nombre del calendario</label><input type="text" value="Regalo de Navidad — Equipo TalentNetwork" /></div>
-        <div class="field"><label>Título de portada</label><input type="text" value="¡Feliz cuenta atrás, equipo! 🎄" /></div>
+        <div class="field"><label>Título de portada</label><input id="fieldTitle" type="text" value="¡Feliz cuenta atrás, equipo! 🎄" oninput="updatePreview()" /></div>
         <div class="field"><label>Icono de portada</label>
           <div class="icon-field">
-            <div class="icon-current">🎁</div>
+            <div class="icon-current" id="fieldIcon">🎁</div>
             <button class="btn btn-sm" onclick="document.getElementById('iconDialog').classList.add('open')">Cambiar icono</button>
           </div>
         </div>
         <div class="field"><label>Skin</label>
-          <div style="display:flex; gap:8px;">
-            <span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#7a5a1e,#1b3a2f);box-shadow:0 0 0 2px var(--gold);"></span>
-            <span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#8c2f39,#2b3f22);"></span>
-            <span style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#2b3f6b,#6b3f2b);"></span>
+          <div style="display:flex; gap:8px;" id="skinSwatches">
+            <span class="skin-swatch selected" data-bg="linear-gradient(155deg,#7a5a1e,#1b3a2f)" style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#7a5a1e,#1b3a2f);box-shadow:0 0 0 2px var(--gold);"></span>
+            <span class="skin-swatch" data-bg="linear-gradient(155deg,#8c2f39,#2b3f22)" style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#8c2f39,#2b3f22);"></span>
+            <span class="skin-swatch" data-bg="linear-gradient(155deg,#2b3f6b,#6b3f2b)" style="width:24px;height:24px;border-radius:7px;background:linear-gradient(155deg,#2b3f6b,#6b3f2b);"></span>
           </div>
         </div>
-        <div class="field"><label>Imagen de fondo</label><input type="text" placeholder="https://… (opcional)" /></div>
+        <div class="field"><label>Marcador de cuenta atrás</label><input id="fieldCountdownLabel" type="text" placeholder="la Navidad" value="la Navidad" oninput="updatePreview()" /></div>
+        <div class="field"><label>Imagen de fondo</label><input id="fieldBgImage" type="text" placeholder="https://… (opcional)" oninput="updatePreview()" /></div>
+      </div>
+      <div class="datos-col preview-col">
+        <span class="preview-eyebrow">Así lo ve el Invitado — vista previa en vivo</span>
+        <div class="preview-card" id="previewCard">
+          <div class="preview-icon" id="previewIcon">🎁</div>
+          <div class="preview-title" id="previewTitle">¡Feliz cuenta atrás, equipo! 🎄</div>
+          <div class="preview-countdown" id="previewCountdown">Faltan … días para la Navidad</div>
+        </div>
       </div>
     </div>
-    <p class="helptext" style="margin-top:-8px;">Distinta de "Título/Icono de portada" — esta imagen se ve en todo el calendario (portada, grid de días y modal de vídeo), no solo en el login. Combina con el color de acento del skin elegido.</p>
+    <p class="helptext" style="margin-top:-8px;">"Imagen de fondo" es distinta de "Título/Icono de portada" — se ve en todo el calendario (portada, grid de días y modal), no solo en el login. Combina con el color de acento del skin elegido. La vista previa de la derecha se actualiza al vuelo con los cambios — sustituye al texto suelto "Vista previa: Faltan X días" que había antes junto al marcador de cuenta atrás.</p>
 
     <div class="section-title">Días del calendario</div>
-    <p class="helptext">Selecciona el día para subir el vídeo. Los días que ya tienen vídeo muestran un fotograma como miniatura.</p>
+    <p class="helptext">Selecciona el día para subir el vídeo.</p>
     <div class="cal-frame">
       <div class="month-header">DICIEMBRE 2026</div>
       <div class="weekday-row">
@@ -251,6 +305,18 @@
   <p class="footnote">¿Esto es lo que tenías en mente? Si lo apruebas así, lo convierto en Design System normativo (sección "Editor de calendario") y actualizo las tareas de Linear correspondientes.</p>
 </div>
 
+<!-- Diálogo: vista previa a tamaño legible (TAL-29) -->
+<div class="overlay" id="previewDialog">
+  <div class="dialog dialog-preview">
+    <div class="preview-full" id="previewFull">
+      <button class="close-x" onclick="closePreviewDialog()">✕</button>
+      <div class="preview-icon" id="previewIcon">🎁</div>
+      <div class="preview-title" id="previewTitle">¡Feliz cuenta atrás, equipo! 🎄</div>
+      <div class="preview-countdown" id="previewCountdown">Faltan … días para la Navidad</div>
+    </div>
+  </div>
+</div>
+
 <!-- Diálogo: selector de icono -->
 <div class="overlay" id="iconDialog">
   <div class="dialog dialog-icon">
@@ -258,11 +324,11 @@
     <h4>Elegir icono de portada</h4>
     <input class="icon-search" type="text" placeholder="🔍 Buscar icono…" />
     <div class="icon-cat-label">Navidad</div>
-    <div class="icon-grid">
+    <div class="icon-grid" onclick="pickIcon(event)">
       <span class="icon-opt selected">🎁</span><span class="icon-opt">🎄</span><span class="icon-opt">🎅</span><span class="icon-opt">⛄</span><span class="icon-opt">🔔</span><span class="icon-opt">❄️</span><span class="icon-opt">🕯️</span>
     </div>
     <div class="icon-cat-label">Cariño</div>
-    <div class="icon-grid">
+    <div class="icon-grid" onclick="pickIcon(event)">
       <span class="icon-opt">❤️</span><span class="icon-opt">🥰</span><span class="icon-opt">💝</span><span class="icon-opt">🌈</span><span class="icon-opt">🦄</span><span class="icon-opt">✨</span><span class="icon-opt">🌟</span>
     </div>
   </div>
@@ -291,6 +357,7 @@
 <div class="toast" id="toast">Link copiado</div>
 
 <script>
+  const TODAY = new Date(2026, 7, 17); // 17 ago 2026, fecha real del sistema
   const grid = document.getElementById("dayGridEditor");
   const frames = ["f1", "f2", "f3"];
   const withVideo = new Set([1,2,3,5,6,9,10,11,15,16]);
@@ -351,4 +418,74 @@
     t.classList.add("show");
     setTimeout(() => t.classList.remove("show"), 1400);
   }
+
+  // ---------------------------------------------------------------
+  // TAL-29 — vista previa en vivo (réplica en miniatura de /c/[calendarId])
+  // ---------------------------------------------------------------
+  document.querySelectorAll(".skin-swatch").forEach((sw) => {
+    sw.addEventListener("click", () => {
+      document.querySelectorAll(".skin-swatch").forEach((s) => { s.classList.remove("selected"); s.style.boxShadow = "none"; });
+      sw.classList.add("selected");
+      sw.style.boxShadow = "0 0 0 2px var(--gold)";
+      updatePreview();
+    });
+  });
+
+  function pickIcon(ev) {
+    const opt = ev.target.closest(".icon-opt");
+    if (!opt) return;
+    document.querySelectorAll(".icon-opt").forEach((o) => o.classList.remove("selected"));
+    opt.classList.add("selected");
+    document.getElementById("fieldIcon").textContent = opt.textContent;
+    document.getElementById("iconDialog").classList.remove("open");
+    updatePreview();
+  }
+
+  // Misma fórmula que src/lib/countdown.ts (formatCountdownMessage) — TAL-27.
+  function formatCountdownMessage(daysRemaining, label) {
+    const resolvedLabel = label.trim() || "la Navidad";
+    if (daysRemaining <= 0) return "¡Hoy es " + resolvedLabel + "!";
+    if (daysRemaining === 1) return "Falta 1 día para " + resolvedLabel;
+    return "Faltan " + daysRemaining + " días para " + resolvedLabel;
+  }
+
+  function openPreviewDialog() {
+    document.getElementById("previewDialog").classList.add("open");
+  }
+  function closePreviewDialog() {
+    document.getElementById("previewDialog").classList.remove("open");
+  }
+
+  function updatePreview() {
+    const title = document.getElementById("fieldTitle").value;
+    const icon = document.getElementById("fieldIcon").textContent;
+    const label = document.getElementById("fieldCountdownLabel").value;
+    const bgImage = document.getElementById("fieldBgImage").value.trim();
+    const endDateStr = document.getElementById("fieldEndDate").value;
+    const selectedSwatch = document.querySelector(".skin-swatch.selected");
+    const bgValue = bgImage ? "url('" + bgImage.replace(/'/g, "") + "')" : (selectedSwatch ? selectedSwatch.dataset.bg : "");
+
+    // miniatura (columna izquierda, debajo de las fechas) — solo indicio visual, sin texto
+    const thumb = document.getElementById("previewThumb");
+    thumb.style.backgroundImage = bgValue;
+    document.getElementById("previewThumbIcon").textContent = icon;
+
+    // diálogo grande — contenido legible a tamaño real
+    document.getElementById("previewTitle").textContent = title;
+    document.getElementById("previewIcon").textContent = icon;
+    const full = document.getElementById("previewFull");
+    full.style.backgroundImage = bgValue;
+    full.classList.toggle("has-photo", !!bgImage);
+
+    let daysRemaining = null;
+    if (endDateStr) {
+      const end = new Date(endDateStr + "T00:00:00");
+      const today = new Date(TODAY.getFullYear(), TODAY.getMonth(), TODAY.getDate());
+      daysRemaining = Math.round((end - today) / 86400000);
+    }
+    document.getElementById("previewCountdown").textContent =
+      daysRemaining === null ? "…" : formatCountdownMessage(daysRemaining, label);
+  }
+
+  updatePreview();
 </script>

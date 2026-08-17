@@ -270,8 +270,8 @@ comportamiento de algunos componentes.
 - **Grid de días:** reutiliza el patrón de "Grid de días — invitado y editor de Admin"
   de más arriba (7 columnas, calendario de pared real) — no es un componente nuevo,
   solo se confirma que el editor lo usa igual que la vista de Invitado. Añade:
-  - Texto explicativo encima del grid: *"Selecciona el día para subir el vídeo. Los
-    días que ya tienen vídeo muestran un fotograma como miniatura."*
+  - Texto explicativo encima del grid: *"Selecciona el día para subir el vídeo."*
+    (ajuste 2026-08-17: acortado — el resto era autoexplicativo, sobraba).
   - Días con vídeo ya cargado muestran el fotograma de fondo (mismo tratamiento visual
     que el estado "Visto" del Invitado), no un simple número.
   - **Clic en un día abre un diálogo** (modal) con URL del vídeo (o subir archivo),
