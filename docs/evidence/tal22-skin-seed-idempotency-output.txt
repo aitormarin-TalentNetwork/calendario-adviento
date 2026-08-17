@@ -1,0 +1,16 @@
+(node:21730) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///Users/aitor/Documents/curro%20+%20proyectos/Talent%20Land/Sistemas/Factory/calendario-adviento/_worktrees/T3/convex/_generated/api.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /Users/aitor/Documents/curro + proyectos/Talent Land/Sistemas/Factory/calendario-adviento/_worktrees/T3/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+0. Estado inicial de la tabla — cuántas filas hay antes de tocar nada...
+   22 filas.
+   'dorado' ya existe con _id=js70wj61tqmg3344bv2s898pkn8cmwv1 — se usa esa misma fila para la prueba.
+1. Corrompiendo 'dorado' a propósito (nombre/descripción/color incorrectos)...
+   ahora: name=Dorado (drift de prueba), background=red, accent=#000000
+2. Re-sembrando el catálogo completo (recuperación — se ejecuta SIEMPRE, incluso si algo de arriba falló)...
+3. Verificando que 'dorado' recuperó los valores canónicos, con el MISMO _id...
+   ahora: _id=js70wj61tqmg3344bv2s898pkn8cmwv1, name=Dorado, background=linear-gradient(160deg, #c99a3d 0%, #e3bb63 100%), accent=#1b3a2f
+4. Confirmando que el número total de filas no cambió (sin duplicados)...
+   22 filas (antes: 22).
+OK: 'dorado' se corrompió y se recuperó a sus valores canónicos exactos, con el mismo _id, sin duplicar ninguna fila — createSkin/seedSkinCatalog convergen de verdad, no solo 'no fallan'.
+DONE

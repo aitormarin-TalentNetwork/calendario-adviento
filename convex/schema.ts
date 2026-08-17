@@ -111,5 +111,37 @@ export default defineSchema({
     key: v.string(),
     name: v.string(),
     description: v.optional(v.string()),
+    // TAL-22 — el Design System exige, como mínimo, un color/degradado de
+    // fondo + un color de acento por skin (design/design-system.md §
+    // "Skins"). `background` es el valor CSS completo de la propiedad
+    // `background` (color sólido, `linear-gradient(...)`,
+    // `conic-gradient(...)`, `repeating-linear-gradient(...)` — lo que
+    // necesite cada skin; no se modela por stops separados, no hace
+    // falta para lo que consume TAL-24). `accent` es un único color hex.
+    //
+    // `v.optional`, corrección de auditoría ronda 1 — NO son requeridos
+    // todavía, aunque tras esta tarea las 22 filas del catálogo siempre
+    // los tienen. Motivo: Convex valida TODOS los documentos existentes
+    // de una tabla contra el schema nuevo ANTES de aceptar un `push` — si
+    // el deployment real (compartido, o algún día producción) ya tiene
+    // filas de `skins` de antes de esta tarea sin `background`/`accent`,
+    // desplegar aquí con campos requeridos habría rechazado el push
+    // ENTERO antes de que `seedSkinCatalog` pudiera ejecutarse nunca, y
+    // esas filas se habrían quedado sin poder arreglarse por este camino.
+    // Secuencia segura de dos pasos (Convex, y cualquier migración de
+    // "columna NOT NULL" en general): (1) campo opcional + desplegar, (2)
+    // correr el backfill (`seedSkinCatalog`) y verificar que TODAS las
+    // filas ya tienen valor, (3) solo ENTONCES un segundo `push` de
+    // schema que los pase a requeridos. Este commit es el paso (1)+(2)
+    // para el deployment de desarrollo de esta terminal (verificado
+    // contra un estado simulado con filas "viejas" sin color — ver
+    // `docs/skins.md` § "Migración segura" y
+    // `scripts/verify-tal22-skin-schema-migration.mjs`); el paso (3)
+    // queda como seguimiento explícito, NO ejecutado aquí, para quien
+    // aplique este cambio al deployment compartido/producción — solo
+    // después de confirmar ahí que las filas existentes ya están
+    // pobladas (con este mismo `seedSkinCatalog`).
+    background: v.optional(v.string()),
+    accent: v.optional(v.string()),
   }).index("by_key", ["key"]),
 });
