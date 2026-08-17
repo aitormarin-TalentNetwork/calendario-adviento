@@ -2,6 +2,7 @@ import { internalMutation, internalQuery, mutation, query, type MutationCtx, typ
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "./calendarErrorMessages";
+import { MAX_COVER_ICON_LENGTH } from "./coverIconConstants";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
 
@@ -44,15 +45,6 @@ function assertSafeCoverImageUrl(url: string | undefined): void {
     throw new Error("La foto de portada debe ser una URL https:// — no se aceptan otros esquemas por seguridad.");
   }
 }
-
-// Límite defensivo, no de producto — ver src/lib/cover-icons.ts
-// (MAX_COVER_ICON_LENGTH), fichero compartido sin dependencias de runtime
-// de Convex (mismo motivo que calendarErrorMessages.ts): el valor no
-// puede importarse desde ahí sin arrastrar el resto de ese módulo a este
-// bundle, así que se repite el número aquí — coordinado a mano, no un
-// import, porque `src/lib/*` no es alcanzable desde `convex/*.ts` (rutas
-// de bundling distintas).
-const MAX_COVER_ICON_LENGTH = 16;
 
 /**
  * Deliberadamente NO valida contra el catálogo de `src/lib/cover-icons.ts`
@@ -453,6 +445,80 @@ async function listCalendarsForUserHandler(
 export const listCalendarsForUser = internalQuery({
   args: { userId: v.id("users") },
   handler: listCalendarsForUserHandler,
+});
+
+// TAL-23, hallazgo de auditoría ronda 1: los calendarios creados ANTES de
+// esta tarea ya llevan el 🎄 incrustado a mano al final de `coverTitle`
+// (el único mecanismo que existía para tener un icono — ver el histórico
+// `createCalendarForAdmin`, `src/lib/calendars.ts`, que siempre generaba
+// `"... 🎄"`). Sin este backfill, el respaldo de lectura `coverIcon ??
+// DEFAULT_COVER_ICON` (aplicado en cada sitio que muestra la portada,
+// `src/app/admin/[calendarId]/page.tsx`/`src/app/c/[calendarId]/page.tsx`)
+// duplica el emoji ("🎄 ¡Feliz cuenta atrás, equipo! 🎄") — y si alguien
+// edita y guarda ese calendario después, `coverIcon` se persiste pero el
+// 🎄 sigue dentro de `coverTitle` sin limpiar: deja de ser un problema
+// transitorio del respaldo de lectura y se queda así para siempre, porque
+// el formulario de edición nunca reescribe `coverTitle` por su cuenta.
+//
+// Heurística: el único mecanismo que existió antes de TAL-23 para que
+// `coverTitle` llevara un emoji era este sufijo literal " 🎄" (espacio +
+// árbol) al final del texto por defecto — el formulario de edición era
+// texto libre sin ningún tratamiento especial de emoji, así que cubre la
+// inmensa mayoría de calendarios reales. Riesgo residual documentado y
+// aceptado (ver docs/calendarios.md): un calendario donde alguien haya
+// tecleado a mano un emoji distinto, o el mismo 🎄 en otra posición del
+// texto, no lo detecta esta heurística — no hay datos de producción
+// todavía (docs/convex-modelo-de-datos.md § "Qué no toca esta tarea",
+// TAL-9), así que el coste de un residual manual es bajo.
+const LEGACY_EMBEDDED_ICON_SUFFIX = " 🎄";
+const LEGACY_EMBEDDED_ICON = "🎄";
+
+/**
+ * Backfill real, no un simple respaldo de lectura — Convex no tiene un
+ * mecanismo de migración de datos declarativo (mismo tema ya documentado
+ * en `docs/convex-modelo-de-datos.md`/`convex/schema.ts` § `coverIcon`
+ * para el resto de calendarios sin `coverIcon`, donde SÍ basta un
+ * respaldo de lectura porque no hay ningún texto duplicado que limpiar).
+ * Idempotente: una vez migrado un calendario, `coverIcon` deja de ser
+ * `undefined` y la siguiente pasada lo salta — reejecutar tras un primer
+ * paso exitoso es un no-op seguro. Se invoca a mano, una sola vez por
+ * deployment, vía el canal de administrador de la CLI (`npx convex run
+ * calendars:backfillEmbeddedCoverIcon '{}'`, mismo canal que TAL-9/12/16
+ * — ver docs/convex-modelo-de-datos.md § "Bajo nivel"), nunca desde
+ * código de aplicación: es un arreglo de datos históricos de un momento
+ * concreto, no un paso del flujo normal de creación/edición.
+ */
+async function backfillEmbeddedCoverIconHandler(
+  ctx: MutationCtx
+): Promise<{ migrated: number; skippedAlreadySet: number; skippedNoMatch: number }> {
+  const calendars = await ctx.db.query("calendars").collect();
+  let migrated = 0;
+  let skippedAlreadySet = 0;
+  let skippedNoMatch = 0;
+
+  for (const calendar of calendars) {
+    if (calendar.coverIcon !== undefined) {
+      skippedAlreadySet++;
+      continue;
+    }
+    if (!calendar.coverTitle.endsWith(LEGACY_EMBEDDED_ICON_SUFFIX)) {
+      skippedNoMatch++;
+      continue;
+    }
+    await ctx.db.patch(calendar._id, {
+      coverTitle: calendar.coverTitle.slice(0, -LEGACY_EMBEDDED_ICON_SUFFIX.length).trimEnd(),
+      coverIcon: LEGACY_EMBEDDED_ICON,
+      updatedAt: Date.now(),
+    });
+    migrated++;
+  }
+
+  return { migrated, skippedAlreadySet, skippedNoMatch };
+}
+
+export const backfillEmbeddedCoverIcon = internalMutation({
+  args: {},
+  handler: backfillEmbeddedCoverIconHandler,
 });
 
 // --- Frontera pública (TAL-12) — mismo patrón que convex/access.ts (TAL-11):

@@ -12,6 +12,14 @@
  * no de fidelidad visual: términos cortos y directos en español, no
  * nombres técnicos de Unicode.
  */
+import { MAX_COVER_ICON_LENGTH } from "../../convex/coverIconConstants";
+
+// Reexportado desde el fichero neutral compartido con Convex (sugerencia
+// no bloqueante de auditoría, TAL-23 ronda 1 — antes vivía duplicado a
+// mano aquí y en `convex/calendars.ts`) — ver
+// `convex/coverIconConstants.ts` para el porqué de vivir ahí y no aquí.
+export { MAX_COVER_ICON_LENGTH };
+
 export type CoverIconCategory = {
   label: string;
   icons: { emoji: string; searchTerms: string }[];
@@ -100,11 +108,3 @@ export const ALL_COVER_ICONS: string[] = COVER_ICON_CATEGORIES.flatMap((cat) => 
  * (brief de TAL-23, punto 7: "no dejar portadas sin icono").
  */
 export const DEFAULT_COVER_ICON = "🎄";
-
-// Límite defensivo, no de producto — mismo criterio que
-// `MAX_VIDEO_URL_LENGTH`/`MAX_MESSAGE_LENGTH` (TAL-6/13): un emoji real,
-// incluso una secuencia larga con modificadores (p. ej. 🧑‍🎄, varios
-// puntos de código UTF-16), nunca se acerca a esto — evita que este campo
-// libre (no validado contra el catálogo, ver arriba) se use para guardar
-// texto arbitrario largo.
-export const MAX_COVER_ICON_LENGTH = 16;
