@@ -171,7 +171,7 @@ export async function DaysSection({
           design/propuesta-editor-calendario.html) — texto explicativo fijo
           encima del grid, mismo criterio de wording que el mockup. */}
       <p style={{ color: "var(--text-dim)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
-        Selecciona el día para subir el vídeo. Los días que ya tienen vídeo muestran un fotograma como miniatura.
+        Selecciona el día para subir el vídeo.
       </p>
       <DaysGridEditor
         calendarId={calendarId}
