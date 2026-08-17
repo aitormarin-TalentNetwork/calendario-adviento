@@ -5,7 +5,7 @@ import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
 import { DoorGrid } from "@/app/c/[calendarId]/door-grid";
 import { DoorGridLoader } from "@/app/c/[calendarId]/door-grid-loader";
-import { signOut } from "@/lib/auth";
+import { SessionIndicator } from "@/components/session-indicator";
 import { todayInTimeZone } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
@@ -111,35 +111,34 @@ export default async function GuestCalendarPage({
         } as React.CSSProperties
       }
     >
+      {/* TAL-28 — SessionIndicator sustituye el antiguo "Sesión: email (ROL)"
+          + botón "Cerrar sesión" (que necesitaban el mismo tratamiento
+          `coverTextStyle` que el título, para leerse sobre un fondo de
+          skin arbitrario — hallazgo de auditoría de TAL-24, ronda 1). El
+          nuevo indicador no lo necesita: tanto el círculo del avatar como
+          el emoji del botón de logout tienen su propio fondo/color
+          opacos, así que son legibles sobre CUALQUIER color de skin sin
+          ningún tratamiento especial — se probó explícitamente contra el
+          skin "Nieve" (fondo casi blanco, el caso límite que motivó el
+          NO-GO de TAL-24). `position: fixed`, así que no vive dentro de
+          la cabecera oscurecida — flota en la esquina de la pantalla
+          igual que en las otras 3 pantallas. */}
+      <SessionIndicator
+        email={user.email}
+        image={user.image}
+        roleLabel={access.kind === "super-admin" ? "Super Admin" : access.role}
+      />
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "baseline",
           marginBottom: "1.5rem",
           background: coverBackgroundCss(appearance.background),
           borderRadius: "0.75rem",
           padding: "1.25rem 1.5rem",
         }}
       >
-        <div>
-          <h1 style={coverTextStyle}>
-            <span aria-hidden="true">{calendar.coverIcon}</span> {calendar.coverTitle}
-          </h1>
-          <p style={{ ...coverTextStyle, opacity: 0.9 }}>
-            Sesión: {user.email} ({access.kind === "super-admin" ? "Super Admin" : access.role})
-          </p>
-        </div>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/login" });
-          }}
-        >
-          <button type="submit" style={coverTextStyle}>
-            Cerrar sesión
-          </button>
-        </form>
+        <h1 style={coverTextStyle}>
+          <span aria-hidden="true">{calendar.coverIcon}</span> {calendar.coverTitle}
+        </h1>
       </div>
 
       {tz ? (
