@@ -287,6 +287,12 @@ comportamiento de algunos componentes.
     skin, marcador de cuenta atrás, imagen de fondo — apilados uno encima de otro.
   - Cada campo sigue la regla general de "Formularios": etiqueta a la izquierda del
     input, no encima.
+  - **Etiqueta del campo "marcador de cuenta atrás" (TAL-27) renombrada a "Fecha
+    objetivo"** (ajuste 2026-08-17, pedido explícito de Aitor, confirmado tras avisarle
+    de la posible confusión). **Ojo:** sigue siendo un campo de **texto libre**
+    (`type="text"`, ej. "la Navidad", "el cumpleaños de Juan"), NO un selector de fecha
+    — la fecha real que gobierna la cuenta atrás sigue siendo "Fecha de fin". Solo
+    cambia la etiqueta visible, no el tipo de campo ni su comportamiento.
 
 ### Vista previa en vivo (TAL-29)
 
