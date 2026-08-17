@@ -118,12 +118,16 @@ type EditCalendarFieldsProps = {
  * pasamos es el del skin SELECCIONADO EN VIVO en el formulario
  * (`fieldValues.skinId`), no el guardado en servidor — mismo respaldo
  * (`DEFAULT_SKIN_APPEARANCE`) que ya usa `SkinPicker` para una fila de
- * `skins` sin `background` todavía.
+ * `skins` sin `background` todavía. TAL-47 (reconciliación, ronda 3):
+ * mismo criterio para `textColor`/`textPill` — el skin en vivo, no el
+ * guardado, con el mismo respaldo.
  */
 function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();
   const selectedSkin = skins.find((skin) => skin.id === fieldValues.skinId);
   const previewBackground = selectedSkin?.background ?? DEFAULT_SKIN_APPEARANCE.background;
+  const previewTextColor = selectedSkin?.textColor ?? DEFAULT_SKIN_APPEARANCE.textColor;
+  const previewTextPill = selectedSkin?.textPill ?? DEFAULT_SKIN_APPEARANCE.textPill;
 
   return (
     <div className="editor-columns">
@@ -176,6 +180,8 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
             endDate={fieldValues.endDate}
             background={previewBackground}
             backgroundImageUrl={fieldValues.backgroundImageUrl || null}
+            textColor={previewTextColor}
+            textPill={previewTextPill}
           />
         </div>
         <div className="editor-field">

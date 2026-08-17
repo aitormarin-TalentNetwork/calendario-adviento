@@ -76,9 +76,19 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
     // TAL-37 — `background`/`accent` se propagan tal cual (pueden venir
     // `undefined`, `v.optional` en el schema) para que `SkinPicker` pinte
     // cada muestra con su color real; el respaldo de ambos vive en el
-    // propio `SkinPicker`/`DEFAULT_SKIN_APPEARANCE`, no aquí.
+    // propio `SkinPicker`/`DEFAULT_SKIN_APPEARANCE`, no aquí. TAL-47
+    // (reconciliación, ronda 3) — `textColor`/`textPill` viajan igual:
+    // `SkinPicker` no los usa, pero `edit-calendar-form.tsx` sí, para la
+    // vista previa en vivo del skin seleccionado (`CalendarPreview`).
     skins: skins
-      .map((skin) => ({ id: skin._id, name: skin.name, background: skin.background, accent: skin.accent }))
+      .map((skin) => ({
+        id: skin._id,
+        name: skin.name,
+        background: skin.background,
+        accent: skin.accent,
+        textColor: skin.textColor,
+        textPill: skin.textPill,
+      }))
       .sort((a, b) => a.name.localeCompare(b.name)),
     // TAL-24 — a diferencia de la portada de Invitado, esta página es un
     // formulario de edición (no una "portada"), así que el brief solo
