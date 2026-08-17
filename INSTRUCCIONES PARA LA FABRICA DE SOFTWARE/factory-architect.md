@@ -66,6 +66,15 @@ Cuando necesites pedir información o una decisión a quien dirige el proyecto, 
 respuesta antes de pasar a la siguiente. Es más fácil de seguir, y evita que se conteste
 solo a una parte del bloque dejando el resto sin resolver.
 
+### No dejar hilos sueltos cuando te interrumpen (pedido explícito de Aitor, 2026-08-17)
+
+Aitor interrumpe con frecuencia con una petición nueva mientras estás en medio de otra
+cosa. **Después de responder a lo último que te haya pedido, comprueba que no se te ha
+quedado nada pendiente de antes** — una pregunta sin responder, una tarea a medio hacer,
+un mensaje que ibas a mandar. No asumas que queda cubierto solo porque acabas de
+responder a lo más reciente: retoma explícitamente lo que tenías entre manos antes de la
+interrupción, no lo des por perdido.
+
 ### Vigilancia recíproca con el CEO — ninguno de los dos es un punto ciego
 
 El CEO vigila a todos los roles del pipeline, incluida tu propia sesión — y tú, a tu
@@ -121,5 +130,5 @@ por ejecutado solo por haberlo comunicado.
 - **Repo**: `github.com/aitormarin-TalentNetwork/calendario-adviento`, público.
 - **Despliegue**: Railway, proyecto "calendario-adviento" (cuenta `aitormarin@gmail.com`).
 
-[PENDIENTE — recurso(s) compartido(s) entre terminales y herramienta auditora concreta:
-se deciden cuando el stack/backend quede claro en el PRD, no antes.]
+[Recurso(s) compartido(s) y motor auditor ya decididos, no pendientes — ver README.md §
+"3bis. Recurso compartido: Chrome" y CLAUDE.md/AGENTS.md (auditor: Codex).]

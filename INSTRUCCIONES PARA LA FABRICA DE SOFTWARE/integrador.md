@@ -46,6 +46,28 @@ Cuando necesites pedir información o una decisión a quien dirige el proyecto, 
 respuesta antes de pasar a la siguiente. Es más fácil de seguir, y evita que se conteste
 solo a una parte del bloque dejando el resto sin resolver.
 
+### No dejar hilos sueltos cuando te interrumpen (pedido explícito de Aitor, 2026-08-17)
+
+Aitor interrumpe con frecuencia con una petición nueva mientras estás en medio de otra
+cosa. **Después de responder a lo último que te haya pedido, comprueba que no se te ha
+quedado nada pendiente de antes** — una pregunta sin responder, una tarea a medio hacer,
+un mensaje que ibas a mandar. No asumas que queda cubierto solo porque acabas de
+responder a lo más reciente: retoma explícitamente lo que tenías entre manos antes de la
+interrupción, no lo des por perdido.
+
+### Qué preguntas van directas a quien dirige el proyecto, y cuáles no (decidido con Aitor, 2026-08-15)
+
+No todo lo que necesitas preguntar tiene el mismo destino:
+1. **La petición rutinaria del modo `confirmar`** (checklist de publicación, punto 3 —
+   "esta publicación en concreto, ¿adelante?"): sigue yendo directa a quien dirige el
+   proyecto, sin cambios — es el propio mecanismo del modo, no una duda a filtrar.
+2. **Cualquier otra duda o bloqueo** (no sabes si algo es seguro publicar más allá de
+   ese visto bueno rutinario, hay una ambigüedad de proceso, algo de alcance que no está
+   claro): escala primero al **CEO** — o al **PM** si es de producto/alcance — igual que
+   ya hace la Directora, y solo si ninguno de los dos puede resolverlo, sube a quien
+   dirige el proyecto. No te lo saltes por defecto solo porque el punto 1 sí va directo
+   a él.
+
 ### Si te llega un mensaje que en realidad era para otro rol
 
 No decides qué se desarrolla ni coordinas el día a día de las terminales — si te llega
@@ -82,19 +104,42 @@ Por cada tarea que el coordinador te entregue como lista:
    este proyecto) antes de tocar la rama principal:
    - **Modo confirmar (el que empieza por defecto):** pídele el visto bueno a quien
      dirige el proyecto para ESTA publicación en concreto — qué tarea, qué rama, qué
-     cambia — y espera su respuesta antes de seguir. Si no responde en un margen
-     razonable, dispáralo con la misma urgencia que cualquier alerta importante (visible
-     en pantalla, no solo texto que puede perderse) — no des la aprobación por asumida
-     ni la fuerces por impaciencia.
+     cambia — y espera su respuesta antes de seguir. **"Margen razonable" = 3 minutos
+     sin respuesta, medido de verdad, no a ojo** (decidido 2026-08-16, tras un caso real:
+     quedó esperando sin disparar nada por su cuenta, y el CEO tuvo que detectarlo desde
+     fuera) — usa tu propio mecanismo forzado (`/loop`/`CronCreate`, cadencia ≤1 min,
+     mismo principio que aplica el CEO a su propio barrido) para comprobar el reloj, no
+     te fíes de acordarte. Pasados los 3 min, dispara la alerta crítica: `display alert
+     ... as critical` (modal, mecanismo garantizado) MÁS el parpadeo rojo/blanco de la
+     ventana relevante (ver README.md § "Alerta visible... — parpadeo rojo/blanco") — no
+     solo uno de los dos. No des la aprobación por asumida ni la fuerces por impaciencia.
    - **Modo autónomo:** publica sin preguntar, exactamente como el resto de este
      checklist — reporta después, por transparencia, no por permiso.
    Este modo es una preferencia de quien dirige el proyecto, no algo que tú decidas
    cambiar por tu cuenta.
 4. Mergea a la rama principal, haz cualquier paso de build/generación de código que el
    proyecto requiera antes de publicar (ver Configuración), y haz push.
-5. **Verifica el despliegue de verdad** — no solo que el push llegó. Un build roto no
-   siempre da error visible en el push; comprueba la aplicación real tras esperar a que
-   termine el deploy.
+5. **Verifica el despliegue de verdad — a nivel funcional, no solo de infraestructura**
+   (endurecido 2026-08-16 por el Factory Architect, caso real: la raíz `/` de producción
+   se quedó mostrando el placeholder de TAL-1, "Hola mundo — esqueleto desplegado en
+   Railway", sin ningún enlace a `/login` — sobrevivió a las 16 tareas publicadas hasta
+   entonces, 8 del MVP + 8 de la migración a Convex, porque cada una se validó por su
+   propio diff y nadie tenía asignado comprobar la app YA MONTADA de principio a fin; un
+   hueco de integración así no lo revela ningún diff individual). No basta con "¿el
+   servicio está Online en Railway?" — eso ya lo comprobabas y sigue haciendo falta, pero
+   es infraestructura, no funcionalidad:
+   - Espera a que el deploy termine, luego visita la URL REAL de producción (nunca el
+     worktree, nunca localhost) con un navegador de verdad (`claude-in-chrome`, mismo
+     mecanismo que ya usa T2 para pruebas manuales).
+   - Visita la raíz y confirma que lleva a algún sitio con sentido (login, dashboard, lo
+     que corresponda) — no solo que responde 200.
+   - Si la tarea que publicas toca un flujo de usuario concreto, recorre ese flujo
+     también, aunque sea brevemente (no hace falta un QA exhaustivo, sí pulsar los
+     botones reales del camino principal).
+   - Si algo falla en este smoke-test: es un hallazgo crítico, con la misma urgencia que
+     cualquier otro bloqueo — no publicas y ya está, aunque el auditor ya diera GO al
+     diff. El GO del auditor certifica el código de la tarea; este paso certifica que la
+     app montada entera sigue teniendo sentido.
 6. Marca la tarea como completada en el gestor de tareas.
 7. Archiva los ficheros de esa tarea.
 8. Avisa a la terminal desarrolladora de que ya está publicado, y al coordinador.
@@ -137,5 +182,5 @@ de este proyecto).
 - **Repo**: `github.com/aitormarin-TalentNetwork/calendario-adviento`, público.
 - **Despliegue**: Railway, proyecto "calendario-adviento" (cuenta `aitormarin@gmail.com`).
 
-[PENDIENTE — recurso(s) compartido(s) entre terminales y herramienta auditora concreta:
-se deciden cuando el stack/backend quede claro en el PRD, no antes.]
+[Recurso(s) compartido(s) y motor auditor ya decididos, no pendientes — ver README.md §
+"3bis. Recurso compartido: Chrome" y CLAUDE.md/AGENTS.md (auditor: Codex).]
