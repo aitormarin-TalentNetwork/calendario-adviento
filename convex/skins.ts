@@ -257,13 +257,14 @@ const SKIN_CATALOG: SkinSeed[] = [
   // que él tiene derecho a usar) y quiere un skin cuyos colores combinen
   // con ella — el skin en sí no reproduce ni nombra esa IP, mismo criterio
   // que "Historieta"/"Superhéroe" arriba. `background` es exactamente el
-  // degradado sutil pedido (sin textura, a diferencia de "Historieta") —
-  // el rojo/azul/amarillo del brief se concentran en `accent` (rojo,
-  // mismo criterio que "Historieta") y en el resto de la UI que ya
-  // consume `accent`; el schema no modela un contorno/borde propio por
-  // skin, así que el "contorno negro grueso" del brief queda como
-  // dirección visual para quien trabaje el frontend de esta skin, no como
-  // dato sembrado aquí.
+  // degradado sutil pedido (sin textura, a diferencia de "Historieta").
+  // El schema solo admite UN `accent` (un hex) y ningún campo de
+  // contorno/borde — de los 4 elementos de color del brief (rojo, azul,
+  // amarillo, contorno negro grueso) solo el rojo tiene dónde sembrarse
+  // (`accent: "#e63946"`, mismo criterio que "Historieta"). Azul, amarillo
+  // y el contorno negro NO quedan representados en ningún dato de esta
+  // fila — quedan pendientes como dirección visual para quien trabaje el
+  // frontend de esta skin en el futuro, fuera de alcance de esta tarea.
   {
     key: "tira-comica",
     name: "Tira Cómica",
