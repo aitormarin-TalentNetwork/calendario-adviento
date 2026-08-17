@@ -54,6 +54,15 @@ export default defineSchema({
     // migradas (idempotente).
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    // Marcador de cuenta atrás (TAL-27) — la frase/palabra Y de "Faltan X
+    // días para Y" en la vista del Invitado, texto libre configurable por
+    // el Admin. `v.optional()` con respaldo de lectura, mismo criterio que
+    // `coverIcon`/`coverImageUrl` arriba: los calendarios creados ANTES de
+    // esta tarea no tienen este campo, y no hay ningún texto duplicado que
+    // limpiar (a diferencia de `coverIcon`) — no hace falta backfill, solo
+    // `countdownLabel ?? DEFAULT_COUNTDOWN_LABEL` en cada sitio que lo lee
+    // (`src/lib/countdown.ts`).
+    countdownLabel: v.optional(v.string()),
     // "YYYY-MM-DD", no un timestamp — ver docs/convex-modelo-de-datos.md §
     // "Fechas como día natural". Comparan correctamente como string
     // (orden lexicográfico == orden cronológico en ISO 8601).

@@ -3,6 +3,7 @@ import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "./calendarErrorMessages";
 import { MAX_CALENDAR_NAME_LENGTH } from "./calendarNameConstants";
+import { MAX_COUNTDOWN_LABEL_LENGTH } from "./countdownLabelConstants";
 import { MAX_COVER_ICON_LENGTH } from "./coverIconConstants";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
@@ -60,6 +61,22 @@ function assertValidCoverIcon(icon: string | undefined): void {
   if (icon.length === 0) throw new Error("El icono de portada no puede estar vacío.");
   if (icon.length > MAX_COVER_ICON_LENGTH) {
     throw new Error(`El icono de portada no puede superar los ${MAX_COVER_ICON_LENGTH} caracteres.`);
+  }
+}
+
+/**
+ * A diferencia de `assertValidCoverIcon`, `undefined` (campo vacío) SÍ es un
+ * valor válido en sí mismo (TAL-27): significa "usa el respaldo por
+ * defecto" (`DEFAULT_COUNTDOWN_LABEL`, `src/lib/countdown.ts`), no un dato
+ * ausente por error — `updateCalendarAction` manda `undefined` a propósito
+ * cuando el Admin deja el campo en blanco, mismo criterio que
+ * `coverImageUrl`. Solo la cota de longitud defensiva, texto completamente
+ * libre igual que `coverIcon`/`videoUrl`/`message`.
+ */
+function assertValidCountdownLabel(label: string | undefined): void {
+  if (label === undefined) return;
+  if (label.length > MAX_COUNTDOWN_LABEL_LENGTH) {
+    throw new Error(`El texto de la cuenta atrás no puede superar los ${MAX_COUNTDOWN_LABEL_LENGTH} caracteres.`);
   }
 }
 
@@ -187,6 +204,7 @@ async function createCalendarHandler(
     coverTitle: string;
     coverIcon?: string;
     coverImageUrl?: string;
+    countdownLabel?: string;
     startDate: string;
     endDate: string;
     skinId?: Id<"skins">;
@@ -216,12 +234,14 @@ async function createCalendarHandler(
   assertRangeNotInverted(args.startDate, args.endDate);
   assertSafeCoverImageUrl(args.coverImageUrl);
   assertValidCoverIcon(args.coverIcon);
+  assertValidCountdownLabel(args.countdownLabel);
 
   const calendarId = await ctx.db.insert("calendars", {
     name,
     coverTitle: args.coverTitle,
     coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,
+    countdownLabel: args.countdownLabel,
     startDate: args.startDate,
     endDate: args.endDate,
     skinId,
@@ -239,6 +259,7 @@ export const createCalendar = internalMutation({
     coverTitle: v.string(),
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    countdownLabel: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
     skinId: v.optional(v.id("skins")),
@@ -264,6 +285,7 @@ async function updateCalendarHandler(
     coverTitle: string;
     coverIcon?: string;
     coverImageUrl?: string;
+    countdownLabel?: string;
     startDate: string;
     endDate: string;
     skinId: Id<"skins">;
@@ -281,12 +303,14 @@ async function updateCalendarHandler(
   await assertNoDayOutsideRange(ctx, args.calendarId, args.startDate, args.endDate);
   assertSafeCoverImageUrl(args.coverImageUrl);
   assertValidCoverIcon(args.coverIcon);
+  assertValidCountdownLabel(args.countdownLabel);
 
   await ctx.db.patch(args.calendarId, {
     name: args.name,
     coverTitle: args.coverTitle,
     coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,
+    countdownLabel: args.countdownLabel,
     startDate: args.startDate,
     endDate: args.endDate,
     skinId: args.skinId,
@@ -301,6 +325,7 @@ export const updateCalendar = internalMutation({
     coverTitle: v.string(),
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    countdownLabel: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
     skinId: v.id("skins"),
@@ -588,6 +613,7 @@ export const createCalendarPublic = mutation({
     coverTitle: v.string(),
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    countdownLabel: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
     skinId: v.optional(v.id("skins")),
@@ -601,6 +627,7 @@ export const createCalendarPublic = mutation({
       coverTitle: args.coverTitle,
       coverIcon: args.coverIcon,
       coverImageUrl: args.coverImageUrl,
+      countdownLabel: args.countdownLabel,
       startDate: args.startDate,
       endDate: args.endDate,
       skinId: args.skinId,
@@ -617,6 +644,7 @@ export const updateCalendarPublic = mutation({
     coverTitle: v.string(),
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    countdownLabel: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
     skinId: v.id("skins"),
@@ -629,6 +657,7 @@ export const updateCalendarPublic = mutation({
       coverTitle: args.coverTitle,
       coverIcon: args.coverIcon,
       coverImageUrl: args.coverImageUrl,
+      countdownLabel: args.countdownLabel,
       startDate: args.startDate,
       endDate: args.endDate,
       skinId: args.skinId,

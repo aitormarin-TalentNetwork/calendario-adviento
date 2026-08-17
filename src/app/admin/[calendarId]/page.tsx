@@ -10,6 +10,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { DEFAULT_COUNTDOWN_LABEL } from "@/lib/countdown";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
@@ -19,6 +20,7 @@ type AdminCalendar = {
   name: string;
   coverTitle: string;
   coverIcon: string;
+  countdownLabel: string;
   startDate: Date;
   endDate: Date;
   skinId: string;
@@ -52,6 +54,9 @@ async function getCalendarForAdminPage(
       // Respaldo para calendarios creados antes de TAL-23 — ver
       // convex/schema.ts § coverIcon.
       coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
+      // Respaldo para calendarios creados antes de TAL-27 — ver
+      // convex/schema.ts § countdownLabel.
+      countdownLabel: calendar.countdownLabel ?? DEFAULT_COUNTDOWN_LABEL,
       startDate: parseUtcDateOnly(calendar.startDate)!,
       endDate: parseUtcDateOnly(calendar.endDate)!,
       skinId: calendar.skinId,
