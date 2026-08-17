@@ -54,6 +54,98 @@ export const createSkin = internalMutation({
 });
 
 /**
+ * TAL-43 — migración de un solo uso, deployment de producción
+ * (`abundant-badger-144`). Producción tiene los 4 skins originales del
+ * MVP con `key` en INGLÉS (`pine`/`berry`/`midnight`/`gold` — el shape de
+ * antes de TAL-22), mientras que `SKIN_CATALOG` de abajo (y
+ * `resolveDefaultSkinId`, `convex/calendars.ts`, ya desde TAL-30) usan
+ * `key` en ESPAÑOL para esas mismas 4 filas (`pino`/`grosella`/
+ * `medianoche`/`dorado`). `upsertSkinHandler` hace upsert POR `key` — si
+ * se corriera `seedSkinCatalog` contra producción sin migrar antes,
+ * NO encontraría las 4 filas legacy (claves distintas) y las duplicaría
+ * en vez de repararlas, dejando las 4 originales huérfanas y sin color.
+ *
+ * Esta mutation SOLO renombra el campo `key` de esas 4 filas — nunca
+ * toca `_id` (calendarios ya creados en producción referencian esos
+ * `_id` como `skinId`; cambiar el `_id` los rompería) ni `name` (ya
+ * está en español en producción, `{key: "pine", name: "Pino"}` — el
+ * mismatch es solo de `key`). Orden obligatorio: correr ESTA mutation
+ * PRIMERO, después `seedSkinCatalog` — así el upsert encuentra las 4
+ * filas ya renombradas por `key` y las parchea con `background`/
+ * `accent` en vez de insertarlas de nuevo.
+ *
+ * Idempotente: una fila sin su `key` legacy correspondiente ya presente
+ * (porque no existe en este deployment, o porque ya se migró) no se
+ * toca — una segunda ejecución no escribe nada.
+ *
+ * Corre por CLI (`npx convex run skins:migrateLegacySkinKeysToSpanish
+ * '{}'` contra el deployment que corresponda, nunca desde código de
+ * aplicación) — mismo canal que `backfillEmbeddedCoverIcon`
+ * (`convex/calendars.ts`, TAL-23) para el otro precedente de migración
+ * de datos históricos de este proyecto. **Diseñada y verificada aquí
+ * (deployment de dev de esta terminal); la ejecución contra producción
+ * la decide y la corre la Directora con el CEO — no esta terminal.**
+ */
+const LEGACY_SKIN_KEY_TRANSLATIONS: Record<string, string> = {
+  pine: "pino",
+  berry: "grosella",
+  midnight: "medianoche",
+  gold: "dorado",
+};
+
+async function migrateLegacySkinKeysToSpanishHandler(
+  ctx: MutationCtx
+): Promise<{
+  renamed: number;
+  alreadyMigrated: number;
+  neverExisted: number;
+  skippedTargetKeyCollision: number;
+}> {
+  let renamed = 0;
+  let alreadyMigrated = 0;
+  let neverExisted = 0;
+  let skippedTargetKeyCollision = 0;
+
+  for (const [legacyKey, spanishKey] of Object.entries(LEGACY_SKIN_KEY_TRANSLATIONS)) {
+    const legacyRow = await ctx.db
+      .query("skins")
+      .withIndex("by_key", (q) => q.eq("key", legacyKey))
+      .unique();
+    const spanishRow = await ctx.db
+      .query("skins")
+      .withIndex("by_key", (q) => q.eq("key", spanishKey))
+      .unique();
+
+    if (!legacyRow) {
+      if (spanishRow) alreadyMigrated++;
+      else neverExisted++;
+      continue;
+    }
+    if (spanishRow) {
+      // Las dos filas existen a la vez (p. ej. `seedSkinCatalog` ya se
+      // corrió antes que esta migración, insertando la fila en español
+      // como duplicada) — renombrar aquí colisionaría por `key` (no es
+      // una restricción única a nivel de schema, pero `.unique()` en
+      // `upsertSkinHandler`/`resolveDefaultSkinId` reventaría en cuanto
+      // alguien vuelva a consultar por esa `key`). Se deja sin tocar,
+      // señalado en el resultado, para resolución manual — no es un caso
+      // que esta migración deba intentar arreglar sola.
+      skippedTargetKeyCollision++;
+      continue;
+    }
+    await ctx.db.patch(legacyRow._id, { key: spanishKey });
+    renamed++;
+  }
+
+  return { renamed, alreadyMigrated, neverExisted, skippedTargetKeyCollision };
+}
+
+export const migrateLegacySkinKeysToSpanish = internalMutation({
+  args: {},
+  handler: migrateLegacySkinKeysToSpanishHandler,
+});
+
+/**
  * TAL-22 — catálogo completo (originalmente 22 skins: los 4 del MVP + los
  * 18 nuevos validados con Aitor, design/design-system.md § "Skins"; ahora
  * 23 con "Tira Cómica", TAL-38 — mismo mecanismo, sin UI de gestión). Un
