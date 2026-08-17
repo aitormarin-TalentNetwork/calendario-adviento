@@ -782,7 +782,8 @@ export function DoorGrid({
           <>
             Calma tu ansiedad.
             <br />
-            Te quedan <strong style={{ color: "var(--gold-2)" }}>{patienceInfo.days}</strong>{" "}
+            Te {patienceInfo.days === 1 ? "queda" : "quedan"}{" "}
+            <strong style={{ color: "var(--gold-2)" }}>{patienceInfo.days}</strong>{" "}
             {patienceInfo.days === 1 ? "día" : "días"} para abrir este regalo.
           </>
         )}
