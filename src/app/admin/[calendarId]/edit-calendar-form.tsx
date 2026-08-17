@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useFormStatus } from "react-dom";
 import {
   updateCalendarAction,
@@ -9,6 +9,8 @@ import {
 } from "@/app/admin/actions";
 import { CoverIconPicker } from "@/app/admin/[calendarId]/cover-icon-picker";
 import { SubmitButton } from "@/components/submit-button";
+import { parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
+import { DEFAULT_COUNTDOWN_LABEL, MAX_COUNTDOWN_LABEL_LENGTH, daysUntil, formatCountdownMessage } from "@/lib/countdown";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 
 type EditCalendarFormProps = {
@@ -17,6 +19,7 @@ type EditCalendarFormProps = {
     name: string;
     coverTitle: string;
     coverIcon: string;
+    countdownLabel: string;
     startDate: Date;
     endDate: Date;
     skinId: string;
@@ -34,6 +37,9 @@ function initialValues(calendar: EditCalendarFormProps["calendar"]): UpdateCalen
     // `page.tsx`) — `calendar.coverIcon` aquí siempre llega con un valor
     // real, nunca vacío.
     coverIcon: calendar.coverIcon || DEFAULT_COVER_ICON,
+    // Mismo criterio que `coverIcon` — el respaldo por defecto
+    // (`DEFAULT_COUNTDOWN_LABEL`) ya se resolvió en `getCalendarForAdminPage`.
+    countdownLabel: calendar.countdownLabel || DEFAULT_COUNTDOWN_LABEL,
     startDate: calendar.startDate.toISOString().slice(0, 10),
     endDate: calendar.endDate.toISOString().slice(0, 10),
     skinId: calendar.skinId,
@@ -60,8 +66,29 @@ type EditCalendarFieldsProps = {
  * `state.values` (la instantánea que se acababa de enviar, ya desfasada
  * frente a lo que el admin llevaba escrito mientras tanto).
  */
+/**
+ * TAL-27 — igual que `todayStr` en `days-grid-editor.tsx`: "hoy" para la
+ * vista previa se resuelve tras montar, con la zona horaria real del
+ * navegador (`todayDateStrInTimeZone`), nunca con la fecha cruda del
+ * servidor — mismo criterio ya establecido para cualquier marcador de
+ * fecha puramente decorativo en el Admin (TAL-21, hallazgos de auditoría
+ * rondas 1 y 2). `null` mientras tanto: la vista previa no enseña ningún
+ * número de días hasta que se resuelve, en vez de arriesgar un valor de UTC
+ * que no coincida con la zona horaria real de quien mira.
+ */
+function useTodayStr(): string | null {
+  const [todayStr, setTodayStr] = useState<string | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- excepción deliberada: el valor depende de la zona horaria real del navegador, exclusivamente de cliente — mismo criterio que days-grid-editor.tsx.
+    setTodayStr(todayDateStrInTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone));
+  }, []);
+  return todayStr;
+}
+
 function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();
+  const todayStr = useTodayStr();
+  const previewDaysRemaining = todayStr ? daysUntil(parseDateOnlyUTC(todayStr), parseDateOnlyUTC(fieldValues.endDate)) : null;
 
   return (
     <>
@@ -126,6 +153,27 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
           required
         />
       </label>
+      <label>
+        Marcador de cuenta atrás
+        <br />
+        <input
+          name="countdownLabel"
+          type="text"
+          value={fieldValues.countdownLabel}
+          onChange={(e) => setField("countdownLabel", e.target.value)}
+          disabled={pending}
+          maxLength={MAX_COUNTDOWN_LABEL_LENGTH}
+          placeholder={DEFAULT_COUNTDOWN_LABEL}
+        />
+      </label>
+      <p style={{ color: "var(--text-dim)" }}>
+        Vista previa:{" "}
+        <span style={{ fontFamily: "var(--font-display)" }}>
+          {previewDaysRemaining === null
+            ? "…"
+            : formatCountdownMessage(previewDaysRemaining, fieldValues.countdownLabel)}
+        </span>
+      </p>
       <label>
         Skin
         <br />

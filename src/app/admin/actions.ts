@@ -10,6 +10,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { MAX_CALENDAR_NAME_LENGTH } from "../../../convex/calendarNameConstants";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { MAX_COUNTDOWN_LABEL_LENGTH } from "@/lib/countdown";
 import { MAX_COVER_ICON_LENGTH } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
@@ -85,6 +86,7 @@ export type UpdateCalendarFieldValues = {
   name: string;
   coverTitle: string;
   coverIcon: string;
+  countdownLabel: string;
   startDate: string;
   endDate: string;
   skinId: string;
@@ -113,6 +115,7 @@ export async function updateCalendarAction(
   const name = formData.get("name")?.toString().trim() ?? "";
   const coverTitle = formData.get("coverTitle")?.toString().trim() ?? "";
   const coverIcon = formData.get("coverIcon")?.toString() ?? "";
+  const countdownLabelRaw = formData.get("countdownLabel")?.toString().trim() ?? "";
   const startDateRaw = formData.get("startDate")?.toString() ?? "";
   const endDateRaw = formData.get("endDate")?.toString() ?? "";
   const skinId = formData.get("skinId")?.toString() ?? "";
@@ -132,6 +135,7 @@ export async function updateCalendarAction(
     name,
     coverTitle,
     coverIcon,
+    countdownLabel: countdownLabelRaw,
     startDate: startDateRaw,
     endDate: endDateRaw,
     skinId,
@@ -149,6 +153,15 @@ export async function updateCalendarAction(
   // `convex/calendars.ts::assertValidCoverIcon`.
   if (coverIcon.length > MAX_COVER_ICON_LENGTH) {
     return { error: "El icono de portada no es válido.", values };
+  }
+  // Texto libre, opcional (vacío = "usa el respaldo por defecto",
+  // `DEFAULT_COUNTDOWN_LABEL` — ver convex/schema.ts § countdownLabel) —
+  // solo la cota de longitud defensiva, mismo criterio que `coverIcon`.
+  if (countdownLabelRaw.length > MAX_COUNTDOWN_LABEL_LENGTH) {
+    return {
+      error: `El marcador de cuenta atrás no puede superar los ${MAX_COUNTDOWN_LABEL_LENGTH} caracteres.`,
+      values,
+    };
   }
 
   const startDate = parseUtcDateOnly(startDateRaw);
@@ -219,6 +232,7 @@ export async function updateCalendarAction(
       coverTitle,
       coverIcon,
       coverImageUrl: coverImageUrl ?? undefined,
+      countdownLabel: countdownLabelRaw || undefined,
       startDate: startDateRaw,
       endDate: endDateRaw,
       skinId: skinId as Id<"skins">,

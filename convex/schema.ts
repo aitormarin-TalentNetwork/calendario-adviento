@@ -16,6 +16,15 @@ export default defineSchema({
     email: v.string(),
     name: v.optional(v.string()),
     isSuperAdmin: v.boolean(),
+    // Foto de perfil de Gmail (TAL-28) — llega en el perfil OAuth de Google
+    // (`user.image`, ver `src/lib/auth.ts`), nunca del login de desarrollo
+    // (`Credentials`, sin ese campo). `v.optional()` por dos motivos: los
+    // usuarios creados antes de esta tarea no lo tienen, y el propio
+    // login de desarrollo seguirá sin mandarlo nunca. Se refresca en CADA
+    // login si Google manda un valor distinto — mismo criterio que `name`
+    // (ver `createUserHandler`), para no quedarse con una foto vieja si el
+    // usuario cambia su avatar de Google más adelante.
+    image: v.optional(v.string()),
     // Sin `createdAt` propio — el campo de sistema `_creationTime` (todo
     // documento de Convex lo tiene) cubre exactamente el mismo dato.
   }).index("by_email", ["email"]),
@@ -45,6 +54,15 @@ export default defineSchema({
     // migradas (idempotente).
     coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
+    // Marcador de cuenta atrás (TAL-27) — la frase/palabra Y de "Faltan X
+    // días para Y" en la vista del Invitado, texto libre configurable por
+    // el Admin. `v.optional()` con respaldo de lectura, mismo criterio que
+    // `coverIcon`/`coverImageUrl` arriba: los calendarios creados ANTES de
+    // esta tarea no tienen este campo, y no hay ningún texto duplicado que
+    // limpiar (a diferencia de `coverIcon`) — no hace falta backfill, solo
+    // `countdownLabel ?? DEFAULT_COUNTDOWN_LABEL` en cada sitio que lo lee
+    // (`src/lib/countdown.ts`).
+    countdownLabel: v.optional(v.string()),
     // "YYYY-MM-DD", no un timestamp — ver docs/convex-modelo-de-datos.md §
     // "Fechas como día natural". Comparan correctamente como string
     // (orden lexicográfico == orden cronológico en ISO 8601).

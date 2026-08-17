@@ -7,9 +7,10 @@ import { DaysSection } from "@/app/admin/[calendarId]/days-section";
 import { EditCalendarForm } from "@/app/admin/[calendarId]/edit-calendar-form";
 import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
-import { signOut } from "@/lib/auth";
+import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { DEFAULT_COUNTDOWN_LABEL } from "@/lib/countdown";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
@@ -20,6 +21,7 @@ type AdminCalendar = {
   name: string;
   coverTitle: string;
   coverIcon: string;
+  countdownLabel: string;
   startDate: Date;
   endDate: Date;
   skinId: string;
@@ -58,6 +60,9 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
       // Respaldo para calendarios creados antes de TAL-23 — ver
       // convex/schema.ts § coverIcon.
       coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
+      // Respaldo para calendarios creados antes de TAL-27 — ver
+      // convex/schema.ts § countdownLabel.
+      countdownLabel: calendar.countdownLabel ?? DEFAULT_COUNTDOWN_LABEL,
       startDate: parseUtcDateOnly(calendar.startDate)!,
       endDate: parseUtcDateOnly(calendar.endDate)!,
       skinId: calendar.skinId,
@@ -92,10 +97,12 @@ export default async function AdminCalendarPage({
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "900px" }}>
+      <SessionIndicator
+        email={user.email}
+        image={user.image}
+        roleLabel={access?.kind === "super-admin" ? "Super Admin" : "Admin"}
+      />
       <h1>Editar calendario</h1>
-      <p style={{ color: "var(--accent)" }}>
-        Sesión: {user.email} ({access?.kind === "super-admin" ? "Super Admin" : "Admin"})
-      </p>
 
       <EditCalendarForm calendar={calendar} skins={skins} />
 
@@ -109,16 +116,6 @@ export default async function AdminCalendarPage({
       </form>
 
       <GuestsSection calendarId={calendar.id} />
-
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/login" });
-        }}
-        style={{ marginTop: "1.5rem" }}
-      >
-        <button type="submit">Cerrar sesión</button>
-      </form>
     </main>
   );
 }
