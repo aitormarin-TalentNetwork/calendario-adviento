@@ -17,7 +17,14 @@ export default async function AdminCalendarsPage() {
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
-      <SessionIndicator email={user.email} image={user.image} />
+      {/* TAL-28, sugerencia no bloqueante de auditoría ronda 1: a diferencia
+          de admin/[calendarId]/page.tsx y superadmin/page.tsx, esta página
+          no es específica de un calendario (lista TODOS los que administra
+          el usuario), así que el rol se resuelve directamente de
+          `user.isSuperAdmin` (el mismo override global que ya usa el resto
+          de la app) en vez de `resolveCalendarAccess` — no hay ningún
+          calendario concreto contra el que resolverlo aquí. */}
+      <SessionIndicator email={user.email} image={user.image} roleLabel={user.isSuperAdmin ? "Super Admin" : "Admin"} />
       <h1>Mis calendarios</h1>
 
       {calendars.length === 0 ? (
