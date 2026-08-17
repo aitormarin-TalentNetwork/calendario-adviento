@@ -295,6 +295,84 @@ Verificado contra el deployment real de desarrollo
   idéntica es idempotente (misma membership, no crea una segunda); un
   usuario sin invitación en ese calendario recibe `null` (sin acceso).
 
+## Portada personalizada de `/login` (TAL-25)
+
+`src/app/login/page.tsx` había quedado como stub (`calendar = null` fijo)
+desde que TAL-10 retiró Prisma — la portada de login SIEMPRE mostraba el
+genérico, sin importar qué `callbackUrl` trajera (hallazgo propio,
+encontrado durante TAL-23). Reconectada contra Convex.
+
+**Alcance — solo `/c/[calendarId]` (Invitado), no `/admin/[calendarId]`**:
+decisión documentada según pedía el brief ("usa tu criterio"). `/admin`
+es una ruta de Admin, no de Invitado — nadie llega ahí siguiendo un link
+de invitación por email, así que no había sentido de producto en
+resolver también esa forma, y ampliar la superficie que esta página sin
+autenticar puede resolver sin necesidad real no compensaba.
+
+**Seguridad — página pública SIN autenticar, qué se expone**: nueva
+consulta `calendars.getPublicCoverInfoForLogin` (`convex/calendars.ts`),
+DELIBERADAMENTE distinta de `calendars.getPublic` (que devuelve el
+documento entero y ya usan `admin/[calendarId]/page.tsx`/
+`c/[calendarId]/page.tsx`, ambas páginas que exigen sesión + acceso
+verificado antes de llegar ahí). La nueva consulta es una lista blanca
+explícita: solo `coverTitle`/`coverIcon`/`coverImageUrl` — el nombre
+bonito, el icono y la foto, nada que no sea ya visible en la propia
+invitación por email (nada de fechas, `skinId`, ni cualquier dato de
+invitados/admins). La restricción vive en la propia consulta de Convex,
+no en que el código de Next.js recuerde no reenviar el resto del
+documento al cliente.
+
+**No dar pistas de si un `calendarId` existe** (brief, punto 4):
+`calendarId` con formato inválido (Convex rechaza el argumento antes de
+que el handler compruebe si existe), calendario bien formado pero
+inexistente, un fallo genuino de Convex, o que la consulta tarde
+demasiado, caen los cuatro al mismo `null` (portada genérica) —
+capturados con un único `try/catch` en `getCalendarCoverForLogin`, sin
+distinguir entre ellos ni dejar escapar ninguna excepción cruda (mismo
+criterio ya establecido en esta página desde TAL-10 para cualquier fallo
+de la capa de datos).
+
+**Hallazgo de auditoría, ronda 1 — timeout propio, no solo el catch**:
+`fetchQuery` (`convex/nextjs`, usado en el resto del proyecto) no acepta
+ningún `signal`/timeout propio. Si Convex está inalcanzable de verdad (la
+conexión se queda colgada, no "responde rápido con un error"), la
+llamada podía tardar más que cualquier timeout externo (proxy de
+Railway, el propio runtime) — ese timeout externo devolvería un 5xx/504
+crudo al navegador ANTES de que el `try/catch` de esta función llegara
+siquiera a ejecutarse, la respuesta distinguible que el brief pedía
+evitar. Corregido usando `ConvexHttpClient` (`convex/browser`)
+directamente con un `fetch` propio que impone `AbortSignal.timeout(3000)`
+— 3s, deliberadamente corto frente a cualquier timeout de plataforma
+razonable, para que el `catch` de esta función siempre gane la carrera.
+`setFetchOptions` (donde viviría un `signal` de forma más directa) es
+`@internal` en el SDK de Convex, sin tipo público — se usa en su lugar
+la opción `fetch` del constructor, que sí es API pública documentada.
+
+**Verificación** — vía `curl` contra `npx next dev -p 3001` (evita
+contender por el cerrojo compartido de Chrome para una comprobación que
+no necesita interacción visual real):
+- Sin `callbackUrl`: portada genérica ("🎄 ¡Feliz cuenta atrás, equipo!").
+- `callbackUrl=/c/{id real}` (con `coverTitle`/`coverIcon`/`coverImageUrl`
+  puestos a propósito): título/icono/foto reales, HTTP 200.
+- `callbackUrl=/c/{id con formato inválido}`: portada genérica, HTTP 200,
+  sin excepción visible ni traza en consola cerca de esa petición.
+- `callbackUrl=/c/{id bien formado pero inexistente}`: portada genérica,
+  HTTP 200 — respuesta indistinguible de la anterior (mismo texto exacto,
+  mismo código HTTP), tal como pide el brief.
+- `callbackUrl=/admin/{id real}`: portada genérica — confirma que la
+  ruta de Admin no se personaliza, tal como se decidió arriba.
+- **Convex genuinely inalcanzable (ronda 1)**: `NEXT_PUBLIC_CONVEX_URL`
+  apuntado temporalmente a `https://192.0.2.1` (dirección reservada de
+  documentación, RFC 5737 — no rutable, las conexiones se quedan
+  colgadas hasta que algo las corta) contra un servidor de desarrollo
+  temporal en el mismo puerto (parado y restaurado con la URL real
+  después). Petición real con `callbackUrl` a un calendario válido:
+  HTTP 200, portada genérica, **3.04s** de principio a fin — coincide con
+  el timeout de 3000ms configurado más el overhead normal de la petición,
+  confirmando que el `AbortSignal` corta la conexión colgada de verdad y
+  el `catch` gana la carrera, en vez de depender de que algún timeout
+  externo actúe primero.
+
 ## Pendiente (fuera de alcance de TAL-2)
 
 - Crear el proyecto de Google Cloud + pantalla de consentimiento OAuth y
