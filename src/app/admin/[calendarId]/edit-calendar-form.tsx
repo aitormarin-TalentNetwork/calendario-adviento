@@ -85,125 +85,147 @@ function useTodayStr(): string | null {
   return todayStr;
 }
 
+/**
+ * TAL-33 — "Datos del calendario" en dos columnas
+ * (design/design-system.md § "Editor de calendario"): izquierda = solo
+ * fechas, derecha = nombre/título/icono/skin. `countdownLabel` (+ vista
+ * previa) y `coverImageUrl` no están en el mockup (`propuesta-editor-
+ * calendario.html` es previo a TAL-27 y nunca tuvo una URL de foto de
+ * portada) — se añaden al FINAL de la columna derecha, después de los
+ * cuatro campos que sí describe el mockup explícitamente, en vez de
+ * inventar una tercera sección sin fuente de diseño.
+ *
+ * Cada fila usa la clase `.editor-field` (`globals.css`) — etiqueta a la
+ * izquierda del input en desktop, apilada en mobile (`design-system.md`
+ * § "Formularios"/"Responsive"). Ya no hay `<label>` envolviendo el
+ * `<input>` (eran hermanos en una fila `flex`, no anidados) — `htmlFor`/
+ * `id` explícitos para mantener el mismo comportamiento de accesibilidad
+ * (clic en la etiqueta enfoca el campo).
+ */
 function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();
   const todayStr = useTodayStr();
   const previewDaysRemaining = todayStr ? daysUntil(parseDateOnlyUTC(todayStr), parseDateOnlyUTC(fieldValues.endDate)) : null;
 
   return (
-    <>
-      <label>
-        Nombre del calendario
-        <br />
-        <input
-          name="name"
-          type="text"
-          value={fieldValues.name}
-          onChange={(e) => setField("name", e.target.value)}
-          disabled={pending}
-          required
-        />
-      </label>
-      <label>
-        Título de portada
-        <br />
-        <input
-          name="coverTitle"
-          type="text"
-          value={fieldValues.coverTitle}
-          onChange={(e) => setField("coverTitle", e.target.value)}
-          disabled={pending}
-          required
-        />
-      </label>
-      <label>
-        Icono de portada
-        <CoverIconPicker
-          value={fieldValues.coverIcon}
-          onChange={(icon) => setField("coverIcon", icon)}
-          disabled={pending}
-        />
-        {/* Campo oculto: el picker no es un <input> nativo (es una rejilla
-            de botones), así que el valor seleccionado se manda al form
-            explícitamente, igual que cualquier otro campo controlado de
-            este formulario. */}
-        <input type="hidden" name="coverIcon" value={fieldValues.coverIcon} />
-      </label>
-      <label>
-        Fecha de inicio
-        <br />
-        <input
-          name="startDate"
-          type="date"
-          value={fieldValues.startDate}
-          onChange={(e) => setField("startDate", e.target.value)}
-          disabled={pending}
-          required
-        />
-      </label>
-      <label>
-        Fecha de fin
-        <br />
-        <input
-          name="endDate"
-          type="date"
-          value={fieldValues.endDate}
-          onChange={(e) => setField("endDate", e.target.value)}
-          disabled={pending}
-          required
-        />
-      </label>
-      <label>
-        Marcador de cuenta atrás
-        <br />
-        <input
-          name="countdownLabel"
-          type="text"
-          value={fieldValues.countdownLabel}
-          onChange={(e) => setField("countdownLabel", e.target.value)}
-          disabled={pending}
-          maxLength={MAX_COUNTDOWN_LABEL_LENGTH}
-          placeholder={DEFAULT_COUNTDOWN_LABEL}
-        />
-      </label>
-      <p style={{ color: "var(--text-dim)" }}>
-        Vista previa:{" "}
-        <span style={{ fontFamily: "var(--font-display)" }}>
-          {previewDaysRemaining === null
-            ? "…"
-            : formatCountdownMessage(previewDaysRemaining, fieldValues.countdownLabel)}
-        </span>
-      </p>
-      <label>
-        Skin
-        <br />
-        <select
-          name="skinId"
-          value={fieldValues.skinId}
-          onChange={(e) => setField("skinId", e.target.value)}
-          disabled={pending}
-          required
-        >
-          {skins.map((skin) => (
-            <option key={skin.id} value={skin.id}>
-              {skin.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Foto de portada (URL, opcional)
-        <br />
-        <input
-          name="coverImageUrl"
-          type="url"
-          value={fieldValues.coverImageUrl}
-          onChange={(e) => setField("coverImageUrl", e.target.value)}
-          disabled={pending}
-          placeholder="https://…"
-        />
-      </label>
-    </>
+    <div className="editor-columns">
+      <div className="editor-col">
+        <div className="editor-field">
+          <label htmlFor="calendar-startDate">Fecha de inicio</label>
+          <input
+            id="calendar-startDate"
+            name="startDate"
+            type="date"
+            value={fieldValues.startDate}
+            onChange={(e) => setField("startDate", e.target.value)}
+            disabled={pending}
+            required
+          />
+        </div>
+        <div className="editor-field">
+          <label htmlFor="calendar-endDate">Fecha de fin</label>
+          <input
+            id="calendar-endDate"
+            name="endDate"
+            type="date"
+            value={fieldValues.endDate}
+            onChange={(e) => setField("endDate", e.target.value)}
+            disabled={pending}
+            required
+          />
+        </div>
+      </div>
+
+      <div className="editor-col">
+        <div className="editor-field">
+          <label htmlFor="calendar-name">Nombre del calendario</label>
+          <input
+            id="calendar-name"
+            name="name"
+            type="text"
+            value={fieldValues.name}
+            onChange={(e) => setField("name", e.target.value)}
+            disabled={pending}
+            required
+          />
+        </div>
+        <div className="editor-field">
+          <label htmlFor="calendar-coverTitle">Título de portada</label>
+          <input
+            id="calendar-coverTitle"
+            name="coverTitle"
+            type="text"
+            value={fieldValues.coverTitle}
+            onChange={(e) => setField("coverTitle", e.target.value)}
+            disabled={pending}
+            required
+          />
+        </div>
+        <div className="editor-field">
+          <label>Icono de portada</label>
+          <CoverIconPicker
+            value={fieldValues.coverIcon}
+            onChange={(icon) => setField("coverIcon", icon)}
+            disabled={pending}
+          />
+          {/* Campo oculto: el picker no es un <input> nativo (es un botón +
+              diálogo), así que el valor seleccionado se manda al form
+              explícitamente, igual que cualquier otro campo controlado de
+              este formulario. */}
+          <input type="hidden" name="coverIcon" value={fieldValues.coverIcon} />
+        </div>
+        <div className="editor-field">
+          <label htmlFor="calendar-skinId">Skin</label>
+          <select
+            id="calendar-skinId"
+            name="skinId"
+            value={fieldValues.skinId}
+            onChange={(e) => setField("skinId", e.target.value)}
+            disabled={pending}
+            required
+          >
+            {skins.map((skin) => (
+              <option key={skin.id} value={skin.id}>
+                {skin.name}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="editor-field">
+          <label htmlFor="calendar-countdownLabel">Marcador de cuenta atrás</label>
+          <input
+            id="calendar-countdownLabel"
+            name="countdownLabel"
+            type="text"
+            value={fieldValues.countdownLabel}
+            onChange={(e) => setField("countdownLabel", e.target.value)}
+            disabled={pending}
+            maxLength={MAX_COUNTDOWN_LABEL_LENGTH}
+            placeholder={DEFAULT_COUNTDOWN_LABEL}
+          />
+        </div>
+        <p style={{ color: "var(--text-dim)", fontSize: "0.85rem" }}>
+          Vista previa:{" "}
+          <span style={{ fontFamily: "var(--font-display)" }}>
+            {previewDaysRemaining === null
+              ? "…"
+              : formatCountdownMessage(previewDaysRemaining, fieldValues.countdownLabel)}
+          </span>
+        </p>
+        <div className="editor-field">
+          <label htmlFor="calendar-coverImageUrl">Foto de portada (URL, opcional)</label>
+          <input
+            id="calendar-coverImageUrl"
+            name="coverImageUrl"
+            type="url"
+            value={fieldValues.coverImageUrl}
+            onChange={(e) => setField("coverImageUrl", e.target.value)}
+            disabled={pending}
+            placeholder="https://…"
+          />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -274,6 +296,9 @@ export function EditCalendarForm({ calendar, skins }: EditCalendarFormProps) {
           {state.error}
         </p>
       ) : null}
+      <div style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-dim)" }}>
+        Datos del calendario
+      </div>
       <EditCalendarFields fieldValues={fieldValues} setField={setField} skins={skins} />
       <SubmitButton>Guardar cambios</SubmitButton>
     </form>

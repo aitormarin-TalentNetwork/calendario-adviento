@@ -111,14 +111,24 @@ export default async function AdminCalendarPage({
 
       <DaysSection calendarId={calendar.id} skinAccent={skinAccent} skinBackground={skinBackground} />
 
-      <form action={deleteCalendarAction.bind(null, calendar.id)} style={{ marginTop: "2rem" }}>
-        <ConfirmSubmitButton
-          label="Borrar calendario"
-          confirmText={`¿Seguro que quieres borrar "${calendar.name}"? Esto borra también sus días, invitaciones y membresías — no se puede deshacer.`}
-        />
-      </form>
-
       <GuestsSection calendarId={calendar.id} />
+
+      {/* TAL-33 — "Borrar calendario" pasa de botón fantasma en la
+          cabecera a botón rojo relleno al final de la pantalla, separado
+          por un divisor (design/design-system.md § "Editor de
+          calendario" — "Zona de peligro"). `.editor-danger-zone`
+          (globals.css) alinea el botón a la derecha en desktop y lo pone
+          a ancho completo en mobile (mejor objetivo táctil cuando queda
+          solo al final de la pantalla). */}
+      <div className="editor-danger-zone">
+        <form action={deleteCalendarAction.bind(null, calendar.id)}>
+          <ConfirmSubmitButton
+            label="Borrar calendario"
+            confirmText={`¿Seguro que quieres borrar "${calendar.name}"? Esto borra también sus días, invitaciones y membresías — no se puede deshacer.`}
+            variant="danger"
+          />
+        </form>
+      </div>
     </main>
   );
 }
