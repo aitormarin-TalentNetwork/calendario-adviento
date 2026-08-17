@@ -105,7 +105,16 @@ function useTodayStr(): string | null {
 function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();
   const todayStr = useTodayStr();
-  const previewDaysRemaining = todayStr ? daysUntil(parseDateOnlyUTC(todayStr), parseDateOnlyUTC(fieldValues.endDate)) : null;
+  // Hallazgo no bloqueante de auditoría (TAL-27, ronda 1): si el Admin borra
+  // temporalmente la fecha de fin, `parseDateOnlyUTC("")` da un `Date`
+  // inválido (`NaN`) y el mensaje salía "Faltan NaN días para Y". `NaN` se
+  // trata igual que "todavía no se sabe" (`null`) — mismo placeholder "…"
+  // de más abajo, en vez de un número sin sentido.
+  const rawPreviewDaysRemaining = todayStr
+    ? daysUntil(parseDateOnlyUTC(todayStr), parseDateOnlyUTC(fieldValues.endDate))
+    : null;
+  const previewDaysRemaining =
+    rawPreviewDaysRemaining !== null && !Number.isNaN(rawPreviewDaysRemaining) ? rawPreviewDaysRemaining : null;
 
   return (
     <div className="editor-columns">

@@ -3,11 +3,13 @@ import { notFound, redirect } from "next/navigation";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
+import { CountdownMarkerLoader } from "@/app/c/[calendarId]/countdown-marker-loader";
 import { DoorGrid } from "@/app/c/[calendarId]/door-grid";
 import { DoorGridLoader } from "@/app/c/[calendarId]/door-grid-loader";
 import { SessionIndicator } from "@/components/session-indicator";
-import { todayInTimeZone } from "@/lib/calendars";
+import { parseUtcDateOnly, todayInTimeZone } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { DEFAULT_COUNTDOWN_LABEL, daysUntil, formatCountdownMessage } from "@/lib/countdown";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
@@ -25,10 +27,20 @@ import { coverBackgroundCss, resolveSkinAppearance, type SkinAppearance } from "
  * que ya usaba `admin/[calendarId]/page.tsx` desde TAL-12) para resolver
  * el `background`/`accent` reales del skin del calendario — ver
  * `src/lib/skin-appearance.ts`.
+ *
+ * TAL-27 — también `endDate`/`countdownLabel`, para el marcador "Faltan X
+ * días para Y" (ver más abajo). Mismo respaldo de lectura que `coverIcon`
+ * para `countdownLabel` — convex/schema.ts § countdownLabel.
  */
 async function getCalendarForGuestPage(
   calendarId: string
-): Promise<{ coverTitle: string; coverIcon: string; appearance: SkinAppearance } | null> {
+): Promise<{
+  coverTitle: string;
+  coverIcon: string;
+  endDate: Date;
+  countdownLabel: string;
+  appearance: SkinAppearance;
+} | null> {
   const serverSecret = convexAppServerSecret();
   const [calendar, skins] = await Promise.all([
     fetchQuery(api.calendars.getPublic, { serverSecret, calendarId: calendarId as Id<"calendars"> }),
@@ -40,6 +52,10 @@ async function getCalendarForGuestPage(
     // Respaldo para calendarios creados antes de TAL-23 — ver
     // convex/schema.ts § coverIcon.
     coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
+    endDate: parseUtcDateOnly(calendar.endDate)!,
+    // Respaldo para calendarios creados antes de TAL-27 — ver
+    // convex/schema.ts § countdownLabel.
+    countdownLabel: calendar.countdownLabel ?? DEFAULT_COUNTDOWN_LABEL,
     appearance: resolveSkinAppearance(calendar.skinId, skins),
   };
 }
@@ -58,7 +74,7 @@ export default async function GuestCalendarPage({
   // tenga acceso a él.
   const calendar = await getCalendarForGuestPage(calendarId);
   if (!calendar) notFound();
-  const { appearance } = calendar;
+  const { appearance, endDate, countdownLabel } = calendar;
 
   // Cualquier rol (Guest, Admin o Super Admin) puede ver el calendario; para
   // un Guest sin membership todavía, resolveCalendarAccess la crea aquí
@@ -83,6 +99,20 @@ export default async function GuestCalendarPage({
   // del navegador — el servidor no manda contenido de ningún día hasta
   // entonces.
   const tz = (await cookies()).get("tz")?.value;
+
+  // TAL-27, parte 2 — mismo criterio de zona horaria que las puertas justo
+  // arriba: si ya hay cookie `tz`, "hoy" se resuelve aquí mismo en el
+  // servidor (`todayInTimeZone`, mismo helper que ya usa
+  // `ServerResolvedDoors` más abajo); si no, el marcador se difiere a
+  // `CountdownMarkerLoader` (cliente, resuelve con `Intl` del navegador tras
+  // montar) — nunca un valor por defecto tipo UTC calculado aquí. A
+  // diferencia de las puertas, un desfase de un día en este número no
+  // filtra contenido de ningún día (no es un hallazgo de seguridad como el
+  // de TAL-8 ronda 2), pero el brief pide explícitamente reutilizar el
+  // mismo patrón ya establecido, sin reinventarlo.
+  const countdownMessage = tz
+    ? formatCountdownMessage(daysUntil(todayInTimeZone(new Date(), tz), endDate), countdownLabel)
+    : null;
 
   // TAL-24 — corrección de auditoría, ronda 1: texto blanco + sombra SOLO
   // no bastaba (el skin "Nieve" llega a `#ffffff` puro, blanco sobre
@@ -142,6 +172,25 @@ export default async function GuestCalendarPage({
         <h1 style={coverTextStyle}>
           <span aria-hidden="true">{calendar.coverIcon}</span> {calendar.coverTitle}
         </h1>
+        {countdownMessage ? (
+          <p
+            style={{
+              ...coverTextStyle,
+              fontFamily: "var(--font-display)",
+              fontSize: "1.5rem",
+              fontWeight: 700,
+              marginTop: "0.5rem",
+            }}
+          >
+            {countdownMessage}
+          </p>
+        ) : (
+          <CountdownMarkerLoader
+            endDate={endDate.toISOString().slice(0, 10)}
+            label={countdownLabel}
+            style={coverTextStyle}
+          />
+        )}
       </div>
 
       {tz ? (
