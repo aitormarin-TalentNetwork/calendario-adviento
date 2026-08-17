@@ -774,3 +774,93 @@ como fuente exacta de valores.
   tarea. El relleno de alineación de semana (días que no pertenecen a
   ningún mes, ni siquiera fuera de rango) sigue en blanco sin numerar,
   sin tocar — concepto distinto, no confundir con "fuera de rango".
+
+## Skin a pantalla completa + centrado (TAL-46/TAL-47 núcleo)
+
+**TAL-46 — centrado.** `<main className="session-page-main">` (`page.tsx`) tenía
+`maxWidth: 900px` pero ningún centrado horizontal — en pantallas más anchas que 900px
+quedaba pegado a la izquierda con todo el espacio sobrante a la derecha. `<body>` es un
+flex container en columna (`globals.css`), así que `<main>` es un flex item cuyo eje
+CRUZADO es el horizontal: por defecto `align-items: stretch` lo estira al ancho de
+`<body>` y `maxWidth` recorta ese resultado, pero anclado al borde izquierdo, sin ningún
+centrado.
+
+**Hallazgo real durante la verificación (no solo teórico):** el primer intento —
+`marginLeft`/`marginRight: "auto"` sin más — pasaba `tsc`/`lint`/`build` y SE VEÍA
+centrado a ojo, pero medido de verdad con `getBoundingClientRect()` en el navegador
+resultó que `<main>` había dejado de tener 900px de ancho: se había encogido a ~549px
+(el ancho de su propio contenido). Motivo, spec de Flexbox: un margen `auto` en el eje
+cruzado tiene prioridad ABSOLUTA sobre `stretch` — en cuanto hay un margen `auto` en ese
+eje, el `align-self` efectivo deja de ser `stretch`, así que el item pasa a encogerse a
+su contenido en vez de estirarse hasta `maxWidth`. Centrado sí, pero un `<main>` mucho
+más estrecho de lo pretendido — una regresión real, no solo "está centrado, listo".
+Corregido añadiendo `width: "100%"` junto a los márgenes `auto` — con un tamaño cruzado
+definido (100% del `<body>`, recortado por `maxWidth` a 900px, igual que antes), los
+márgenes `auto` sí reparten el espacio sobrante en partes iguales. Confirmado con
+`getBoundingClientRect()`: `mainWidth: 900`, `leftGap === rightGap` (44.5px cada uno en
+un viewport de 989px) — no solo "se ve centrado", medido. No hizo falta tocar `<body>`
+ni ningún padre — no es un flex ROW, así que `justify-content` no aplica aquí.
+
+**TAL-47 (núcleo) — skin a pantalla completa.** Antes, `coverBackgroundStyle` solo se
+aplicaba al bloque de portada (`page.tsx`), a la cabecera de mes del grid
+(`door-grid.tsx`/`days-grid-editor.tsx`) y al modal de vídeo — el propio `<main>` y
+cualquier espacio alrededor/entre esas tarjetas se quedaba con el `--bg` fijo de la app
+(pine), sin reflejar el skin del calendario. Ahora `coverBackgroundStyle(appearance.background,
+backgroundImageUrl)` se aplica también directamente al `style` del `<main>` de
+`page.tsx` (resuelto en una variable propia tipada `React.CSSProperties` antes de
+mezclarla con `"--accent"` — la unión discriminada que devuelve la función, TAL-29, no
+se puede "castear" junto a una custom property arbitraria en el mismo objeto literal) —
+mismo criterio, mismo fondo/imagen, misma capa de oscurecimiento. El bloque de portada
+sigue aplicando su PROPIA copia de `coverBackgroundStyle` dentro de su propia tarjeta
+redondeada — como el resultado es opaco, no hay doble-oscurecimiento ni conflicto
+visual, la tarjeta simplemente continúa el mismo patrón que el fondo de la página que la
+rodea. El acento (`--accent`) NO cambia de alcance — sigue gobernando exactamente lo
+mismo que antes (puertas/casillas/bordes/"hoy"/píldoras), este ajuste es solo sobre el
+fondo.
+
+**Punto 1 de la ampliación de TAL-47 (opacidad del overlay) — REEMPLAZADO de raíz antes
+de construirse, no forma parte de este cambio.** Primer intento de decisión: opción (a)
+del PM, bajar la opacidad del overlay (0.6→0.55) y compensar con `text-shadow` más
+fuerte — se llegó a implementar y reverificar matemáticamente (mismo caso límite "Nieve"
+de TAL-24), pero Aitor vio el mockup y prefirió algo distinto ANTES de que esa versión
+se exportara para auditoría: un campo `textColor` nativo por skin (hex, decidido a mano
+al diseñar cada skin), sustituyendo la capa de oscurecimiento en tiempo real por
+completo — no una vuelta más a la misma técnica. Implica schema de Convex
+(`textColor` nuevo en `skins`), rellenar los 23 valores existentes (trabajo de diseño,
+no técnico — el PM lo está definiendo con Aitor) y re-sembrar producción (mismo
+mecanismo que TAL-43). Queda como ticket/ronda aparte, no en esta.
+
+**Punto 2 de la ampliación (números de día/chrome del grid derivados del skin) también
+queda fuera de esta ronda** — sin spec concreta de qué cambia exactamente y qué no (ver
+Linear TAL-47), se deja como seguimiento para que el PM lo defina con Aitor.
+
+**Evidencia:** verificado en navegador real (calendario de prueba, skin "Confeti" —
+degradado cónico multicolor vivo, elegido a propósito para que un fondo a pantalla
+completa fuera inequívoco; también probado con "Nieve", el caso límite casi blanco).
+Viewport ancho real de ~989px (ventana del navegador — `resize_window` a un ancho mayor
+no cambió el viewport real reportado por `window.innerWidth` en este entorno, mismo
+motivo ya documentado en verificaciones previas de otras tareas):
+- `<main>`: `mainWidth: 900`, `leftGap: 44.5`, `rightGap: 44.5` — centrado confirmado por
+  medición exacta (`getBoundingClientRect()`), no solo visual.
+- Fondo del skin ("Confeti") visible cubriendo toda la altura de la página, no solo la
+  cabecera de portada — confirmado tanto en captura como leyendo
+  `getComputedStyle(main).backgroundImage` directamente (empieza por el mismo
+  `linear-gradient(rgba(0,0,0,0.6)...), conic-gradient(...)` que genera
+  `coverBackgroundStyle`). La tarjeta de portada sigue distinguiéndose como su propio
+  bloque redondeado, sin conflicto visual con el fondo que la rodea.
+- Repetido en un iframe de 700px (por debajo de 900px): `<main>` ocupa el ancho completo
+  disponible sin gap de centrado desperdiciado — comportamiento correcto en el otro
+  extremo.
+- Repetido en un iframe de 375px (requisito de verificación mobile del PM, retroactivo a
+  toda tarea sin mergear): sin recorte de texto ni desbordamiento, fondo del skin cubre
+  toda la pantalla igual que en desktop.
+- Con "Nieve" (skin casi blanco, el caso límite de contraste de TAL-24): fondo a pantalla
+  completa, título/marcador de cuenta atrás siguen legibles con el mismo tratamiento de
+  siempre (overlay 0.6 + sombra sin cambios, no se tocó nada de contraste en esta ronda).
+- Sin errores de consola reales (el único mensaje visto fue un falso positivo de
+  hidratación causado por la extensión Grammarly inyectando atributos `data-gr-*` en
+  `<body>` antes de que React hidratara — confirmado por el propio texto del aviso de
+  React, no relacionado con este cambio).
+
+Build/tsc/lint limpios desde instalación limpia real (`rm -rf node_modules .next && npm
+install`).
