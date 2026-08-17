@@ -86,15 +86,21 @@ async function fetchCalendarDays(calendarId: string) {
  * Server/Client); `skinBackground` se pasa directo a `DaysGridEditor`,
  * que lo aplica solo a la cabecera de mes (ver el comentario completo
  * ahí de por qué no se toca el fondo de las casillas individuales).
+ *
+ * `backgroundImageUrl` (TAL-39) se pasa igual que `skinBackground` —
+ * `DaysGridEditor` decide ahí (`coverBackgroundStyle`) si sustituye el
+ * color/degradado del skin por la imagen en esa misma cabecera de mes.
  */
 export async function DaysSection({
   calendarId,
   skinAccent,
   skinBackground,
+  backgroundImageUrl,
 }: {
   calendarId: string;
   skinAccent: string;
   skinBackground: string;
+  backgroundImageUrl: string | null;
 }) {
   // Solo se atrapa el fallo de la propia llamada (Convex no disponible,
   // secreto mal configurado, red caída) — un mensaje de "no disponible"
@@ -160,8 +166,19 @@ export async function DaysSection({
 
   return (
     <section style={{ marginTop: "2rem", "--accent": skinAccent } as React.CSSProperties}>
-      <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
-      <DaysGridEditor calendarId={calendarId} days={dayInfos} background={skinBackground} />
+      <h2 style={{ fontSize: "1.1rem", marginBottom: "0.25rem" }}>Días del calendario</h2>
+      {/* TAL-34 (design/design-system.md § "Editor de calendario",
+          design/propuesta-editor-calendario.html) — texto explicativo fijo
+          encima del grid, mismo criterio de wording que el mockup. */}
+      <p style={{ color: "var(--text-dim)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+        Selecciona el día para subir el vídeo. Los días que ya tienen vídeo muestran un fotograma como miniatura.
+      </p>
+      <DaysGridEditor
+        calendarId={calendarId}
+        days={dayInfos}
+        background={skinBackground}
+        backgroundImageUrl={backgroundImageUrl}
+      />
     </section>
   );
 }

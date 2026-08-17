@@ -80,3 +80,41 @@ export function resolveSkinAppearance(skinId: string, skins: SkinLike[]): SkinAp
 export function coverBackgroundCss(background: string): string {
   return `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), ${background}`;
 }
+
+export type CoverBackgroundStyle = {
+  background: string;
+  backgroundSize?: string;
+  backgroundPosition?: string;
+};
+
+/**
+ * TAL-39 — cuando el calendario tiene `backgroundImageUrl`, la imagen
+ * SUSTITUYE el color/degradado del skin como base visual en los mismos
+ * sitios donde TAL-24 ya aplicaba `coverBackgroundCss(background)`
+ * (cabecera de mes del grid, cabecera de portada del Invitado, modal de
+ * vídeo) — el acento del skin (`--accent`) sigue gobernando puertas/
+ * casillas/bordes/"hoy"/píldoras sin relación con esta función, y
+ * `skinId` sigue siendo obligatorio siempre (brief: la imagen convive con
+ * el skin, no lo sustituye como dato).
+ *
+ * Misma capa de oscurecimiento uniforme que `coverBackgroundCss` (mismo
+ * motivo/contraste verificado matemáticamente ahí arriba), antepuesta a la
+ * imagen en vez de al `background` del skin. `backgroundSize`/
+ * `backgroundPosition` como propiedades aparte del `background` shorthand
+ * — mismo criterio ya establecido en `days-grid-editor.tsx`/`door-grid.tsx`
+ * para las miniaturas de vídeo de las casillas "visto" (el shorthand
+ * `background` no expresa tamaño/posición de una imagen de forma legible
+ * él solo). Sin imagen, se comporta exactamente igual que antes
+ * (`coverBackgroundCss` a secas, sin tamaño/posición — no hacen falta
+ * para un color/degradado).
+ */
+export function coverBackgroundStyle(background: string, backgroundImageUrl?: string | null): CoverBackgroundStyle {
+  if (backgroundImageUrl) {
+    return {
+      background: `linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url("${backgroundImageUrl}")`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+    };
+  }
+  return { background: coverBackgroundCss(background) };
+}

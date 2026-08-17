@@ -54,13 +54,14 @@ export const createSkin = internalMutation({
 });
 
 /**
- * TAL-22 — catálogo completo de 22 skins (los 4 originales del MVP +
- * los 18 nuevos validados con Aitor, design/design-system.md § "Skins").
- * Un solo `npx convex run skins:seedSkinCatalog '{}'` puebla o actualiza
- * las 22 filas de una vez — idempotente vía `upsertSkinHandler` (converge
- * al mismo estado sin importar si las filas ya existían con datos
- * parciales o no existían en absoluto). El resto del catálogo (añadir un
- * skin #23) sigue siendo por script/CLI, no UI — decisión ya cerrada en
+ * TAL-22 — catálogo completo (originalmente 22 skins: los 4 del MVP + los
+ * 18 nuevos validados con Aitor, design/design-system.md § "Skins"; ahora
+ * 23 con "Tira Cómica", TAL-38 — mismo mecanismo, sin UI de gestión). Un
+ * solo `npx convex run skins:seedSkinCatalog '{}'` puebla o actualiza
+ * todas las filas de una vez — idempotente vía `upsertSkinHandler`
+ * (converge al mismo estado sin importar si las filas ya existían con
+ * datos parciales o no existían en absoluto). Añadir un skin nuevo sigue
+ * siendo por script/CLI, no UI — decisión ya cerrada en
  * design-system.md § "Skins" → "Arquitectura".
  *
  * Fuente de los 18 nuevos: `design/propuesta-skins.html` (valores CSS
@@ -248,6 +249,29 @@ const SKIN_CATALOG: SkinSeed[] = [
     description: "Rayas de colores de equipo, sin escudo ni nombre de club — inspirado libremente.",
     background: "repeating-linear-gradient(90deg, #1a2a6c 0 22px, #8c2f39 22px 44px)",
     accent: "#8c2f39",
+  },
+
+  // --- Skin #23 — pedido explícito de Aitor (TAL-38, 2026-08-17), fuera
+  // del catálogo inicial de 22 validado el 2026-08-16. Aitor va a subir su
+  // propia foto de portada (un personaje de cómic con derechos de autor
+  // que él tiene derecho a usar) y quiere un skin cuyos colores combinen
+  // con ella — el skin en sí no reproduce ni nombra esa IP, mismo criterio
+  // que "Historieta"/"Superhéroe" arriba. `background` es exactamente el
+  // degradado sutil pedido (sin textura, a diferencia de "Historieta").
+  // El schema solo admite UN `accent` (un hex) y ningún campo de
+  // contorno/borde — de los 4 elementos de color del brief (rojo, azul,
+  // amarillo, contorno negro grueso) solo el rojo tiene dónde sembrarse
+  // (`accent: "#e63946"`, mismo criterio que "Historieta"). Azul, amarillo
+  // y el contorno negro NO quedan representados en ningún dato de esta
+  // fila — quedan pendientes como dirección visual para quien trabaje el
+  // frontend de esta skin en el futuro, fuera de alcance de esta tarea.
+  {
+    key: "tira-comica",
+    name: "Tira Cómica",
+    description:
+      "Colores vivos de cómic clásico — rojo, azul y amarillo con contorno negro, sobre fondo claro. Pensado para combinar con una foto de portada propia.",
+    background: "linear-gradient(160deg, #fdf8ec 0%, #ffffff 100%)",
+    accent: "#e63946",
   },
 ];
 

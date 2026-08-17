@@ -87,7 +87,9 @@ del MVP original.** Fuente: `design/propuesta-grid-calendario.html`.
   punteado — que se note claramente de un vistazo, no solo al fijarse).
 - **Bloqueado** (día futuro, dentro del rango del calendario): casilla atenuada
   (`opacity: 0.4`), número más pequeño, icono de candado 🔒 en la esquina inferior
-  derecha — sin click.
+  derecha. **No abre nada al pinchar** (sigue sin desbloquear el vídeo), pero desde
+  2026-08-17 (pedido explícito de Aitor) el clic sí tiene reacción — ver "Efecto de
+  impaciencia" justo debajo.
 - **Abierto, sin ver**: fondo `--paper-2` (claro) / `--pine-2` (oscuro), número grande
   normal, click habilitado.
 - **Visto**: fondo = fotograma del vídeo (o color de relleno si no hay miniatura real
@@ -106,6 +108,31 @@ del MVP original.** Fuente: `design/propuesta-grid-calendario.html`.
   completo sin huecos".)
 - Modal de vídeo: `<iframe>` de YouTube/Vimeo/Drive centrado, mensaje del día debajo —
   sin cambios respecto al MVP shippeado, esta parte no se toca.
+
+**Efecto de "primera apertura"** (pedido explícito de Aitor, 2026-08-17): al pinchar una
+casilla "Abierto, sin ver" para verla por primera vez, antes de abrir el reproductor:
+
+- La casilla hace un **pop** (rebote de escala + destello dorado, ~0.6s).
+- **Confeti** por toda la pantalla (no solo dentro de la casilla) — piñata que explota,
+  colores del sistema (`--gold`, `--gold-2`, `--berry`, `--paper`, `--pine-2`).
+- **Sonido de premio**: un "crac" corto seguido de un arpegio ascendente tipo "logro
+  desbloqueado" — sintetizado con Web Audio API, no un fichero de audio externo.
+- Al terminar (~0.6-0.7s), se abre el reproductor normalmente.
+- Ver `design/propuesta-grid-calendario.html` — pincha cualquier casilla clara para
+  probarlo.
+
+**Efecto de "impaciencia"** (pedido explícito de Aitor, 2026-08-17): al pinchar una
+casilla **bloqueada** (día futuro, sin abrir todavía):
+
+- La casilla hace un **pulso corto** (encoge/estira con destello en `--berry`, no en
+  `--gold` — para que se note claramente que es un "todavía no", distinto del pop dorado
+  de "primera apertura"). No abre nada, el vídeo sigue bloqueado.
+- Aparece un **letrero centrado en la pantalla** (overlay, se desvanece solo a los
+  ~2.5s o al pinchar fuera): *"Calma tu ansiedad. Te quedan **{X}** días para abrir este
+  regalo"* — X = días naturales que faltan hasta la fecha de esa casilla concreta
+  (singular "día" cuando X=1). Tono cercano/con humor, no un error.
+- Ver `design/propuesta-grid-calendario.html` — pincha cualquier casilla con candado
+  para probarlo.
 
 ### Skins
 
@@ -132,6 +159,55 @@ hardcodeo, cero enum fijo en frontend.** Añadir un skin nuevo (el #23, el #50) 
 insertar un registro, no tocar código. Hoy el alta de un skin nuevo se hace por
 script/CLI (no hay UI de gestión en la app todavía — Aitor confirmó que esto es
 suficiente por ahora, no hace falta una pantalla de Super Admin para ello).
+
+**Skin #23 — "Tira Cómica"** (pedido 2026-08-17): colores compatibles con una imagen
+que Aitor va a subir él mismo como foto de portada (personaje de cómic con derechos de
+autor — Aitor sube su propio asset con licencia/derecho para ello, nosotros no lo
+generamos ni lo nombramos por la IP). Sigue la misma regla dura de marcas: el skin en sí
+se llama y describe de forma genérica, sin mencionar la obra o personaje de origen.
+
+- **Fondo:** blanco/crema limpio (`#fdf8ec` → `#ffffff`, degradado muy sutil) — para que
+  una imagen de personaje con fondo claro combine bien encima.
+- **Acentos** (rotan igual que el resto de skins entre puertas/estados del grid): rojo
+  vivo `#e63946`, azul cielo `#2fa8e0`, amarillo sol `#ffd23f` — trío de color primario
+  clásico de tira cómica, con contorno negro grueso (`2-3px solid #1a1a1a`) en vez de
+  sombra, mismo lenguaje gráfico que "Historieta" pero sobre fondo claro en vez de
+  patrón de tramado.
+- Nombre: **"Tira Cómica"**. Descripción sugerida: *"Colores vivos de cómic clásico —
+  rojo, azul y amarillo con contorno negro, sobre fondo claro. Pensado para combinar con
+  una foto de portada propia."*
+
+### Imagen de fondo del calendario (nuevo campo, distinto de "Foto de portada")
+
+**Pedido explícito de Aitor, 2026-08-17.** Hoy `coverImageUrl` ("Foto de portada") solo
+se pinta en la pantalla de login (`src/app/login/page.tsx`) — no llega al grid de días
+ni al modal de vídeo. Aitor quiere subir una imagen propia (p. ej. un personaje, para
+combinar con el skin "Tira Cómica") que se vea en **todo el calendario**, no solo en el
+login — mismo alcance que un skin.
+
+- **Campo nuevo:** `backgroundImageUrl` (o nombre equivalente), opcional, en el
+  calendario — independiente de `coverImageUrl` (que se queda como está, solo portada) y
+  del `skinId` (que se mantiene obligatorio siempre, incluso con imagen de fondo puesta).
+- **Alcance — las 3 superficies reales donde ya aplica un skin** (corrección
+  2026-08-17, hallazgo de T2 durante TAL-39: "portada" tiene dos significados en este
+  proyecto y no son intercambiables): la portada/cuenta atrás del Invitado **ya
+  autenticado** (`/c/[calendarId]`), el grid de días (Invitado y editor de Admin) y el
+  modal de vídeo. **`/login` (portada pública, sin autenticar) queda fuera a
+  propósito** — tiene una lista blanca deliberadamente mínima en Convex por seguridad
+  (solo `coverTitle`/`coverIcon`/`coverImageUrl`, ver TAL-25) y no se amplía para esto,
+  mismo criterio que ya aplica de facto a `skinId` (tampoco llega a `/login`).
+- **Cómo convive con el skin:** la imagen sustituye el fondo de color/degradado del skin
+  como base visual; el **color de acento del skin sigue gobernando** puertas/casillas,
+  bordes, estado "hoy", píldoras, etc. — la imagen no reemplaza al skin, lo complementa
+  (el skin sigue siendo obligatorio). Igual que ya hace el estado "Visto" del grid con el
+  fotograma del vídeo, se aplica una capa de degradado oscuro sutil
+  (`linear-gradient(to top, rgba(10,16,12,0.5), transparent 55%)` o similar) encima de la
+  imagen para que el texto/iconos sigan siendo legibles.
+- **Editor:** campo "Imagen de fondo (URL, opcional)" en el editor de calendario, junto
+  al campo de skin (columna derecha de "Datos del calendario" — ver sección "Editor de
+  calendario" más abajo).
+- Misma validación que `coverImageUrl` ya tiene hoy (solo URL https, sin subida de
+  archivo real — fuera de alcance del MVP, ver TAL-6).
 
 ### Selector de icono de portada (Admin)
 

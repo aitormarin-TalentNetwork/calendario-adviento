@@ -494,6 +494,429 @@ valor nuevo persiste tras recargar.
 `npx next build`/`npx eslint .` limpios (ambas rondas); `npx convex dev
 --typecheck=enable` limpio; `AGENTS.md` intacto.
 
+## Panel de Admin como tabla (TAL-32)
+
+**Antes**: `/admin` mostraba los calendarios como una lista de `<Link>` sueltos (todo el
+texto de la fila era el enlace, sin distinguir visualmente qué era clicable), y el botón
+"+ Nuevo calendario" aparecía DESPUÉS del mensaje "todavía no administras ningún
+calendario" — abajo del todo, no como primer elemento de la pantalla.
+
+**Ahora**: lista como tabla real (columnas Nombre/Fechas/Skin), botón "+ Nuevo
+calendario" ENCIMA de la tabla (o del mensaje de lista vacía). El nombre en la tabla se
+ve explícitamente como link — subrayado + color `--accent` — pedido explícito de Aitor:
+antes toda la fila era un `<Link>` sin ningún estilo propio de enlace, así que en una
+tabla (con más columnas de texto plano al lado) no quedaba claro qué se podía pinchar.
+Solo el nombre es clicable, no la fila entera — el resto de columnas son texto plano.
+
+Al pulsar "+ Nuevo calendario" se sigue abriendo directamente la página de configuración
+(sin cambios, ya funcionaba así) — y en esa página, el primer campo sigue siendo el
+nombre del calendario (TAL-26, verificado que no ha regresado con las tareas
+posteriores — TAL-23/27 añadieron campos, pero después de `name` en el formulario).
+
+**Mobile**: la tabla vive en un contenedor con `overflow-x: auto` propio
+(`design/design-system.md` § "Responsive / Mobile") — si las 3 columnas no caben a
+375px, scrollea la tabla sola, la página nunca lo hace en horizontal. Verificado con dos
+calendarios reales (uno con nombre largo) en navegador real: aparece un scrollbar
+horizontal dentro del contenedor de la tabla, la página en sí no se mueve; sin solape con
+`SessionIndicator` (mismo `className="session-page-main"` que ya tenía la página, sin
+cambios en ese mecanismo).
+
+## Editor de calendario — 2 columnas, icono en diálogo, borrar al final (TAL-33)
+
+**Fuente**: `design/design-system.md` § "Editor de calendario (pantalla de
+configuración del Admin)" / "Formularios" / "Selector de icono de portada", validadas
+con Aitor 2026-08-17. Mockup: `design/propuesta-editor-calendario.html`. Alcance
+acotado deliberadamente al brief literal de TAL-33 (2 columnas, etiqueta a la izquierda,
+icono en diálogo, borrar al final) — la sección "Editor de calendario" del Design
+System también describe cambios al grid de días (diálogo por día, fotograma de vídeo) y
+a "Invitados" (link único) que NO son parte de esta tarea; quedan para TAL-34/35/37 y
+siguientes, sin tocar `days-section.tsx`/`guests-section.tsx` aquí.
+
+**"Datos del calendario" en dos columnas**: izquierda = fecha de inicio/fin;
+derecha = nombre, título de portada, icono de portada, skin — y, al final de esa misma
+columna derecha (no están en el mockup, que es previo a TAL-27 y nunca tuvo foto de
+portada), marcador de cuenta atrás + vista previa y foto de portada (URL). Clases
+nuevas `.editor-columns`/`.editor-col`/`.editor-field` (`globals.css`) — necesitan
+`@media` para colapsar a 1 columna y apilar etiquetas por debajo de 640px
+(design-system.md § "Responsive / Mobile"), que un `style` inline de React no puede
+expresar (mismo motivo que `.session-indicator`, TAL-28).
+
+**Selector de icono de portada — ahora en diálogo**: la página solo muestra el icono
+elegido (casilla `44px`, `--paper-2`/`--border`) + botón "Cambiar icono". Al pulsarlo
+se abre un diálogo modal con la galería completa (buscador + categorías, sin cambios de
+contenido respecto a TAL-23) — mismo patrón de diálogo ya establecido en `door-grid.tsx`
+(modal de vídeo del Invitado): `role="dialog"`/`aria-modal`, cierre con Escape o clic en
+el fondo, foco inicial en el botón de cerrar, foco devuelto al disparador al cerrar. Al
+elegir un icono, el diálogo se cierra solo — no hace falta un botón "Guardar" aparte.
+
+**"Borrar calendario" — botón rojo relleno al final**: se mueve de la cabecera (botón
+fantasma de solo texto, junto al título) al final de la pantalla, después de
+"Invitados", separado por un divisor (`.editor-danger-zone`). Nuevo `variant="danger"`
+en `ConfirmSubmitButton` (opcional, por defecto no cambia nada para otros llamadores).
+Excepción explícita al estilo general "Peligro: solo texto" que sigue describiendo
+`design-system.md` § "Botones" para el resto de acciones de borrar de la app — solo
+este botón concreto pasa a relleno, por pedido directo del brief de TAL-33.
+
+**Hallazgo real durante la verificación (no solo teórico)**: el mockup usa
+`justify-content: stretch` para expandir el botón a ancho completo en mobile — probado
+en navegador real y NO se comportó así de forma fiable (el botón quedaba con su ancho
+de contenido). Corregido con `flex-direction: column` + `align-items: stretch` en la
+media query (bien soportado, estira el `<form>` hijo al ancho del contenedor, y de ahí
+el `width: 100%` del botón llena el `<form>`) — reverificado tras el cambio: botón
+genuinamente a ancho completo por debajo de 640px.
+
+**Evidencia**: verificado en navegador real, dos anchos distintos (una ventana física
+que resultó estar en ~605px — por debajo del breakpoint, sin necesidad de emulación — y
+un iframe de 900px inyectado en la propia página para el ancho de escritorio, mismo
+método ya usado en el seguimiento de TAL-28 porque `resize_window` no reproduce un
+viewport ancho/estrecho de verdad en este entorno). A 605px: campos apilados (etiqueta
+arriba), "Borrar calendario" a ancho completo tras el arreglo. A 900px: dos columnas
+reales lado a lado (fechas a la izquierda, resto a la derecha), etiquetas a la
+izquierda de cada input. Diálogo de icono: abre con el icono actual marcado, buscador
+filtra igual que antes (TAL-23), Escape cierra, seleccionar un icono cierra el diálogo
+y actualiza la casilla — confirmado también contra el dato real en Convex tras guardar
+(`coverIcon` persistido correctamente, `npx convex data calendars --format
+jsonLines`).
+
+`npx next build`/`npx eslint .` limpios; `npx convex dev --once --typecheck=enable`
+limpio; `AGENTS.md` intacto.
+
+## Días del calendario — diálogo para subir el vídeo (TAL-34)
+
+Brief (design/design-system.md § "Editor de calendario"/"Grid de días",
+design/propuesta-editor-calendario.html): el clic en un día del grid del
+editor de Admin (`days-grid-editor.tsx`) ya no abre un panel inline debajo
+del grid — abre un **diálogo** (modal), mismo patrón ya establecido en
+`door-grid.tsx` (vídeo del Invitado) y reutilizado en `cover-icon-picker.tsx`
+(TAL-33): foco inicial en el botón de cerrar, Escape cierra, clic en el
+fondo cierra, foco devuelto a la casilla que abrió el diálogo
+(`lastTriggerRef`, mismo mecanismo que `door-grid.tsx` — el disparador aquí
+es una de muchas casillas del grid, no un botón fijo como en
+`cover-icon-picker.tsx`).
+
+Además:
+- Texto explicativo fijo encima del grid ("Selecciona el día para subir el
+  vídeo…") — añadido en `days-section.tsx`, sección server component (texto
+  estático, no necesita ser cliente).
+- El tratamiento visual de "con vídeo" (fotograma de fondo, número reducido
+  en píldora) ya existía desde TAL-21 y no se ha tocado — el brief pedía
+  confirmar que el editor lo usa igual que el Invitado, no un componente
+  nuevo.
+- Ya no hay un día "seleccionado" por defecto al cargar la página (antes,
+  `selectedDate` arrancaba en `days[0]?.dateStr`, abriendo el panel del
+  primer día sin que nadie hubiera hecho clic) — el diálogo solo se abre
+  tras un clic real.
+
+**Decisión de diseño de bajo riesgo, documentada aquí (no escalada al PM):**
+el brief pide un segmentado "Link externo"/"Subir archivo" dentro del
+diálogo, pero es explícito en que la tarea es solo de presentación, sin
+tocar lógica de guardado/Convex — y no existe ninguna mutation ni
+almacenamiento para subir un archivo de vídeo real
+(`days-actions.ts::saveDayAction` solo acepta una URL `https://` externa).
+En vez de renderizar un campo de subida que no manda nada a ningún sitio
+(UI que aparenta funcionar pero no hace nada), la pestaña "Subir archivo"
+muestra un aviso ("Subida de archivos: todavía no disponible…") y
+deshabilita el botón "Guardar día" mientras está activa — la única fuente
+de vídeo funcional hoy sigue siendo "Link externo", que reutiliza el mismo
+campo/validación que ya existía. `SubmitButton` (`src/components/
+submit-button.tsx`) ganó una prop opcional `disabled` para esto, combinada
+con su `pending` interno, sin afectar a sus otros usos (`edit-calendar-
+form.tsx`, `guests-section.tsx`), que no la pasan.
+
+**Evidencia:** verificado en un navegador real, autenticado como
+super-admin (`tal28-superadmin@example.com`, login de desarrollo) contra el
+calendario de prueba `Test TAL-13`. A ~605px real (por debajo del
+breakpoint 640px, ancho real de la ventana en el momento de probar, sin
+necesitar el iframe inyectado): diálogo abre al pulsar un día con vídeo
+(datos pre-cargados) y uno sin vídeo (campo vacío, sin botón "Quitar
+vídeo"); segmentado cambia de pestaña y deshabilita "Guardar día" en
+"Subir archivo"; Escape cierra y devuelve el foco a la casilla que abrió el
+diálogo (confirmado con `document.activeElement`). Guardado de una URL
+nueva en un día sin vídeo y posterior "Quitar vídeo" confirmados
+directamente contra Convex (`npx convex data days --format jsonLines`), no
+solo en la UI — datos de prueba restaurados a su estado original tras la
+verificación. A ~896px real (iframe inyectado — `resize_window` sigue sin
+reproducir un viewport ancho fiable en este entorno): confirmado que
+"Datos del calendario" sigue en 2 columnas (TAL-33, sin regresión) y que el
+diálogo se centra igual de bien a ese ancho.
+
+`npx eslint .`/`npx tsc --noEmit` limpios; `AGENTS.md` intacto. Ningún
+fichero de Convex (schema/mutations/queries) tocado — tarea puramente de
+presentación, tal como pedía el brief.
+
+## Link de invitación único con icono de copiar (TAL-35)
+
+Brief (design/design-system.md § "Invitados — link de invitación único",
+design/propuesta-editor-calendario.html `.invite-link-row`/`.btn-icon`/
+`.toast`): restilar el campo de solo lectura del link de invitación
+(`guests-section.tsx`) y sustituir `CopyLinkButton` (botón de texto
+"Copiar link"/"¡Copiado!") por un icono de línea minimalista sin texto, con
+confirmación tipo toast en vez de cambiar el texto del propio botón.
+
+**Investigación previa del ticket (comentario de Aitor en Linear, ya
+resuelta antes de repartir la tarea):** el backend YA funciona con un único
+link por calendario, sin token por invitado — el control de acceso real lo
+hace el login con Google contra la lista de invitados
+(`src/lib/roles.ts`), no un secreto en la URL (documentado en el propio
+`guests-section.tsx` desde TAL-7). Tampoco existía ya una acción de copiar
+individual por fila de invitado que hubiera que quitar — la tabla ya solo
+tenía "Quitar del calendario"/"Borrar por completo". Confirma que esta
+tarea es puramente de presentación, sin tocar Convex.
+
+Cambios:
+- `guests-section.tsx`: el `<p>` con el link en texto corrido pasa a un
+  `<div className="invite-link-row">` (label + `<code>` + botón), mismo
+  recuadro que el mockup.
+- `copy-link-button.tsx`: reescrito — icono SVG de línea ("copy", dos
+  rectángulos superpuestos, igual que el icono de "Quitar del calendario"
+  de la propia tabla de invitados en cuanto a criterio visual) en vez de
+  texto; confirmación mediante una pastilla `.toast` fija en la parte
+  inferior de la pantalla (aparece 1.4s), no cambiando el texto del botón.
+- `globals.css`: nuevas clases `.invite-link-row`/`.invite-link-label`/
+  `.invite-link-url`/`.copy-icon-button`/`.toast` (con `@media` para mobile
+  — la fila se envuelve, el link pasa a ancho completo con elipsis — y
+  `:hover`/`:focus-visible`, que un `style` inline de React no puede
+  expresar). Nuevo token `--invite-link-bg` (mismo patrón que
+  `--day-open-bg`, TAL-21): fondo `--paper-2` en claro, `--pine-2` en
+  oscuro, reutilizado tanto para el fondo de la fila como para el `:hover`
+  del icono — token propio en vez de reutilizar `--day-open-bg` (concepto
+  distinto, el grid de días) o `--bg-sunken` (semántico pero de un tono
+  distinto).
+
+**Evidencia:** verificado en navegador real (super-admin, calendario de
+prueba "Test TAL-13"). Confirmado visualmente que la tabla de invitados no
+tiene ninguna acción de copiar por fila (nunca la tuvo). Icono de copiar
+renderiza correctamente (línea, sin relleno, sin texto). Copiado real
+confirmado por dos vías independientes: (a) directamente contra el
+portapapeles del sistema operativo (`pbpaste` en una terminal aparte, fuera
+del navegador) tras un clic real en el botón — el valor copiado coincidía
+exactamente con el link mostrado; (b) el toast (`Link copiado`) se
+construye correctamente en el DOM con el texto esperado tras el clic. La
+propia comprobación automatizada del toast por temporizador resultó poco
+fiable en este entorno concreto (el toast se autooculta a 1.4s y el
+tiempo de ida y vuelta de las herramientas de navegador superaba
+sistemáticamente esa ventana al comprobarlo después del clic) — para
+verificar el estilo visual real de la pastilla se forzó su clase `.show`
+directamente vía consola y se confirmó por captura que se renderiza
+correctamente (posición fija, centrada, abajo, colores/tipografía acorde
+al resto del sistema). Layout de la fila del link comprobado sin
+regresiones en mobile (~605px real) y desktop (~896px, iframe inyectado —
+`resize_window` sigue sin reproducir un viewport ancho fiable en este
+entorno): en desktop la fila no se envuelve (label + link en la misma
+línea), en mobile se envuelve.
+
+`npx eslint .`/`npx tsc --noEmit` limpios; `AGENTS.md` intacto. Ningún
+fichero de Convex (schema/mutations/queries) tocado — tarea puramente de
+presentación, tal como confirmaba la investigación previa del ticket.
+
+## Selector visual de skin en el editor (TAL-37)
+
+Brief (design/design-system.md § "Skins", design/propuesta-editor-
+calendario.html — fila "Skin" con píldoras de color): sustituye el
+`<select>` de texto de la fila "Skin" (`edit-calendar-form.tsx`, dentro de
+la columna derecha de "Datos del calendario", TAL-33) por una galería de
+muestras — una píldora por skin con su color/degradado real de fondo,
+nombre visible, borde `--gold` en la seleccionada. Sigue siendo dinámico
+(`skins.listAllPublic()`, cero catálogo fijo en frontend) — solo cambia
+cómo se pinta cada opción, no de dónde sale la lista.
+
+Cambios:
+- Nuevo `src/app/admin/[calendarId]/skin-picker.tsx` (`SkinPicker`): un
+  botón por skin (píldora: cuadrado de color + nombre), `aria-pressed` +
+  anillo `--gold` en la seleccionada, `title` con el nombre como redundancia
+  accesible. El `background` de cada muestra es el valor CSS real del skin
+  tal cual lo guarda Convex (color sólido o degradado), pasado directo a
+  `style` — mismo criterio ya establecido en `door-grid.tsx`/`days-grid-
+  editor.tsx`/`skin-appearance.ts` (nunca se "parsea" ese string, se aplica
+  tal cual). Respaldo `DEFAULT_SKIN_APPEARANCE` (`skin-appearance.ts`) para
+  skins sin `background`/`accent` todavía (`v.optional` desde TAL-22) —
+  verificado en vivo con el skin real "Verde pino" del catálogo semilla
+  original, que no tiene esos campos.
+- `page.tsx`: la proyección de `skins` para el formulario pasa de
+  `{id, name}` a incluir también `background`/`accent` (tipo `SkinOption`,
+  exportado desde `skin-picker.tsx` y reutilizado en `edit-calendar-
+  form.tsx` para no duplicar el tipo en tres sitios).
+- `edit-calendar-form.tsx`: la fila "Skin" pasa de `<select>` a
+  `<SkinPicker>` + `<input type="hidden" name="skinId">` (mismo patrón que
+  `coverIcon`/`CoverIconPicker`, TAL-23/33 — el picker no es un `<input>`
+  nativo). Nueva clase `.editor-field-skin` para alinear la etiqueta arriba
+  en vez de centrada verticalmente (la galería puede envolver a varias
+  líneas con 22+ skins, más alta que una fila de texto normal) — ver nota
+  siguiente sobre por qué es una clase y no un `style` inline.
+- `globals.css`: nuevas clases `.skin-picker-gallery` (`flex-wrap` +
+  `max-height`/`overflow-y` como límite de seguridad si el catálogo crece
+  mucho más de 22), `.skin-swatch`/`.skin-swatch-color` (+
+  `:hover`/`:focus-visible`), y `.editor-field-skin` (+ su reset dentro del
+  `@media` mobile ya existente de `.editor-field`).
+
+**Decisión técnica de bajo riesgo, no escalada:** `.editor-field-skin` usa
+una clase de CSS, no un `style={{alignItems: "flex-start"}}` inline —
+probado primero con el inline y descartado: un `style` inline de React
+siempre gana sobre CUALQUIER regla de la hoja de estilos, incluida la que
+ya existe dentro de `@media (max-width: 640px)` para volver a
+`align-items: stretch` en mobile (necesaria para que la fila se apile
+correctamente por debajo del breakpoint). Con el inline, esa regla mobile
+quedaría sin efecto para este campo. La clase, en cambio, se puede
+resetear dentro del mismo bloque `@media` ya existente — mismo mecanismo,
+sin el problema de especificidad.
+
+**Evidencia:** verificado en navegador real (super-admin, calendario de
+prueba "Test TAL-13", 22 skins reales del catálogo). Confirmado
+visualmente: las 22 muestras se pintan con su color/degradado real
+(gradientes incluidos, no solo colores sólidos), envuelven en varias
+líneas dentro de una galería con scroll propio, la seleccionada
+("Verde pino", el skin original de esta fila de prueba) lleva el anillo
+`--gold`. Cambio real de skin (a "Dorado Real") + "Guardar cambios" +
+confirmación directa contra Convex (`npx convex data calendars`) de que
+`skinId` persiste el id correcto — revertido después a la selección
+original para dejar el dato de prueba como estaba. Mobile (~605px real) y
+desktop (~896px, iframe inyectado — `resize_window` sigue sin reproducir
+un viewport ancho fiable en este entorno) verificados sin regresión: en
+mobile la etiqueta se apila arriba de la galería (regla general de
+`.editor-field`); en desktop la etiqueta queda alineada arriba de la
+galería, no centrada verticalmente contra su altura.
+
+`npx eslint .`/`npx tsc --noEmit` limpios; `AGENTS.md` intacto. Ningún
+fichero de Convex (schema/mutations/queries) tocado — `skins.listAllPublic`
+ya devolvía todo lo necesario (`background`/`accent` incluidos), esta tarea
+es puramente de presentación.
+
+## Imagen de fondo del calendario (TAL-39)
+
+Brief (Linear TAL-39, ahora también `design/design-system.md` § "Imagen de
+fondo del calendario (nuevo campo, distinto de 'Foto de portada')" —
+sección añadida por el PM el mismo día, ya con la corrección de alcance
+que salió de esta misma tarea, ver más abajo): campo nuevo e independiente
+`backgroundImageUrl` en `calendars`, distinto de `coverImageUrl` (la foto
+redonda de `/login`, TAL-25) y del `skinId` (que sigue siendo obligatorio
+siempre). La imagen sustituye el color/degradado del skin como base
+visual; el acento del skin sigue gobernando puertas/casillas/bordes/
+"hoy"/píldoras sin relación con este campo. Primera tarea de esta tanda
+que toca Convex de verdad (schema + mutations), no solo presentación.
+
+**Duda real resuelta antes de implementar, no decidida unilateralmente:**
+el brief original decía "Renderizado en las 3 pantallas: portada de
+login, grid, modal" — pero "portada" tiene DOS significados distintos en
+este proyecto (`/login`, página pública sin autenticar, vs. `/c/
+[calendarId]`, la página del calendario del Invitado ya autenticado) y
+TAL-24 (la tarea que primero aplicó skins visualmente) nunca tocó
+`/login`. Consulté con la Directora antes de tocar nada: `/login` tiene
+una lista blanca deliberadamente mínima en Convex por seguridad
+(`getPublicCoverInfoForLogin`, TAL-25 — solo `coverTitle`/`coverIcon`/
+`coverImageUrl`, ni fechas ni skin ni nada más, para una página alcanzable
+sin sesión) — ensancharla para `backgroundImageUrl` es una decisión de
+producto/seguridad, no una implementación directa. Confirmado por la
+Directora y el PM: `/login` queda FUERA de esta tarea (igual que `skinId`
+ya quedaba fuera de facto); solo `/c/[calendarId]/page.tsx` (autenticada)
++ grid (Invitado y Admin) + modal. El propio `design-system.md` se
+actualizó para reflejar esta corrección, citando el hallazgo.
+
+Cambios:
+
+- **`convex/schema.ts`**: `backgroundImageUrl: v.optional(v.string())` en
+  `calendars`, junto a `coverImageUrl`.
+- **`convex/calendars.ts`**: nueva `assertSafeBackgroundImageUrl` (mismo
+  criterio que `assertSafeCoverImageUrl` — solo `https:`, función propia
+  con su propio mensaje en vez de compartir la existente, mismo patrón ya
+  establecido en este fichero de un validador por campo). Enhebrado por
+  `createCalendarHandler`/`updateCalendarHandler` y sus mutations
+  (`createCalendar`/`updateCalendar`/`createCalendarPublic`/
+  `updateCalendarPublic`) — sin tocar `getPublic` (ya devuelve el
+  documento completo) ni `getPublicCoverInfoForLogin` (deliberadamente,
+  ver arriba).
+- **`src/app/admin/actions.ts`** (`updateCalendarAction`): mismo bloque de
+  validación https que ya tenía `coverImageUrl`, replicado para
+  `backgroundImageUrl`.
+- **`src/lib/skin-appearance.ts`**: nueva `coverBackgroundStyle(background,
+  backgroundImageUrl)` — cuando hay imagen, la antepone con la MISMA capa
+  de oscurecimiento uniforme que `coverBackgroundCss` (mismo cálculo de
+  contraste ya verificado en TAL-24) en vez del color/degradado del skin,
+  y añade `backgroundSize: cover`/`backgroundPosition: center` como
+  propiedades aparte del `background` shorthand (mismo criterio que las
+  miniaturas "visto" de `door-grid.tsx`/`days-grid-editor.tsx`, que ya
+  usan ese mismo patrón). Sin imagen, se comporta exactamente igual que
+  `coverBackgroundCss` antes de esta tarea — cero cambio de comportamiento
+  para calendarios sin `backgroundImageUrl`.
+- **Editor** (`edit-calendar-form.tsx`): campo "Imagen de fondo (URL,
+  opcional)" justo debajo de "Skin" (brief: "junto al selector de skin"),
+  mismo patrón `.editor-field` que el resto del formulario — sin CSS
+  nueva, a diferencia de TAL-33/37.
+- **`page.tsx` (Admin)** → `days-section.tsx` → `days-grid-editor.tsx`:
+  `backgroundImageUrl` se propaga igual que `skinBackground`, sustituye el
+  color/degradado del skin en la cabecera de mes cuando está presente.
+- **`c/[calendarId]/page.tsx`** (Invitado, autenticado) → `door-grid-
+  loader.tsx`/`door-grid.tsx`: mismo criterio en la cabecera de portada
+  (antes fondo fijo del skin), la cabecera de mes del grid, Y el modal de
+  vídeo — el modal antes tenía un fondo FIJO (`var(--background)`, sin
+  relación con el skin en absoluto, decisión deliberada de TAL-24 de no
+  tocarlo); ahora gana el mismo tratamiento que las otras dos superficies,
+  necesario para que `backgroundImageUrl` tenga algún sitio donde
+  mostrarse en el modal, tal como pedía el brief.
+
+**Hallazgo de contraste, corregido antes de darlo por bueno (mismo tipo de
+problema que el NO-GO de auditoría de TAL-24, ronda 1, pero en la
+dirección contraria):** el modal nunca había necesitado un tratamiento de
+texto especial porque su fondo era fijo y neutro. Al pasar a
+`coverBackgroundStyle` (siempre con la capa de oscurecimiento al 60%
+encima), el texto por defecto (`color: var(--text)`, casi negro en modo
+claro) hubiera quedado prácticamente ilegible sobre ese fondo ahora
+siempre oscurecido. Corregido aplicando el mismo `{ color: "#fff",
+textShadow: "0 1px 4px rgba(0,0,0,0.5)" }` que ya usa la cabecera de
+portada (`page.tsx::coverTextStyle`) a TODO el contenido de texto del
+modal (título del día, botón de cerrar, aviso de "sin vídeo todavía",
+enlace de vídeo no embebible, mensaje del día) — el aviso de error rojo
+(`markError`, `#e35b5b`) se dejó sin tocar en la ronda 1, asumiendo que ya
+tenía contraste razonable sobre fondo oscuro. **Esa suposición era
+incorrecta — ver "Ronda 2" más abajo, NO-GO real de auditoría.**
+
+**Ronda 2 (corrección de un NO-GO real de auditoría):** el auditor calculó
+el contraste real de `#e35b5b` contra el peor caso de fondo compuesto
+(`rgb(102,102,102)`, skin blanco + capa al 60%, el mismo caso límite que
+TAL-24 ya identificó) — ~1.37:1, muy por debajo del 4.5:1 de WCAG AA. La
+suposición de la ronda 1 ("ya tenía contraste razonable") solo era cierta
+contra el fondo FIJO que tenía el modal ANTES de esta tarea — dejó de
+serlo en cuanto el fondo pasó a ser variable. Mismo cálculo que
+`skin-appearance.ts` ya hace para el resto del texto del modal: en ese
+peor caso, solo un color muy próximo al blanco puede garantizar 4.5:1 —
+un rojo más claro (p. ej. `--berry-2`) tampoco hubiera bastado. Corregido
+aplicando el mismo `modalTextStyle` (blanco + sombra, mismo 5.74:1 ya
+verificado) que el resto del modal, con `fontWeight: 700` en vez de un
+color propio para seguir distinguiéndolo visualmente como aviso urgente.
+
+**Evidencia:** verificado en navegador real (super-admin, calendario de
+prueba "Test TAL-13") con una imagen real (`picsum.photos`, imagen
+genérica de prueba, no una URL de producto). Confirmado directamente
+contra Convex que `backgroundImageUrl` persiste al guardar y se BORRA por
+completo (no queda como cadena vacía) al vaciar el campo y guardar — mismo
+comportamiento que `coverImageUrl` ya tenía. Verificado visualmente: la
+cabecera de mes del editor de Admin, la cabecera de portada del Invitado,
+la cabecera de mes del grid del Invitado, Y el modal de vídeo (abierto de
+verdad, con su propio día de prueba temporal con vídeo asignado) muestran
+la imagen con la capa de oscurecimiento y texto legible — el acento del
+skin (borde de "hoy", borde del modal) siguió intacto en todo momento, sin
+relación con la imagen. Mobile (~371px, iframe inyectado — `resize_window`
+sigue sin reproducir un viewport estrecho fiable en este entorno) sin
+overflow ni regresión. Datos de prueba (rango de fechas, día temporal,
+`backgroundImageUrl`) restaurados a su estado original exacto tras la
+verificación, confirmado campo a campo contra Convex.
+
+**Evidencia ronda 2:** el flujo natural (abrir un día real sin vídeo aún
+visto, forzar un fallo de red genuino para disparar `markError`) resultó
+poco práctico de reproducir de forma fiable en este entorno concreto — el
+estado "bloqueado/hoy" del día de prueba parpadeaba entre recargas de
+forma intermitente por un motivo ajeno a esta tarea (lógica de
+`resolveDoors`/`todayInTimeZone`, no tocada aquí ni en la ronda 1). Para
+aislar la verificación del hallazgo de la auditoría de ese problema
+ajeno, se forzó temporalmente en el propio código (`useState` de
+`openDate`/`markError` en `door-grid.tsx`, revertido antes de comitear) a
+que el modal se abriera ya con el aviso de error visible, contra el fondo
+real con `backgroundImageUrl` — confirmado visualmente que el texto es
+legible en blanco+negrita. Cambio revertido y datos de prueba limpiados
+de la misma forma que en la ronda 1 antes de comitear el fix real.
+
+`npx eslint .`/`npx tsc --noEmit`/`npx convex dev --once --typecheck=enable`
+limpios (ronda 1 y ronda 2); `AGENTS.md` intacto.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma

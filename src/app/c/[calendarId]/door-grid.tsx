@@ -5,9 +5,21 @@ import { markDayViewedAction } from "@/app/c/[calendarId]/actions";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC } from "@/lib/calendar-grid";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 import type { DoorInfo } from "@/lib/guest-calendar";
-import { coverBackgroundCss } from "@/lib/skin-appearance";
+import { coverBackgroundStyle } from "@/lib/skin-appearance";
 
 const WEEKDAY_INITIALS = ["L", "M", "X", "J", "V", "S", "D"];
+
+/**
+ * TAL-39 — el fondo del modal ahora es `coverBackgroundStyle` (color/
+ * degradado del skin, u opcionalmente `backgroundImageUrl`), siempre con
+ * la misma capa de oscurecimiento que ya usa la cabecera de portada
+ * (`page.tsx::coverTextStyle`) — así que su texto necesita el mismo
+ * tratamiento (blanco + sombra), no el `color: inherit`/`var(--accent)`
+ * de antes, pensado para el fondo fijo (`var(--background)`) que tenía el
+ * modal antes de esta tarea. Mismo motivo/contraste ya verificado
+ * matemáticamente en `skin-appearance.ts` para la cabecera de portada.
+ */
+const modalTextStyle: React.CSSProperties = { color: "#fff", textShadow: "0 1px 4px rgba(0,0,0,0.5)" };
 
 function cellStyle(door: DoorInfo): React.CSSProperties {
   const base: React.CSSProperties = {
@@ -135,17 +147,26 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
  * romper ese contraste ya validado. El acento (`--accent`, heredado desde
  * `page.tsx` — las custom properties CSS heredan por el árbol del DOM sin
  * importar límites de componente) ya tiñe el borde de "hoy" sin tocar
- * nada aquí. El modal SÍ gana un borde de acento (más abajo) — el iframe
- * en sí no se toca, como pide el brief.
+ * nada aquí. El modal SÍ gana un borde de acento (más abajo, TAL-24) y
+ * ahora también un fondo (TAL-39, ver el comentario siguiente) — el
+ * iframe en sí no se toca en ningún caso, como pide el brief.
+ *
+ * TAL-39 — `backgroundImageUrl`, si el calendario tiene uno, sustituye el
+ * `background` del skin en los dos sitios que ya usaban
+ * `coverBackgroundCss(background)`: la cabecera de mes de aquí abajo Y el
+ * modal de vídeo (antes con un fondo fijo `var(--background)`, sin
+ * relación con el skin) — ver `coverBackgroundStyle`, `skin-appearance.ts`.
  */
 export function DoorGrid({
   calendarId,
   doors: initialDoors,
   background,
+  backgroundImageUrl,
 }: {
   calendarId: string;
   doors: DoorInfo[];
   background: string;
+  backgroundImageUrl: string | null;
 }) {
   const [doors, setDoors] = useState(initialDoors);
   const [openDate, setOpenDate] = useState<string | null>(null);
@@ -309,13 +330,14 @@ export function DoorGrid({
                   top: 0,
                   zIndex: 2,
                   // Corrección de auditoría, ronda 1 (TAL-24):
-                  // `coverBackgroundCss` antepone una capa de
-                  // oscurecimiento uniforme al `background` del skin —
-                  // sin ella, un skin claro (p. ej. "Nieve", que llega a
-                  // `#ffffff`) dejaba el texto blanco ilegible. Cálculo
-                  // completo de por qué garantiza contraste en
+                  // `coverBackgroundStyle` antepone una capa de
+                  // oscurecimiento uniforme al `background` del skin (o a
+                  // `backgroundImageUrl`, TAL-39, si el calendario tiene
+                  // uno) — sin ella, un skin claro (p. ej. "Nieve", que
+                  // llega a `#ffffff`) dejaba el texto blanco ilegible.
+                  // Cálculo completo de por qué garantiza contraste en
                   // `src/lib/skin-appearance.ts`.
-                  background: coverBackgroundCss(background),
+                  ...coverBackgroundStyle(background, backgroundImageUrl),
                   color: "#fff",
                   textShadow: "0 1px 4px rgba(0,0,0,0.5)",
                   fontFamily: "var(--font-display)",
@@ -443,13 +465,20 @@ export function DoorGrid({
           <div
             onClick={(event) => event.stopPropagation()}
             style={{
-              background: "var(--background)",
               // TAL-24 — brief: "aplica el acento del skin de forma
               // consistente (borde, o algún detalle visual — el iframe en
               // sí no se toca)". `--accent` ya está heredado desde
               // `page.tsx`, así que no hace falta pasar el skin explícito
               // aquí también.
               border: "2px solid var(--accent)",
+              // TAL-39 — antes un fondo fijo (`var(--background)`, sin
+              // relación con el skin); el brief pide el modal como una de
+              // las 3 pantallas con el mismo alcance que un skin
+              // (`coverBackgroundStyle`, sustituye por `backgroundImageUrl`
+              // si el calendario tiene uno) — mismo mecanismo que la
+              // cabecera de mes de arriba y la cabecera de portada
+              // (`page.tsx`).
+              ...coverBackgroundStyle(background, backgroundImageUrl),
               borderRadius: "1rem",
               maxWidth: "480px",
               width: "100%",
@@ -457,19 +486,43 @@ export function DoorGrid({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-              <h3>{openDoor.label}</h3>
-              <button ref={closeButtonRef} type="button" onClick={closeModal} aria-label="Cerrar">
+              <h3 style={modalTextStyle}>{openDoor.label}</h3>
+              <button
+                ref={closeButtonRef}
+                type="button"
+                onClick={closeModal}
+                aria-label="Cerrar"
+                style={modalTextStyle}
+              >
                 ✕
               </button>
             </div>
             {openDoor.videoUrl ? (
               <VideoPlayer url={openDoor.videoUrl} label={openDoor.label} />
             ) : (
-              <p style={{ color: "var(--accent)", marginTop: "0.75rem" }}>Todavía no hay vídeo para este día.</p>
+              <p style={{ ...modalTextStyle, marginTop: "0.75rem" }}>Todavía no hay vídeo para este día.</p>
             )}
-            {openDoor.message && <p style={{ marginTop: "0.75rem" }}>{openDoor.message}</p>}
+            {openDoor.message && <p style={{ ...modalTextStyle, marginTop: "0.75rem" }}>{openDoor.message}</p>}
             {markError && (
-              <p role="alert" style={{ color: "#e35b5b", marginTop: "0.75rem", fontSize: "0.85rem" }}>
+              // TAL-39, ronda 2 (NO-GO de auditoría, ronda 1): este texto se
+              // quedó con su color rojo original (`#e35b5b`) cuando el resto
+              // del modal pasó a `modalTextStyle` — válido contra el fondo
+              // FIJO que tenía el modal antes de esta tarea, pero no contra
+              // la nueva capa de oscurecimiento (`coverBackgroundStyle`), que
+              // puede dejar el contraste tan bajo como ~1.37:1 (auditor,
+              // verificado matemáticamente) — muy por debajo del 4.5:1 de
+              // WCAG AA. Mismo cálculo que ya hizo TAL-24 (ronda 1): el peor
+              // caso posible de fondo compuesto con la capa al 60% es
+              // `rgb(102,102,102)` (skin blanco), así que CUALQUIER color
+              // salvo uno muy próximo al blanco no puede garantizar 4.5:1
+              // ahí — un rojo más claro (p. ej. `--berry-2`) seguiría sin
+              // bastar. `modalTextStyle` (blanco + sombra) es la única
+              // opción de esta paleta con margen de sobra en el peor caso
+              // (mismo 5.74:1 ya verificado en `skin-appearance.ts`);
+              // `fontWeight` en vez de color distingue visualmente que es un
+              // aviso urgente sin depender de un rojo que no puede
+              // garantizar su propio contraste aquí.
+              <p role="alert" style={{ ...modalTextStyle, fontWeight: 700, marginTop: "0.75rem", fontSize: "0.85rem" }}>
                 No se ha podido guardar que has visto este día. Ciérralo y vuelve a intentarlo.
               </p>
             )}
@@ -496,8 +549,8 @@ function VideoPlayer({ url, label }: { url: string; label: string }) {
     );
   }
   return (
-    <p style={{ marginTop: "0.75rem" }}>
-      <a href={url} target="_blank" rel="noopener noreferrer">
+    <p style={{ ...modalTextStyle, marginTop: "0.75rem" }}>
+      <a href={url} target="_blank" rel="noopener noreferrer" style={modalTextStyle}>
         Ver vídeo ↗
       </a>
     </p>

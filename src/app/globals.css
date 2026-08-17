@@ -52,6 +52,14 @@
      criterio que --gold/--gold-2) para mantener contraste sobre fondo
      oscuro. */
   --weekend-text: var(--berry);
+  /* TAL-35 — mismo criterio que --day-open-bg: fondo "panel sutil" que
+     cambia de --paper-2 (claro) a --pine-2 (oscuro), aquí para la fila del
+     link de invitación y el hover del botón de copiar (design/propuesta-
+     editor-calendario.html § .invite-link-row/.btn-icon:hover). Token
+     propio en vez de reutilizar --day-open-bg (que es del grid de días,
+     un concepto distinto) o --bg-sunken (semántico pero de un tono
+     distinto, casi negro en oscuro). */
+  --invite-link-bg: var(--paper-2);
 
   /* --- Tipografía (design-system.md § Tokens > Tipografía) --- */
   --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
@@ -107,6 +115,7 @@
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
     --day-open-bg: var(--pine-2);
     --weekend-text: var(--berry-2);
+    --invite-link-bg: var(--pine-2);
   }
 }
 
@@ -129,6 +138,7 @@
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
   --day-open-bg: var(--pine-2);
   --weekend-text: var(--berry-2);
+  --invite-link-bg: var(--pine-2);
 }
 
 html {
@@ -167,4 +177,317 @@ a {
   html {
     color-scheme: dark;
   }
+}
+
+/* TAL-28, ronda de seguimiento (mobile) — `SessionIndicator`
+   (`src/components/session-indicator.tsx`) necesita un `@media`, que un
+   `style` inline de React no puede expresar; por eso esta única regla de
+   posicionamiento vive aquí en vez de en el propio componente. Breakpoint
+   estándar del Design System (`design/design-system.md` § "Responsive /
+   Mobile"): 640px. */
+.session-indicator {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .session-indicator {
+    top: 0.5rem;
+    right: 0.5rem;
+    gap: 0.35rem;
+  }
+}
+
+/* TAL-28, ronda de seguimiento — hallazgo real (no solo teórico): en las
+   4 pantallas con `SessionIndicator`, `<main>` fija su `padding` como
+   shorthand inline (`padding: "2rem"`, en cada `page.tsx`) — un inline
+   style siempre gana sobre cualquier regla externa, con o sin `@media`,
+   así que esta clase NO puede simplemente sobreescribir `padding-top`
+   sin `!important` mientras el inline siga fijando las 4 direcciones a
+   la vez. Por eso cada `<main>` pasó a fijar en línea solo
+   `paddingLeft`/`paddingRight`/`paddingBottom` (deja `padding-top` libre
+   para esta clase) — sin `!important` en ningún sitio, ni aquí ni en
+   React. Verificado con un iframe de 375px de ancho inyectado en la
+   propia página (viewport real, no una ventana de SO redimensionada —
+   `resize_window` no reproducía un viewport estrecho de verdad en este
+   entorno): SIN esta regla, el título ("Editar calendario", "¡Feliz
+   cuenta atrás, equipo!") solapaba de verdad con el avatar/botón fijos
+   — confirmado visualmente antes de aplicar el arreglo, no solo
+   sospechado. Con esta regla, el contenido empieza por debajo del
+   indicador en las 4 pantallas a 375px, sin solape. */
+.session-page-main {
+  padding-top: 2rem;
+}
+
+@media (max-width: 640px) {
+  .session-page-main {
+    padding-top: 4.5rem;
+  }
+}
+
+/* TAL-33 — Editor de calendario, sección "Datos del calendario"
+   (design/design-system.md § "Editor de calendario" / "Formularios").
+   Necesitan `@media` (colapso a 1 columna / etiquetas apiladas por
+   debajo de 640px, design-system.md § "Responsive / Mobile"), que un
+   `style` inline de React no puede expresar — por eso viven aquí, mismo
+   motivo que `.session-indicator`/`.session-page-main` (TAL-28). */
+.editor-columns {
+  display: grid;
+  grid-template-columns: 1fr 1.4fr;
+  gap: 28px;
+  align-items: start;
+}
+
+.editor-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.editor-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-field > label {
+  flex: 0 0 152px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.editor-field > input,
+.editor-field > select {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 0.92rem;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* TAL-37 — la fila "Skin" reemplaza `align-items: center` de
+   `.editor-field` por `flex-start`: `SkinPicker` puede envolver a varias
+   líneas con 22+ skins, más alto que una fila de texto normal, así que la
+   etiqueta se alinea arriba en vez de quedar centrada contra esa altura
+   variable. Clase aparte (no un `style` inline) para poder resetearla
+   dentro del propio `@media` de mobile, más abajo — un `style` inline
+   ganaría siempre, incluso en mobile, y rompería el `align-items: stretch`
+   que ese breakpoint necesita para las demás filas. */
+.editor-field-skin {
+  align-items: flex-start;
+}
+
+.editor-field-skin > label {
+  padding-top: 8px;
+}
+
+@media (max-width: 640px) {
+  .editor-columns {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .editor-field {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+  }
+
+  .editor-field > label {
+    flex: none;
+    text-align: left;
+  }
+
+  .editor-field-skin > label {
+    padding-top: 0;
+  }
+}
+
+/* "Borrar calendario" — botón rojo relleno al final de la pantalla
+   (antes, botón fantasma de solo texto en la cabecera). A ancho
+   completo en mobile cuando queda solo al final de una pantalla
+   (design-system.md § "Responsive / Mobile" — mejor objetivo táctil). */
+.editor-danger-zone {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+}
+
+@media (max-width: 640px) {
+  /* Hallazgo real al verificar en navegador (no solo teórico): el mockup
+     usa `justify-content: stretch` para expandir el <form> hijo al ancho
+     completo, pero no se comportó así de forma fiable aquí — el botón
+     quedaba con su ancho de contenido, no a ancho completo. `column` +
+     `align-items: stretch` consigue lo mismo de forma bien soportada:
+     estira el <form> (hijo flex directo) al ancho del contenedor, y de
+     ahí el `width: 100%` del botón (abajo) llena el <form>. */
+  .editor-danger-zone {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .editor-danger-zone button {
+    width: 100%;
+  }
+}
+
+/* TAL-35 — link de invitación único (design/design-system.md § "Invitados
+   — link de invitación único", design/propuesta-editor-calendario.html
+   `.invite-link-row`/`.btn-icon`/`.toast`). Necesitan `@media` (mobile:
+   la fila se envuelve, la URL pasa a ocupar el ancho completo con
+   elipsis) y `:hover`, que un `style` inline de React no puede expresar
+   — mismo motivo que el resto de bloques de esta hoja. */
+.invite-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--invite-link-bg);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
+
+.invite-link-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.invite-link-url {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--text);
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.copy-icon-button {
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.copy-icon-button:hover {
+  background: var(--invite-link-bg);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.copy-icon-button:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.copy-icon-button svg {
+  width: 17px;
+  height: 17px;
+}
+
+@media (max-width: 640px) {
+  .invite-link-row {
+    flex-wrap: wrap;
+  }
+
+  .invite-link-url {
+    flex-basis: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Confirmación de copiado — pastilla flotante breve, sustituye el cambio
+   de texto en el propio botón que tenía la versión anterior (ya sin
+   `alert()`, pero tampoco un toast real todavía). */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background: var(--pine);
+  color: var(--paper);
+  padding: 9px 18px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 30;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-6px);
+}
+
+/* TAL-37 — galería de muestras de skin (design/design-system.md § "Skins",
+   design/propuesta-editor-calendario.html — fila "Skin"). `flex-wrap` deja
+   que envuelva a varias líneas con 22+ skins en vez de forzar una sola
+   fila; `max-height`/`overflow-y` es un límite de seguridad para cuando el
+   catálogo (sin tope fijo, TAL-22) crezca mucho más allá de eso. Necesita
+   `:hover`/`:focus-visible`, que un `style` inline de React no puede
+   expresar. */
+.skin-picker-gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 180px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.skin-swatch {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 6px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.skin-swatch:hover {
+  border-color: var(--gold);
+}
+
+.skin-swatch:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 1px;
+}
+
+.skin-swatch-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  border: 1px solid rgba(0, 0, 0, 0.15);
 }

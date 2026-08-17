@@ -6,6 +6,7 @@ import { deleteCalendarAction } from "@/app/admin/actions";
 import { DaysSection } from "@/app/admin/[calendarId]/days-section";
 import { EditCalendarForm } from "@/app/admin/[calendarId]/edit-calendar-form";
 import { GuestsSection } from "@/app/admin/[calendarId]/guests-section";
+import type { SkinOption } from "@/app/admin/[calendarId]/skin-picker";
 import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly } from "@/lib/calendars";
@@ -26,6 +27,7 @@ type AdminCalendar = {
   endDate: Date;
   skinId: string;
   coverImageUrl: string | null;
+  backgroundImageUrl: string | null;
 };
 
 /**
@@ -39,7 +41,7 @@ type AdminCalendar = {
  */
 async function getCalendarForAdminPage(calendarId: string): Promise<{
   calendar: AdminCalendar;
-  skins: { id: string; name: string }[];
+  skins: SkinOption[];
   skinAccent: string;
   skinBackground: string;
 } | null> {
@@ -67,8 +69,15 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
       endDate: parseUtcDateOnly(calendar.endDate)!,
       skinId: calendar.skinId,
       coverImageUrl: calendar.coverImageUrl ?? null,
+      backgroundImageUrl: calendar.backgroundImageUrl ?? null,
     },
-    skins: skins.map((skin) => ({ id: skin._id, name: skin.name })).sort((a, b) => a.name.localeCompare(b.name)),
+    // TAL-37 — `background`/`accent` se propagan tal cual (pueden venir
+    // `undefined`, `v.optional` en el schema) para que `SkinPicker` pinte
+    // cada muestra con su color real; el respaldo de ambos vive en el
+    // propio `SkinPicker`/`DEFAULT_SKIN_APPEARANCE`, no aquí.
+    skins: skins
+      .map((skin) => ({ id: skin._id, name: skin.name, background: skin.background, accent: skin.accent }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
     // TAL-24 — a diferencia de la portada de Invitado, esta página es un
     // formulario de edición (no una "portada"), así que el brief solo
     // pide que el GRID de días refleje el skin, no toda la página — ver
@@ -96,7 +105,10 @@ export default async function AdminCalendarPage({
   const { calendar, skins, skinAccent, skinBackground } = data;
 
   return (
-    <main style={{ flex: 1, padding: "2rem", maxWidth: "900px" }}>
+    <main
+      className="session-page-main"
+      style={{ flex: 1, paddingLeft: "2rem", paddingRight: "2rem", paddingBottom: "2rem", maxWidth: "900px" }}
+    >
       <SessionIndicator
         email={user.email}
         image={user.image}
@@ -106,16 +118,31 @@ export default async function AdminCalendarPage({
 
       <EditCalendarForm calendar={calendar} skins={skins} />
 
-      <DaysSection calendarId={calendar.id} skinAccent={skinAccent} skinBackground={skinBackground} />
-
-      <form action={deleteCalendarAction.bind(null, calendar.id)} style={{ marginTop: "2rem" }}>
-        <ConfirmSubmitButton
-          label="Borrar calendario"
-          confirmText={`¿Seguro que quieres borrar "${calendar.name}"? Esto borra también sus días, invitaciones y membresías — no se puede deshacer.`}
-        />
-      </form>
+      <DaysSection
+        calendarId={calendar.id}
+        skinAccent={skinAccent}
+        skinBackground={skinBackground}
+        backgroundImageUrl={calendar.backgroundImageUrl}
+      />
 
       <GuestsSection calendarId={calendar.id} />
+
+      {/* TAL-33 — "Borrar calendario" pasa de botón fantasma en la
+          cabecera a botón rojo relleno al final de la pantalla, separado
+          por un divisor (design/design-system.md § "Editor de
+          calendario" — "Zona de peligro"). `.editor-danger-zone`
+          (globals.css) alinea el botón a la derecha en desktop y lo pone
+          a ancho completo en mobile (mejor objetivo táctil cuando queda
+          solo al final de la pantalla). */}
+      <div className="editor-danger-zone">
+        <form action={deleteCalendarAction.bind(null, calendar.id)}>
+          <ConfirmSubmitButton
+            label="Borrar calendario"
+            confirmText={`¿Seguro que quieres borrar "${calendar.name}"? Esto borra también sus días, invitaciones y membresías — no se puede deshacer.`}
+            variant="danger"
+          />
+        </form>
+      </div>
     </main>
   );
 }
