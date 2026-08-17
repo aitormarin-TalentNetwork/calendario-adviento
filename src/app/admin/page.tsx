@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { NewCalendarSubmit } from "@/components/new-calendar-submit";
+import { SessionIndicator } from "@/components/session-indicator";
 import { formatCalendarDate, listAdminCalendars } from "@/lib/calendars";
-import { signOut } from "@/lib/auth";
 import { getAuthorizedUser } from "@/lib/current-user";
 
 export default async function AdminCalendarsPage() {
@@ -17,8 +17,8 @@ export default async function AdminCalendarsPage() {
 
   return (
     <main style={{ flex: 1, padding: "2rem", maxWidth: "480px" }}>
+      <SessionIndicator email={user.email} image={user.image} />
       <h1>Mis calendarios</h1>
-      <p style={{ color: "var(--accent)" }}>Sesión: {user.email}</p>
 
       {calendars.length === 0 ? (
         <p>Todavía no administras ningún calendario.</p>
@@ -46,16 +46,6 @@ export default async function AdminCalendarsPage() {
       <div style={{ marginTop: "1.5rem" }}>
         <NewCalendarSubmit />
       </div>
-
-      <form
-        action={async () => {
-          "use server";
-          await signOut({ redirectTo: "/login" });
-        }}
-        style={{ marginTop: "1.5rem" }}
-      >
-        <button type="submit">Cerrar sesión</button>
-      </form>
     </main>
   );
 }

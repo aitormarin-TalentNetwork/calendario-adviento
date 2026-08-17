@@ -4,7 +4,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { auth } from "@/lib/auth";
 import { convexAppServerSecret } from "@/lib/convex-server";
 
-export type AuthorizedUser = { id: string; email: string; isSuperAdmin: boolean };
+export type AuthorizedUser = { id: string; email: string; isSuperAdmin: boolean; image: string | null };
 
 /**
  * Usuario autenticado, con `isSuperAdmin` leído siempre en fresco de la base
@@ -47,7 +47,7 @@ export async function getAuthorizedUser(): Promise<AuthorizedUser | null> {
       userId: session.user.id as Id<"users">,
     });
     if (!user) return null;
-    return { id: user._id, email: user.email, isSuperAdmin: user.isSuperAdmin };
+    return { id: user._id, email: user.email, isSuperAdmin: user.isSuperAdmin, image: user.image ?? null };
   } catch {
     return null;
   }

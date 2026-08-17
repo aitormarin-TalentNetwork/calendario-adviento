@@ -16,6 +16,15 @@ export default defineSchema({
     email: v.string(),
     name: v.optional(v.string()),
     isSuperAdmin: v.boolean(),
+    // Foto de perfil de Gmail (TAL-28) — llega en el perfil OAuth de Google
+    // (`user.image`, ver `src/lib/auth.ts`), nunca del login de desarrollo
+    // (`Credentials`, sin ese campo). `v.optional()` por dos motivos: los
+    // usuarios creados antes de esta tarea no lo tienen, y el propio
+    // login de desarrollo seguirá sin mandarlo nunca. Se refresca en CADA
+    // login si Google manda un valor distinto — mismo criterio que `name`
+    // (ver `createUserHandler`), para no quedarse con una foto vieja si el
+    // usuario cambia su avatar de Google más adelante.
+    image: v.optional(v.string()),
     // Sin `createdAt` propio — el campo de sistema `_creationTime` (todo
     // documento de Convex lo tiene) cubre exactamente el mismo dato.
   }).index("by_email", ["email"]),
