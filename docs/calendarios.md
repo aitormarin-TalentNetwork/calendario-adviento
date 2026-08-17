@@ -307,55 +307,72 @@ fidelidad visual: cada emoji lleva un `searchTerms` corto en español
 insensible a mayúsculas.
 
 **Migración de datos — calendarios creados antes de TAL-23, hallazgo de
-auditoría ronda 1, corregido**: `coverIcon` es `v.optional()` a
+auditoría rondas 1 y 2, corregido**: `coverIcon` es `v.optional()` a
 propósito, y cada sitio que LEE este campo aplica un respaldo
 (`DEFAULT_COVER_ICON = "🎄"`, `src/lib/cover-icons.ts`) si el calendario
 todavía no lo tiene — pero la primera versión de esta tarea se quedaba
 corta: los calendarios creados ANTES de TAL-23 ya llevaban el 🎄
 incrustado a mano dentro del propio texto de `coverTitle` (único
-mecanismo que existía — `createCalendarForAdmin` generaba siempre
-`"... 🎄"`). Con solo el respaldo de lectura, esos calendarios mostraban
-el emoji DOS VECES ("🎄 ¡Feliz cuenta atrás, equipo! 🎄" — el respaldo
-nuevo, más el que ya estaba dentro del texto), y si alguien editaba y
-guardaba ese calendario después, `coverIcon` se persistía pero el 🎄
-seguía dentro de `coverTitle` sin limpiar: dejaba de ser un problema
-transitorio del respaldo y se quedaba así para siempre (el formulario de
-edición nunca reescribe `coverTitle` por su cuenta).
+mecanismo AUTOMÁTICO que existía — `createCalendarForAdmin` generaba
+siempre `"... 🎄"`). Con solo el respaldo de lectura, esos calendarios
+mostraban el emoji DOS VECES ("🎄 ¡Feliz cuenta atrás, equipo! 🎄" — el
+respaldo nuevo, más el que ya estaba dentro del texto), y si alguien
+editaba y guardaba ese calendario después, `coverIcon` se persistía pero
+el 🎄 seguía dentro de `coverTitle` sin limpiar: dejaba de ser un
+problema transitorio del respaldo y se quedaba así para siempre (el
+formulario de edición nunca reescribe `coverTitle` por su cuenta).
 
 Corrección: `convex/calendars.ts::backfillEmbeddedCoverIcon`, un
 backfill real (Convex no tiene mecanismo de migración declarativo, mismo
 tema de `docs/convex-modelo-de-datos.md`) — recorre `calendars`, y para
-cada fila con `coverIcon` todavía sin fijar cuyo `coverTitle` termina en
-el sufijo literal `" 🎄"` (el único patrón que pudo llegar por ese único
-mecanismo histórico), retira el sufijo del texto y fija
-`coverIcon: "🎄"`. Idempotente — una fila ya migrada deja de cumplir la
-condición, así que reejecutar es un no-op seguro (verificado: segunda
-pasada `migrated: 0`). Se invoca a mano, una sola vez por deployment, vía
-el canal de administrador de la CLI: `npx convex run
+cada fila con `coverIcon` todavía sin fijar cuyo `coverTitle` coincide
+**EXACTAMENTE** con el literal histórico completo
+(`"¡Feliz cuenta atrás, equipo! 🎄"`), retira el sufijo `" 🎄"` del texto
+y fija `coverIcon: "🎄"`. Idempotente — una fila ya migrada deja de
+cumplir la condición, así que reejecutar es un no-op seguro (verificado:
+segunda pasada `migrated: 0`). Se invoca a mano, una sola vez por
+deployment, vía el canal de administrador de la CLI: `npx convex run
 calendars:backfillEmbeddedCoverIcon '{}'` — mismo canal ya usado en
 TAL-9/12/16 para operaciones de este tipo, nunca desde código de
 aplicación.
 
-Riesgo residual documentado y aceptado: un calendario donde alguien haya
-tecleado a mano un emoji en otra posición del texto (no al final) o un
-emoji distinto de 🎄 no lo detecta esta heurística — no hay datos de
-producción todavía (`docs/convex-modelo-de-datos.md` § "Qué no toca esta
-tarea", TAL-9) y no hay ninguna otra vía conocida por la que un emoji
-pudiera haber llegado embebido salvo el mecanismo cubierto, así que el
-coste de este residual es bajo. Calendarios sin ningún emoji embebido
-(título totalmente libre) no se tocan — ya funcionan bien con el
-respaldo de lectura, sin nada que limpiar.
+**Hallazgo de auditoría, ronda 2**: la primera versión de este backfill
+detectaba cualquier `coverTitle` que TERMINARA en `" 🎄"`, no solo el
+literal exacto — un error real, porque `updateCalendarAction` (desde
+TAL-5) siempre permitió editar `coverTitle` como texto completamente
+libre. Un Admin pudo haber escrito de verdad un título propio que
+termine en ese mismo emoji ("Navidad en familia 🎄"), sin ninguna
+relación con el mecanismo viejo; la heurística por sufijo se lo habría
+comido igual, quitándole al Admin un texto elegido por él de forma
+efectivamente irreversible. Corregido a comparación por literal exacto
+(ver arriba) — solo se migra automáticamente lo que con certeza vino del
+mecanismo viejo, nunca algo que solo coincide "por casualidad". La
+afirmación original de "no hay otra vía por la que pudiera llegar un
+emoji embebido" tampoco era cierta — el formulario de edición libre
+siempre lo permitió; corregida esta ronda.
 
-Verificado contra mi deployment aislado: dos filas simuladas
-("... 🎄" sin `coverIcon`, y un título libre sin emoji sin `coverIcon`)
-más las filas reales ya existentes (`🦄` con `coverIcon` ya fijado, dos
-calendarios de pruebas de TAL-13/TAL-15 sin emoji en el título) — primera
-pasada `{migrated: 1, skippedAlreadySet: 1, skippedNoMatch: 3}`, segunda
-pasada (idempotencia) `{migrated: 0, skippedAlreadySet: 2,
-skippedNoMatch: 3}`. La fila migrada quedó con `coverTitle: "¡Feliz
-cuenta atrás, equipo!"` (sin el sufijo) y `coverIcon: "🎄"` — confirmado
-leyendo el documento real (`npx convex data calendars --format
-jsonLines`).
+Riesgo residual documentado y aceptado: un calendario legado cuyo título
+fue editado DESPUÉS de creado (p. ej. le cambiaron el nombre pero
+dejaron el 🎄 al final) ya no coincide con el literal exacto y queda
+fuera de este backfill — se resuelve bien igualmente por el respaldo de
+lectura (sin duplicar nada, porque el título ya no es el literal
+conocido), aunque conserve el emoji suelto dentro del texto hasta que
+alguien lo edite a mano. Calendarios sin ningún emoji embebido (título
+totalmente libre) tampoco se tocan — ya funcionan bien con el respaldo
+de lectura, sin nada que limpiar.
+
+Verificado contra mi deployment aislado, en dos rondas. Ronda 1: dos
+filas simuladas ("... 🎄" sin `coverIcon`, y un título libre sin emoji
+sin `coverIcon`) más las filas reales ya existentes — primera pasada
+`{migrated: 1, skippedAlreadySet: 1, skippedNoMatch: 3}`, segunda pasada
+(idempotencia) `{migrated: 0, skippedAlreadySet: 2, skippedNoMatch: 3}`.
+Ronda 2, tras acotar a literal exacto: una fila con el literal histórico
+EXACTO (migró, `coverTitle: "¡Feliz cuenta atrás, equipo!"` +
+`coverIcon: "🎄"`) y una fila con un título propio que solo coincide en
+el sufijo ("Navidad en familia 🎄", NO migró, quedó intacta) — confirmado
+leyendo los documentos reales (`npx convex data calendars --format
+jsonLines`); idempotencia reconfirmada tras la corrección (`migrated: 0`
+en la segunda pasada).
 
 **Centralización de `MAX_COVER_ICON_LENGTH`** (sugerencia no bloqueante
 de auditoría, ronda 1): vivía duplicado a mano en `convex/calendars.ts`

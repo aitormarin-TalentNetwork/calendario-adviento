@@ -460,16 +460,25 @@ export const listCalendarsForUser = internalQuery({
 // transitorio del respaldo de lectura y se queda así para siempre, porque
 // el formulario de edición nunca reescribe `coverTitle` por su cuenta.
 //
-// Heurística: el único mecanismo que existió antes de TAL-23 para que
-// `coverTitle` llevara un emoji era este sufijo literal " 🎄" (espacio +
-// árbol) al final del texto por defecto — el formulario de edición era
-// texto libre sin ningún tratamiento especial de emoji, así que cubre la
-// inmensa mayoría de calendarios reales. Riesgo residual documentado y
-// aceptado (ver docs/calendarios.md): un calendario donde alguien haya
-// tecleado a mano un emoji distinto, o el mismo 🎄 en otra posición del
-// texto, no lo detecta esta heurística — no hay datos de producción
-// todavía (docs/convex-modelo-de-datos.md § "Qué no toca esta tarea",
-// TAL-9), así que el coste de un residual manual es bajo.
+// Hallazgo de auditoría, ronda 2: NO basta con detectar "termina en
+// ' 🎄'" — desde TAL-5, `updateCalendarAction` siempre permitió editar
+// `coverTitle` como texto completamente libre, así que un Admin pudo
+// haber escrito de verdad un título propio que termine en ese mismo
+// emoji ("Navidad en familia 🎄"), sin ninguna relación con el mecanismo
+// viejo. Migrar ese título automáticamente le habría quitado al Admin un
+// texto elegido por él, de forma efectivamente irreversible (si luego
+// cambia el icono, el 🎄 desaparece del título sin que lo pidiera). Solo
+// se puede tener CERTEZA del origen para el literal exacto que generaba
+// el mecanismo viejo — cualquier otra cosa que termine igual "por
+// casualidad" no se toca. Riesgo residual documentado y aceptado (ver
+// docs/calendarios.md): un calendario legado cuyo título fue editado
+// DESPUÉS de creado (p. ej. le cambiaron el nombre pero dejaron el 🎄 al
+// final) ya no coincide con el literal exacto y se queda fuera de este
+// backfill — se resuelve bien igualmente por el respaldo de lectura
+// (`DEFAULT_COVER_ICON`, sin duplicar nada porque el título en sí ya no
+// es el literal conocido), aunque conserve el emoji suelto dentro del
+// texto hasta que alguien lo edite a mano.
+const LEGACY_DEFAULT_COVER_TITLE = "¡Feliz cuenta atrás, equipo! 🎄";
 const LEGACY_EMBEDDED_ICON_SUFFIX = " 🎄";
 const LEGACY_EMBEDDED_ICON = "🎄";
 
@@ -501,7 +510,7 @@ async function backfillEmbeddedCoverIconHandler(
       skippedAlreadySet++;
       continue;
     }
-    if (!calendar.coverTitle.endsWith(LEGACY_EMBEDDED_ICON_SUFFIX)) {
+    if (calendar.coverTitle !== LEGACY_DEFAULT_COVER_TITLE) {
       skippedNoMatch++;
       continue;
     }
