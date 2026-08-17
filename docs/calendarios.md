@@ -45,7 +45,7 @@ el mockup (botón "+ Nuevo calendario" sin diálogo intermedio):
 - Fechas: 1–24 de diciembre del próximo diciembre que llegue
   (`defaultCalendarDateRange` — si ya se pasó el 24 de diciembre de este
   año, usa el año siguiente).
-- Skin: `pine` (coincide con el comentario "skin por defecto" de
+- Skin: `pino` (coincide con el comentario "skin por defecto" de
   `prisma/seed.ts`); si por lo que sea no existe, cae al primero que haya en
   vez de bloquear la creación. **TAL-12**: esta resolución vive ahora dentro
   de Convex (`resolveDefaultSkinId`, `convex/calendars.ts`) — la Server
