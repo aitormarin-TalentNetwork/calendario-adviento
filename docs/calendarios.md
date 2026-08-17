@@ -271,6 +271,163 @@ aviso: no ejecutar `migrate reset` sin coordinar antes, el mismo desfase
 seguirá ahí (viene de antes de esta tarea) y resetear no lo "arregla" de
 verdad, solo destruye datos compartidos.
 
+## Icono de portada (TAL-23) — primera tarea de UI bajo el Design System
+
+**Antes**: el 🎄 iba incrustado a mano dentro del texto por defecto de
+`coverTitle` ("¡Feliz cuenta atrás, equipo! 🎄") — ni campo propio ni
+seleccionable, el Admin solo podía cambiarlo escribiendo/borrando el
+emoji dentro del texto del título.
+
+**Ahora**: `coverIcon` es un campo propio del calendario
+(`convex/schema.ts`, `v.optional(v.string())`), con un selector real en
+el editor (`src/app/admin/[calendarId]/cover-icon-picker.tsx`) — buscador
++ galería categorizada (Navidad, Fiesta, Cariño, Naturaleza y cielo,
+Animales y fantasía; 45 emoji en total, catálogo en
+`src/lib/cover-icons.ts`), siguiendo `design/design-system.md` §
+"Selector de icono de portada (Admin)" (fuente:
+`design/propuesta-skins.html`). Icono seleccionado con borde/fondo
+distintivos (colores exactos del Design System — ver nota de tokens más
+abajo).
+
+**Catálogo sin límite fijo en la lógica** (brief de TAL-23, mismo
+criterio que la validación de email en `inviteGuest`, TAL-16): ni Convex
+(`assertValidCoverIcon`, `convex/calendars.ts`) ni la Server Action
+(`updateCalendarAction`) validan contra la lista exacta de 45 — solo una
+cota de longitud defensiva (`MAX_COVER_ICON_LENGTH = 16`, igual de
+criterio que `MAX_VIDEO_URL_LENGTH`/`MAX_MESSAGE_LENGTH`, TAL-6/13).
+Ampliar el catálogo más adelante es añadir entradas a
+`COVER_ICON_CATEGORIES` (`src/lib/cover-icons.ts`), no tocar lógica de
+validación en ningún sitio.
+
+**Buscador con términos en español, no del mockup** (`design/propuesta-skins.html`
+es un `<div>` estático con placeholder "🔍 Buscar icono…", sin JS real
+que defina cómo debería filtrar) — decisión de implementación, no de
+fidelidad visual: cada emoji lleva un `searchTerms` corto en español
+(`"unicornio"`, `"árbol de navidad"`, etc.), filtrado por substring
+insensible a mayúsculas.
+
+**Migración de datos — calendarios creados antes de TAL-23, hallazgo de
+auditoría rondas 1 y 2, corregido**: `coverIcon` es `v.optional()` a
+propósito, y cada sitio que LEE este campo aplica un respaldo
+(`DEFAULT_COVER_ICON = "🎄"`, `src/lib/cover-icons.ts`) si el calendario
+todavía no lo tiene — pero la primera versión de esta tarea se quedaba
+corta: los calendarios creados ANTES de TAL-23 ya llevaban el 🎄
+incrustado a mano dentro del propio texto de `coverTitle` (único
+mecanismo AUTOMÁTICO que existía — `createCalendarForAdmin` generaba
+siempre `"... 🎄"`). Con solo el respaldo de lectura, esos calendarios
+mostraban el emoji DOS VECES ("🎄 ¡Feliz cuenta atrás, equipo! 🎄" — el
+respaldo nuevo, más el que ya estaba dentro del texto), y si alguien
+editaba y guardaba ese calendario después, `coverIcon` se persistía pero
+el 🎄 seguía dentro de `coverTitle` sin limpiar: dejaba de ser un
+problema transitorio del respaldo y se quedaba así para siempre (el
+formulario de edición nunca reescribe `coverTitle` por su cuenta).
+
+Corrección: `convex/calendars.ts::backfillEmbeddedCoverIcon`, un
+backfill real (Convex no tiene mecanismo de migración declarativo, mismo
+tema de `docs/convex-modelo-de-datos.md`) — recorre `calendars`, y para
+cada fila con `coverIcon` todavía sin fijar cuyo `coverTitle` coincide
+**EXACTAMENTE** con el literal histórico completo
+(`"¡Feliz cuenta atrás, equipo! 🎄"`), retira el sufijo `" 🎄"` del texto
+y fija `coverIcon: "🎄"`. Idempotente — una fila ya migrada deja de
+cumplir la condición, así que reejecutar es un no-op seguro (verificado:
+segunda pasada `migrated: 0`). Se invoca a mano, una sola vez por
+deployment, vía el canal de administrador de la CLI: `npx convex run
+calendars:backfillEmbeddedCoverIcon '{}'` — mismo canal ya usado en
+TAL-9/12/16 para operaciones de este tipo, nunca desde código de
+aplicación.
+
+**Hallazgo de auditoría, ronda 2**: la primera versión de este backfill
+detectaba cualquier `coverTitle` que TERMINARA en `" 🎄"`, no solo el
+literal exacto — un error real, porque `updateCalendarAction` (desde
+TAL-5) siempre permitió editar `coverTitle` como texto completamente
+libre. Un Admin pudo haber escrito de verdad un título propio que
+termine en ese mismo emoji ("Navidad en familia 🎄"), sin ninguna
+relación con el mecanismo viejo; la heurística por sufijo se lo habría
+comido igual, quitándole al Admin un texto elegido por él de forma
+efectivamente irreversible. Corregido a comparación por literal exacto
+(ver arriba) — solo se migra automáticamente lo que con certeza vino del
+mecanismo viejo, nunca algo que solo coincide "por casualidad". La
+afirmación original de "no hay otra vía por la que pudiera llegar un
+emoji embebido" tampoco era cierta — el formulario de edición libre
+siempre lo permitió; corregida esta ronda.
+
+Riesgo residual documentado y aceptado: un calendario legado cuyo título
+fue editado DESPUÉS de creado (p. ej. le cambiaron el nombre pero
+dejaron el 🎄 al final) ya no coincide con el literal exacto y queda
+fuera de este backfill — se resuelve bien igualmente por el respaldo de
+lectura (sin duplicar nada, porque el título ya no es el literal
+conocido), aunque conserve el emoji suelto dentro del texto hasta que
+alguien lo edite a mano. Calendarios sin ningún emoji embebido (título
+totalmente libre) tampoco se tocan — ya funcionan bien con el respaldo
+de lectura, sin nada que limpiar.
+
+Verificado contra mi deployment aislado, en dos rondas. Ronda 1: dos
+filas simuladas ("... 🎄" sin `coverIcon`, y un título libre sin emoji
+sin `coverIcon`) más las filas reales ya existentes — primera pasada
+`{migrated: 1, skippedAlreadySet: 1, skippedNoMatch: 3}`, segunda pasada
+(idempotencia) `{migrated: 0, skippedAlreadySet: 2, skippedNoMatch: 3}`.
+Ronda 2, tras acotar a literal exacto: una fila con el literal histórico
+EXACTO (migró, `coverTitle: "¡Feliz cuenta atrás, equipo!"` +
+`coverIcon: "🎄"`) y una fila con un título propio que solo coincide en
+el sufijo ("Navidad en familia 🎄", NO migró, quedó intacta) — confirmado
+leyendo los documentos reales (`npx convex data calendars --format
+jsonLines`); idempotencia reconfirmada tras la corrección (`migrated: 0`
+en la segunda pasada).
+
+**Centralización de `MAX_COVER_ICON_LENGTH`** (sugerencia no bloqueante
+de auditoría, ronda 1): vivía duplicado a mano en `convex/calendars.ts`
+y `src/lib/cover-icons.ts`. Movido a `convex/coverIconConstants.ts`
+—fichero sin dependencias de runtime de Convex a propósito, mismo patrón
+que `convex/calendarErrorMessages.ts` (TAL-20)— e importado desde los dos
+sitios; `src/lib/cover-icons.ts` lo reexporta para no romper a quien ya
+lo importaba de ahí (`src/app/admin/actions.ts`).
+
+**Sitio NO reconectado, hallazgo de esta tarea, trackeado aparte
+(TAL-25)**: `src/app/login/page.tsx` nunca llegó a mostrar el calendario
+real de un `callbackUrl` — sigue siendo un `null` fijo desde que TAL-10
+retiró Prisma, ninguna tarea posterior lo reconectó. El tipo/JSX de esa
+página ya están preparados para pintar `coverIcon` en cuanto TAL-25
+resuelva esa búsqueda (página pública sin autenticar, con su propia
+superficie de seguridad — no algo que decidir dentro de este ticket) —
+hasta entonces, esa página sigue mostrando solo la portada genérica
+(🎄 + texto sin el emoji dentro), igual que antes de esta tarea.
+
+**Tokens del Design System — hallazgo de esta tarea, ya resuelto**:
+`design/design-system.md` es normativo (`--gold`, `--paper-2`, etc.),
+pero `src/app/globals.css` todavía solo tenía el esquema viejo del MVP
+(`--accent`/`--background`/`--foreground`) cuando se detectó esto —
+ninguna página de la app usaba los tokens nuevos todavía. Consultado
+con el PM (factory-e9): el set completo tiene que acabar en
+`globals.css` tal cual, pero coordinar quién lo añade primero (para no
+chocar con TAL-21, mismo Design System, en paralelo) era decisión de
+la Directora — se lo asignó a T3 como paso aparte. Mientras tanto,
+`cover-icon-picker.tsx` usó temporalmente los valores hex exactos de
+la tabla de tokens (`#c99a3d` gold, `#efe7d4` paper-2), sin depender de
+variables CSS que todavía no existían. T3 publicó la migración completa
+a `main` (commit `f345950`); tras traer `main` a esta rama,
+`cover-icon-picker.tsx` quedó actualizado para usar `var(--gold)`/
+`var(--paper-2)` de verdad — ya no quedan hex hardcodeados en este
+componente.
+
+### Evidencia (TAL-23)
+
+Verificado en navegador real (`npx next dev -p 3001`, dev-login), dos
+veces — primero con los valores hex temporales, y de nuevo tras el
+cambio a `var(--gold)`/`var(--paper-2)` reales (T3 ya había publicado la
+migración de tokens): selector con las 5 categorías y 45 iconos exactos
+del mockup; buscador filtrando por término en español (`"unicornio"` →
+solo 🦄, en su categoría); selección visual correcta (borde dorado +
+fondo `--paper-2` en el icono elegido, tanto en la rejilla como en la
+vista previa de "Icono de portada"); icono elegido persiste al guardar
+(confirmado también contra el dato real en Convex, `npx convex data
+calendars --format jsonLines`, no solo la UI) y se ve en la portada real
+de invitado (`/c/[calendarId]`, "🦄 ¡Feliz cuenta atrás, equipo!");
+editar un calendario existente para cambiar el icono, confirmado que el
+valor nuevo persiste tras recargar.
+
+`npx next build`/`npx eslint .` limpios (ambas rondas); `npx convex dev
+--typecheck=enable` limpio; `AGENTS.md` intacto.
+
 ## Fuera de alcance de esta tarea
 
 - "Días del calendario" e "Invitados" (secciones del mockup en la misma
@@ -278,3 +435,5 @@ verdad, solo destruye datos compartidos.
   ni placeholder aquí a propósito.
 - Subida real de la foto de portada (solo URL por ahora) — depende de que
   se decida el backend de almacenamiento (`docs/stack.md`).
+- (TAL-23) El grid de días (TAL-21) y el catálogo de skins (TAL-22) —
+  dominios de otras tareas en paralelo bajo el mismo Design System.

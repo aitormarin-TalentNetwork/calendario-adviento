@@ -10,6 +10,7 @@ import { ConfirmSubmitButton } from "@/components/confirm-submit-button";
 import { signOut } from "@/lib/auth";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
 
@@ -17,6 +18,7 @@ type AdminCalendar = {
   id: string;
   name: string;
   coverTitle: string;
+  coverIcon: string;
   startDate: Date;
   endDate: Date;
   skinId: string;
@@ -47,6 +49,9 @@ async function getCalendarForAdminPage(
       id: calendar._id,
       name: calendar.name,
       coverTitle: calendar.coverTitle,
+      // Respaldo para calendarios creados antes de TAL-23 — ver
+      // convex/schema.ts § coverIcon.
+      coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
       startDate: parseUtcDateOnly(calendar.startDate)!,
       endDate: parseUtcDateOnly(calendar.endDate)!,
       skinId: calendar.skinId,

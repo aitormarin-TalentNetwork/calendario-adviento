@@ -2,6 +2,7 @@ import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -148,6 +149,14 @@ export async function listAdminCalendars(
  * Nuevo calendario" no tiene formulario, solo `creationKey`) — el Admin
  * los cambia después desde el formulario de edición
  * (`updateCalendarAction`).
+ *
+ * TAL-23 — el 🎄 ya no va incrustado dentro del texto de `coverTitle`
+ * (hallazgo del brief: estaba hardcodeado ahí, en vez de vivir como campo
+ * propio) — se manda por separado como `coverIcon`, con el mismo valor
+ * `DEFAULT_COVER_ICON` que antes estaba fijo en el texto, para no cambiar
+ * el resultado visual de "+ Nuevo calendario" (el Admin lo cambia después
+ * desde el selector del formulario de edición, igual que el resto de
+ * campos de partida).
  */
 export async function createCalendarForAdmin(
   user: { id: string },
@@ -158,7 +167,8 @@ export async function createCalendarForAdmin(
     serverSecret: convexAppServerSecret(),
     userId: user.id as Id<"users">,
     name: "Nuevo calendario",
-    coverTitle: "¡Feliz cuenta atrás, equipo! 🎄",
+    coverTitle: "¡Feliz cuenta atrás, equipo!",
+    coverIcon: DEFAULT_COVER_ICON,
     startDate: startDate.toISOString().slice(0, 10),
     endDate: endDate.toISOString().slice(0, 10),
     creationKey,

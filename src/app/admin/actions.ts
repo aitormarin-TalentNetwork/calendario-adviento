@@ -8,8 +8,9 @@ import { api } from "../../../convex/_generated/api";
 import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "../../../convex/calendarErrorMessages";
 import type { Id } from "../../../convex/_generated/dataModel";
 import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
-import { getAuthorizedUser } from "@/lib/current-user";
 import { convexAppServerSecret } from "@/lib/convex-server";
+import { MAX_COVER_ICON_LENGTH } from "@/lib/cover-icons";
+import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
 
 /**
@@ -47,6 +48,7 @@ export async function createCalendarAction(formData: FormData) {
 export type UpdateCalendarFieldValues = {
   name: string;
   coverTitle: string;
+  coverIcon: string;
   startDate: string;
   endDate: string;
   skinId: string;
@@ -74,6 +76,7 @@ export async function updateCalendarAction(
 
   const name = formData.get("name")?.toString().trim() ?? "";
   const coverTitle = formData.get("coverTitle")?.toString().trim() ?? "";
+  const coverIcon = formData.get("coverIcon")?.toString() ?? "";
   const startDateRaw = formData.get("startDate")?.toString() ?? "";
   const endDateRaw = formData.get("endDate")?.toString() ?? "";
   const skinId = formData.get("skinId")?.toString() ?? "";
@@ -92,14 +95,24 @@ export async function updateCalendarAction(
   const values: UpdateCalendarFieldValues = {
     name,
     coverTitle,
+    coverIcon,
     startDate: startDateRaw,
     endDate: endDateRaw,
     skinId,
     coverImageUrl: coverImageUrlRaw,
   };
 
-  if (!name || !coverTitle || !startDateRaw || !endDateRaw || !skinId) {
+  if (!name || !coverTitle || !coverIcon || !startDateRaw || !endDateRaw || !skinId) {
     return { error: "Faltan campos obligatorios.", values };
+  }
+  // El selector de icono (TAL-23) ya limita a los del catálogo, pero esto
+  // es un límite de seguridad, no de UX — mismo criterio que el resto de
+  // campos de este formulario: nunca confiar en que el cliente mandó algo
+  // razonable. No se valida contra el catálogo exacto (brief: "sin límite
+  // fijo en la lógica"), solo la cota de longitud defensiva — igual que
+  // `convex/calendars.ts::assertValidCoverIcon`.
+  if (coverIcon.length > MAX_COVER_ICON_LENGTH) {
+    return { error: "El icono de portada no es válido.", values };
   }
 
   const startDate = parseUtcDateOnly(startDateRaw);
@@ -168,6 +181,7 @@ export async function updateCalendarAction(
       calendarId: calendarId as Id<"calendars">,
       name,
       coverTitle,
+      coverIcon,
       coverImageUrl: coverImageUrl ?? undefined,
       startDate: startDateRaw,
       endDate: endDateRaw,

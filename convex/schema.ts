@@ -23,6 +23,27 @@ export default defineSchema({
   calendars: defineTable({
     name: v.string(),
     coverTitle: v.string(),
+    // Icono de portada (TAL-23) — antes incrustado a mano dentro del texto
+    // de `coverTitle` (p. ej. "...🎄"). Campo propio, `v.string()` libre
+    // (no una unión de literales del catálogo): el catálogo de iconos vive
+    // como constante en el frontend (`src/lib/cover-icons.ts`), sin límite
+    // fijo en la lógica (brief de TAL-23) — igual que `skins` no vive como
+    // enum acoplado al schema. `v.optional()` porque los calendarios
+    // creados ANTES de esta tarea no tienen este campo — ver
+    // `DEFAULT_COVER_ICON` (`src/lib/cover-icons.ts`) para el valor de
+    // respaldo, aplicado en cada sitio que lee este campo.
+    //
+    // Hallazgo de auditoría, ronda 1: el respaldo de lectura por sí solo
+    // no bastaba para los calendarios cuyo `coverTitle` ya llevaba el 🎄
+    // incrustado (único mecanismo que existía antes de esta tarea) —
+    // duplicaba el emoji al mostrarlo. Corregido con un backfill real y
+    // acotado (`convex/calendars.ts::backfillEmbeddedCoverIcon`, corregido
+    // de nuevo en ronda 2 para no tocar títulos editados a mano que solo
+    // COINCIDEN por casualidad con el patrón viejo — ver el comentario
+    // completo ahí), no un script genérico: solo migra el literal exacto
+    // que generaba el mecanismo viejo, nunca escribe sobre filas ya
+    // migradas (idempotente).
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     // "YYYY-MM-DD", no un timestamp — ver docs/convex-modelo-de-datos.md §
     // "Fechas como día natural". Comparan correctamente como string

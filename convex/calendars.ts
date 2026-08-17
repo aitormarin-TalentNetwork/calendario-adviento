@@ -2,6 +2,7 @@ import { internalMutation, internalQuery, mutation, query, type MutationCtx, typ
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "./calendarErrorMessages";
+import { MAX_COVER_ICON_LENGTH } from "./coverIconConstants";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
 
@@ -42,6 +43,22 @@ function assertSafeCoverImageUrl(url: string | undefined): void {
   }
   if (parsed.protocol !== "https:") {
     throw new Error("La foto de portada debe ser una URL https:// — no se aceptan otros esquemas por seguridad.");
+  }
+}
+
+/**
+ * Deliberadamente NO valida contra el catálogo de `src/lib/cover-icons.ts`
+ * (brief de TAL-23: "catálogo sin límite fijo en la lógica", mismo
+ * criterio que ya se aplicó a la validación de email en `inviteGuest`,
+ * TAL-16 — aquí ni siquiera existe un catálogo fijo del lado de Convex).
+ * Solo la cota de longitud defensiva, igual que `videoUrl`/`message`
+ * (TAL-13).
+ */
+function assertValidCoverIcon(icon: string | undefined): void {
+  if (icon === undefined) return;
+  if (icon.length === 0) throw new Error("El icono de portada no puede estar vacío.");
+  if (icon.length > MAX_COVER_ICON_LENGTH) {
+    throw new Error(`El icono de portada no puede superar los ${MAX_COVER_ICON_LENGTH} caracteres.`);
   }
 }
 
@@ -129,6 +146,7 @@ async function createCalendarHandler(
     userId: Id<"users">;
     name: string;
     coverTitle: string;
+    coverIcon?: string;
     coverImageUrl?: string;
     startDate: string;
     endDate: string;
@@ -156,10 +174,12 @@ async function createCalendarHandler(
   assertValidCalendarDate(args.endDate);
   assertRangeNotInverted(args.startDate, args.endDate);
   assertSafeCoverImageUrl(args.coverImageUrl);
+  assertValidCoverIcon(args.coverIcon);
 
   const calendarId = await ctx.db.insert("calendars", {
     name: args.name,
     coverTitle: args.coverTitle,
+    coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,
     startDate: args.startDate,
     endDate: args.endDate,
@@ -176,6 +196,7 @@ export const createCalendar = internalMutation({
     userId: v.id("users"),
     name: v.string(),
     coverTitle: v.string(),
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -200,6 +221,7 @@ async function updateCalendarHandler(
     calendarId: Id<"calendars">;
     name: string;
     coverTitle: string;
+    coverIcon?: string;
     coverImageUrl?: string;
     startDate: string;
     endDate: string;
@@ -217,10 +239,12 @@ async function updateCalendarHandler(
   assertRangeNotInverted(args.startDate, args.endDate);
   await assertNoDayOutsideRange(ctx, args.calendarId, args.startDate, args.endDate);
   assertSafeCoverImageUrl(args.coverImageUrl);
+  assertValidCoverIcon(args.coverIcon);
 
   await ctx.db.patch(args.calendarId, {
     name: args.name,
     coverTitle: args.coverTitle,
+    coverIcon: args.coverIcon,
     coverImageUrl: args.coverImageUrl,
     startDate: args.startDate,
     endDate: args.endDate,
@@ -234,6 +258,7 @@ export const updateCalendar = internalMutation({
     calendarId: v.id("calendars"),
     name: v.string(),
     coverTitle: v.string(),
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -422,6 +447,89 @@ export const listCalendarsForUser = internalQuery({
   handler: listCalendarsForUserHandler,
 });
 
+// TAL-23, hallazgo de auditoría ronda 1: los calendarios creados ANTES de
+// esta tarea ya llevan el 🎄 incrustado a mano al final de `coverTitle`
+// (el único mecanismo que existía para tener un icono — ver el histórico
+// `createCalendarForAdmin`, `src/lib/calendars.ts`, que siempre generaba
+// `"... 🎄"`). Sin este backfill, el respaldo de lectura `coverIcon ??
+// DEFAULT_COVER_ICON` (aplicado en cada sitio que muestra la portada,
+// `src/app/admin/[calendarId]/page.tsx`/`src/app/c/[calendarId]/page.tsx`)
+// duplica el emoji ("🎄 ¡Feliz cuenta atrás, equipo! 🎄") — y si alguien
+// edita y guarda ese calendario después, `coverIcon` se persiste pero el
+// 🎄 sigue dentro de `coverTitle` sin limpiar: deja de ser un problema
+// transitorio del respaldo de lectura y se queda así para siempre, porque
+// el formulario de edición nunca reescribe `coverTitle` por su cuenta.
+//
+// Hallazgo de auditoría, ronda 2: NO basta con detectar "termina en
+// ' 🎄'" — desde TAL-5, `updateCalendarAction` siempre permitió editar
+// `coverTitle` como texto completamente libre, así que un Admin pudo
+// haber escrito de verdad un título propio que termine en ese mismo
+// emoji ("Navidad en familia 🎄"), sin ninguna relación con el mecanismo
+// viejo. Migrar ese título automáticamente le habría quitado al Admin un
+// texto elegido por él, de forma efectivamente irreversible (si luego
+// cambia el icono, el 🎄 desaparece del título sin que lo pidiera). Solo
+// se puede tener CERTEZA del origen para el literal exacto que generaba
+// el mecanismo viejo — cualquier otra cosa que termine igual "por
+// casualidad" no se toca. Riesgo residual documentado y aceptado (ver
+// docs/calendarios.md): un calendario legado cuyo título fue editado
+// DESPUÉS de creado (p. ej. le cambiaron el nombre pero dejaron el 🎄 al
+// final) ya no coincide con el literal exacto y se queda fuera de este
+// backfill — se resuelve bien igualmente por el respaldo de lectura
+// (`DEFAULT_COVER_ICON`, sin duplicar nada porque el título en sí ya no
+// es el literal conocido), aunque conserve el emoji suelto dentro del
+// texto hasta que alguien lo edite a mano.
+const LEGACY_DEFAULT_COVER_TITLE = "¡Feliz cuenta atrás, equipo! 🎄";
+const LEGACY_EMBEDDED_ICON_SUFFIX = " 🎄";
+const LEGACY_EMBEDDED_ICON = "🎄";
+
+/**
+ * Backfill real, no un simple respaldo de lectura — Convex no tiene un
+ * mecanismo de migración de datos declarativo (mismo tema ya documentado
+ * en `docs/convex-modelo-de-datos.md`/`convex/schema.ts` § `coverIcon`
+ * para el resto de calendarios sin `coverIcon`, donde SÍ basta un
+ * respaldo de lectura porque no hay ningún texto duplicado que limpiar).
+ * Idempotente: una vez migrado un calendario, `coverIcon` deja de ser
+ * `undefined` y la siguiente pasada lo salta — reejecutar tras un primer
+ * paso exitoso es un no-op seguro. Se invoca a mano, una sola vez por
+ * deployment, vía el canal de administrador de la CLI (`npx convex run
+ * calendars:backfillEmbeddedCoverIcon '{}'`, mismo canal que TAL-9/12/16
+ * — ver docs/convex-modelo-de-datos.md § "Bajo nivel"), nunca desde
+ * código de aplicación: es un arreglo de datos históricos de un momento
+ * concreto, no un paso del flujo normal de creación/edición.
+ */
+async function backfillEmbeddedCoverIconHandler(
+  ctx: MutationCtx
+): Promise<{ migrated: number; skippedAlreadySet: number; skippedNoMatch: number }> {
+  const calendars = await ctx.db.query("calendars").collect();
+  let migrated = 0;
+  let skippedAlreadySet = 0;
+  let skippedNoMatch = 0;
+
+  for (const calendar of calendars) {
+    if (calendar.coverIcon !== undefined) {
+      skippedAlreadySet++;
+      continue;
+    }
+    if (calendar.coverTitle !== LEGACY_DEFAULT_COVER_TITLE) {
+      skippedNoMatch++;
+      continue;
+    }
+    await ctx.db.patch(calendar._id, {
+      coverTitle: calendar.coverTitle.slice(0, -LEGACY_EMBEDDED_ICON_SUFFIX.length).trimEnd(),
+      coverIcon: LEGACY_EMBEDDED_ICON,
+      updatedAt: Date.now(),
+    });
+    migrated++;
+  }
+
+  return { migrated, skippedAlreadySet, skippedNoMatch };
+}
+
+export const backfillEmbeddedCoverIcon = internalMutation({
+  args: {},
+  handler: backfillEmbeddedCoverIconHandler,
+});
+
 // --- Frontera pública (TAL-12) — mismo patrón que convex/access.ts (TAL-11):
 // función delgada por operación, comprueba el secreto y delega
 // directamente en la función plana (no via ctx.runQuery/ctx.runMutation al
@@ -437,6 +545,7 @@ export const createCalendarPublic = mutation({
     userId: v.id("users"),
     name: v.string(),
     coverTitle: v.string(),
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -449,6 +558,7 @@ export const createCalendarPublic = mutation({
       userId: args.userId,
       name: args.name,
       coverTitle: args.coverTitle,
+      coverIcon: args.coverIcon,
       coverImageUrl: args.coverImageUrl,
       startDate: args.startDate,
       endDate: args.endDate,
@@ -464,6 +574,7 @@ export const updateCalendarPublic = mutation({
     calendarId: v.id("calendars"),
     name: v.string(),
     coverTitle: v.string(),
+    coverIcon: v.optional(v.string()),
     coverImageUrl: v.optional(v.string()),
     startDate: v.string(),
     endDate: v.string(),
@@ -475,6 +586,7 @@ export const updateCalendarPublic = mutation({
       calendarId: args.calendarId,
       name: args.name,
       coverTitle: args.coverTitle,
+      coverIcon: args.coverIcon,
       coverImageUrl: args.coverImageUrl,
       startDate: args.startDate,
       endDate: args.endDate,
