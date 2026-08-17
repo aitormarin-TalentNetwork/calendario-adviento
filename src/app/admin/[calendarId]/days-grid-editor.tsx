@@ -58,6 +58,34 @@ function cellStyle(day: DayInfo, isToday: boolean, isSelected: boolean): React.C
   return base;
 }
 
+/**
+ * TAL-44 — mismo tratamiento que `outOfRangeCellStyle`/`.dg-out-of-range`
+ * en `door-grid.tsx` (design/design-system.md § "Grid de días" → "Fuera
+ * de rango"), ahora también en el editor de Admin: `groupIntoMonths` ya
+ * devolvía celdas `"out-of-range"` para el rango del editor (mismo tipo
+ * `MonthCell<T>` genérico que usa el Invitado), pero antes de esta tarea
+ * se colapsaban junto con el relleno de alineación de semana (`padding`)
+ * — a propósito, fuera de alcance de TAL-31 en su momento. Ahora sí: mes
+ * completo también aquí, número en marca de agua + tachado + fondo
+ * `--bg-raised` (se funde con la tarjeta, no un bloque aparte).
+ */
+const outOfRangeCellStyle: React.CSSProperties = {
+  aspectRatio: "1",
+  background: "var(--bg-raised)",
+  position: "relative",
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+};
+
+const outOfRangeNumStyle: React.CSSProperties = {
+  fontFamily: "var(--font-body)",
+  fontWeight: 800,
+  color: "var(--text)",
+  fontSize: "1.9rem",
+  opacity: 0.15,
+};
+
 function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSSProperties {
   if (day.videoUrl) {
     return {
@@ -245,15 +273,23 @@ export function DaysGridEditor({
                   }}
                 >
                   {week.map((cell, dayIdx) => {
-                    // TAL-31 — el mes completo (sin huecos, numerado desde
-                    // el 1) es un cambio pedido solo para la vista de
-                    // Invitado (ver `door-grid.tsx`) — aquí, fuera de
-                    // alcance, un día "out-of-range" se sigue tratando
-                    // igual que el relleno de alineación de semana
-                    // (`padding`), en blanco, mismo comportamiento que
-                    // antes de TAL-31.
-                    if (cell.kind !== "item") {
+                    // Relleno de alineación de semana — días que no
+                    // pertenecen a ningún mes, ni siquiera fuera de rango.
+                    // Sigue en blanco sin numerar, sin cambios.
+                    if (cell.kind === "padding") {
                       return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--bg-raised)" }} />;
+                    }
+                    // TAL-44 — antes (TAL-31) un día "out-of-range" se
+                    // trataba igual que el relleno de arriba, a propósito
+                    // fuera de alcance en su momento. Ahora sí: mes
+                    // completo también en el editor, mismo tratamiento
+                    // que el Invitado (ver `outOfRangeCellStyle` arriba).
+                    if (cell.kind === "out-of-range") {
+                      return (
+                        <div key={cell.dateStr} aria-hidden="true" className="dge-out-of-range" style={outOfRangeCellStyle}>
+                          <span style={outOfRangeNumStyle}>{cell.dayNum}</span>
+                        </div>
+                      );
                     }
                     const day = cell.item;
                     const date = parseDateOnlyUTC(day.dateStr);
@@ -334,6 +370,25 @@ export function DaysGridEditor({
           </div>
         </div>
       )}
+      <style jsx>{`
+        /* TAL-44 — tachado fino sobre los días "fuera de rango", portado
+           1:1 de design/propuesta-grid-calendario.html
+           (.day.out-of-range::after) y de .dg-out-of-range::after en
+           door-grid.tsx — mismos valores, mismo motivo: ::after no se
+           puede expresar como estilo inline de React. */
+        .dge-out-of-range::after {
+          content: "";
+          position: absolute;
+          left: 14%;
+          right: 14%;
+          top: 50%;
+          height: 1px;
+          background: var(--text-dim);
+          opacity: 0.4;
+          transform: rotate(-18deg);
+          pointer-events: none;
+        }
+      `}</style>
     </div>
   );
 }

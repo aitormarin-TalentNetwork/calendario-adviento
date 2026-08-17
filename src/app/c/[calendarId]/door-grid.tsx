@@ -75,10 +75,18 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
  * baja), sin candado, sin fondo de estado, sin click — no es un día
  * "bloqueado" (ese sí es interactivo, dentro del rango pero en el
  * futuro), es un día que no pertenece a este calendario en absoluto.
+ *
+ * TAL-44 — segunda vuelta, pedido explícito de Aitor: el fondo pasa de
+ * `--bg` (bloque propio, destacaba) a `--bg-raised` — el mismo que usa el
+ * relleno de alineación de semana (`padding`, más abajo) — para que se
+ * funda con la tarjeta en vez de marcar un bloque aparte. El tachado
+ * diagonal (`.dg-out-of-range::after`, en el `<style jsx>` de más abajo)
+ * es un `::after` — no se puede expresar en un objeto de estilos inline
+ * como este, por eso vive en la hoja de estilos scoped en vez de aquí.
  */
 const outOfRangeCellStyle: React.CSSProperties = {
   aspectRatio: "1",
-  background: "var(--bg)",
+  background: "var(--bg-raised)",
   position: "relative",
   display: "flex",
   alignItems: "center",
@@ -498,6 +506,22 @@ export function DoorGrid({
         .dg-lock-icon {
           font-size: 0.7rem;
         }
+        /* TAL-44 — tachado fino sobre los días "fuera de rango", portado
+           1:1 de design/propuesta-grid-calendario.html (.day.out-of-range::after).
+           ::after no se puede expresar como estilo inline de React, por
+           eso vive aquí en vez de en outOfRangeCellStyle. */
+        .dg-out-of-range::after {
+          content: "";
+          position: absolute;
+          left: 14%;
+          right: 14%;
+          top: 50%;
+          height: 1px;
+          background: var(--text-dim);
+          opacity: 0.4;
+          transform: rotate(-18deg);
+          pointer-events: none;
+        }
         /* TAL-40 — efecto de "primera apertura": pop de escala + destello
            dorado en la casilla, portado de design/propuesta-grid-calendario.html
            (misma curva/tiempos). El número se oculta durante el pop — el
@@ -682,7 +706,7 @@ export function DoorGrid({
                     }
                     if (cell.kind === "out-of-range") {
                       return (
-                        <div key={cell.dateStr} aria-hidden="true" style={outOfRangeCellStyle}>
+                        <div key={cell.dateStr} aria-hidden="true" className="dg-out-of-range" style={outOfRangeCellStyle}>
                           <span className="dg-num" style={outOfRangeNumStyle}>
                             {cell.dayNum}
                           </span>
