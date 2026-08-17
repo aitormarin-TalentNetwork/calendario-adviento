@@ -173,15 +173,19 @@ export default async function GuestCalendarPage({
           // que ya lo tenían — antes este `<main>` se quedaba con el `--bg`
           // fijo de la app (pine) alrededor/entre ellas.
           //
-          // TAL-50 — esta es ahora la ÚNICA capa de fondo real de toda la
-          // pantalla: la tarjeta de portada (`CalendarCoverHeader`,
-          // `paintBackground={false}`, más abajo) y la cabecera de mes del
-          // grid (`door-grid.tsx`) ya NO repintan el mismo fondo por su
-          // cuenta — antes lo hacían cada una desde su propia esquina, y
-          // con un skin de patrón repetitivo (rayas/lunares/gajos) se veía
-          // como capas superpuestas en vez de un fondo continuo (hallazgo
-          // real de Aitor). Ver el comentario completo en
-          // `calendar-cover-header.tsx`/`door-grid.tsx`.
+          // TAL-50 — la tarjeta de portada (`CalendarCoverHeader`,
+          // `paintBackground={false}`, más abajo) ya NO repinta el mismo
+          // fondo por su cuenta — antes lo hacía desde su propia esquina,
+          // y con un skin de patrón repetitivo (rayas/lunares/gajos) se
+          // veía como una costura sobre este fondo (hallazgo real de
+          // Aitor). Deja pasar esta capa de `<main>` sin más — es segura
+          // de dejar transparente porque no está sobre contenido que
+          // scrollea. La cabecera de mes sticky del grid (`door-grid.tsx`)
+          // SÍ mantiene su propio repintado (con la misma costura pequeña
+          // de antes) — corrección de auditoría, ronda 1: sin fondo
+          // propio, mientras queda fija en pantalla, las casillas de
+          // semanas anteriores del mismo mes se ven por detrás durante el
+          // scroll. Ver el comentario completo en `door-grid.tsx`.
           ...mainBackgroundStyle,
           // Se sobreescribe `--accent` a nivel de página para que TODO lo
           // que ya usa `var(--accent)` más abajo (incluida `DoorGrid`,

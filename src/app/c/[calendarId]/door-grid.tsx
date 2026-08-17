@@ -622,25 +622,12 @@ export function DoorGrid({
           }
         }
       `}</style>
-      {/* TAL-50 — esta tarjeta y la cabecera sticky de cada mes ya NO
-          pintan el fondo del skin por su cuenta (antes: `background:
-          "var(--bg-raised)"` aquí, `skinBackgroundStyle(...)` en la
-          cabecera) — con un skin de patrón repetitivo (rayas/lunares/
-          gajos), cada caja reiniciaba el patrón desde su propia esquina,
-          se veía como capas superpuestas en vez de un fondo continuo
-          (hallazgo real de Aitor). Ahora las dos son transparentes y
-          dejan pasar la ÚNICA capa de fondo real, la de `<main>`
-          (`mainBackgroundStyle`, `page.tsx`) — mismo fondo, un solo
-          origen, sin costuras.
-
-          Verificado que la cabecera sticky no causa "bleed-through" de
-          las casillas al hacerse transparente: `position: sticky`
-          conserva su espacio reservado en el flujo normal del documento
-          — las casillas de un mes que se desplazan por debajo NUNCA
-          ocupan ese rectángulo, así que no hay nada detrás de la
-          cabecera salvo el fondo continuo de `<main>` (comprobado con
-          scroll real, en el navegador, sobre un calendario largo con un
-          skin de rayas). */}
+      {/* TAL-50 — esta tarjeta ya NO pinta el fondo del skin por su cuenta
+          (antes: `background: "var(--bg-raised)"` aquí) — deja pasar la
+          ÚNICA capa de fondo real, la de `<main>` (`mainBackgroundStyle`,
+          `page.tsx`). Segura de dejar transparente porque no es
+          `position: sticky` — nada se desplaza "por debajo" de ella en un
+          sentido que pueda filtrarse. */}
       <div
         style={{
           border: "1px solid var(--border)",
@@ -658,6 +645,29 @@ export function DoorGrid({
                   position: "sticky",
                   top: 0,
                   zIndex: 2,
+                  // TAL-50, corrección de auditoría (NO-GO, ronda 1): SÍ
+                  // necesita su propio fondo opaco, a diferencia de la
+                  // tarjeta que la envuelve (arriba) y de la tarjeta de
+                  // portada (`page.tsx`) — esas dos son estáticas, esta es
+                  // `position: sticky`. Sin fondo propio, mientras la
+                  // cabecera queda fija en pantalla las casillas de
+                  // semanas anteriores del MISMO mes (que sí siguen
+                  // desplazándose, ya que solo la cabecera se fija) pasan
+                  // VISUALMENTE por detrás de ella — confirmado en
+                  // navegador con scroll real y preciso (números de día de
+                  // la semana anterior bien visibles superpuestos con el
+                  // texto de la cabecera). `position: sticky` conserva el
+                  // espacio de la cabecera en el flujo normal, pero eso
+                  // solo describe el LAYOUT — no impide que otro contenido
+                  // en un nivel de pila inferior se pinte en ese mismo
+                  // rectángulo de pantalla una vez la cabecera queda fija;
+                  // sin una capa opaca propia ahí, ese contenido se ve.
+                  // Vuelve a repintar el skin (con el pequeño desajuste de
+                  // origen respecto a `<main>` que motivó TAL-50 en primer
+                  // lugar) — preferible una costura pequeña y estática a
+                  // un glitch real de contenido superpuesto durante el
+                  // scroll. Ver `src/lib/skin-appearance.ts`.
+                  ...skinBackgroundStyle(background, backgroundImageUrl),
                   fontFamily: "var(--font-display)",
                 }}
               >
