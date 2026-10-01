@@ -62,6 +62,7 @@ tristones").
 | `--primary-btn` | `#6b52f5` | `#7157ff` | Fondo del botón primario, con texto blanco encima (4,66 en oscuro). `--primary` queda para superficies grandes (bloque de cuenta atrás) |
 | `--on-sun` | `#1d2320` | `#1d2320` | Texto sobre `--sun` en los dos modos (en oscuro `--ink` es claro y no se lee sobre amarillo) |
 | `--coral-ink` | `#d0353a` | `--coral` | Texto de peligro/borrar en claro. `--coral` sigue para fondos y acentos |
+| `--coral-btn` | `#d0353a` | `#d0353a` | Fondo de los botones de peligro con texto blanco ("Eliminar calendario"…): 4,94:1. `--coral` solo para acentos y fondos sin texto |
 
 ### Forma
 
