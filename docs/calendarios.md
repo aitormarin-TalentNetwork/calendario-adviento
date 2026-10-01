@@ -359,6 +359,10 @@ verdad, solo destruye datos compartidos.
 
 ## Icono de portada (TAL-23) — primera tarea de UI bajo el Design System
 
+> **TAL-60:** los emojis de esta sección pasaron a iconos Lucide, con migración de los
+> datos existentes — ver `docs/iconos.md` (catálogo, compatibilidad, runbook de
+> producción y rollback).
+
 **Antes**: el 🎄 iba incrustado a mano dentro del texto por defecto de
 `coverTitle` ("¡Feliz cuenta atrás, equipo! 🎄") — ni campo propio ni
 seleccionable, el Admin solo podía cambiarlo escribiendo/borrando el
