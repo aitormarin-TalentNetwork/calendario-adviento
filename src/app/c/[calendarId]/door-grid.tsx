@@ -763,7 +763,7 @@ export function DoorGrid({
                           >
                             {/* TAL-60 — candado Lucide (antes 🔒); tamaño
                                 relativo al font-size de `.dg-lock-icon`. */}
-                            <Lock size="1.4em" strokeWidth={2} aria-hidden="true" />
+                            <Lock size="1.2em" strokeWidth={2} aria-hidden="true" />
                           </span>
                         )}
                       </button>
