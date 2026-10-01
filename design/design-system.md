@@ -51,7 +51,16 @@ resto, para no rehacer nada a medias.
 | `--primary-soft` / `--coral-soft` / `--mint-soft` | `#e6e0ff` / `#ffd9d6` / `#cdf7e3` | `#2a2645` / `#3b2620` / `#1f3a2e` | Fondos pastel de tarjetas y recuadros de icono |
 
 **Sin ocres, marrones ni verde pino** en la app (Aitor: "esos marrones y verde
-tristones"). El texto sobre `--primary` es blanco; sobre `--sun`, `--ink`.
+tristones").
+
+**Tokens de texto con contraste AA (≥ 4,5:1)**, añadidos el 2026-10-01 a propuesta de T1
+(TAL-61), porque varios pares con los hex base no llegaban a AA:
+
+| Token | Claro | Oscuro | Uso |
+|---|---|---|---|
+| `--primary-ink` | `#6b52f5` | `#7157ff` | Fondo del botón primario (texto blanco encima) y enlaces/texto en violeta. `--primary` queda para superficies grandes (bloque de cuenta atrás) |
+| `--on-sun` | `#1d2320` | `#1d2320` | Texto sobre `--sun` en los dos modos (en oscuro `--ink` es claro y no se lee sobre amarillo) |
+| `--coral-ink` | `#d0353a` | `--coral` | Texto de peligro/borrar en claro. `--coral` sigue para fondos y acentos |
 
 ### Forma
 
