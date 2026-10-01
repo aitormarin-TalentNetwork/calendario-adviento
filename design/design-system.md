@@ -578,7 +578,11 @@ los tokens vigentes).
 - **Último Admin protegido:** si solo queda un Admin, su desplegable y su "Quitar" salen
   deshabilitados con el aviso *"Es el único Admin del calendario: nombra a otro antes de
   cambiar su rol o quitarlo."* La regla se comprueba también en el servidor.
-- **Link de invitación compartido:** da acceso **solo como Visitante**, siempre.
+- **Link de invitación:** el link no da acceso ni rol por sí mismo. Solo entra quien está
+  invitado por email, y cada persona entra **con el rol de su invitación** (Visitante por
+  defecto). Texto bajo el link: *"Cada persona entra con el rol con el que la invitaste
+  (Visitante por defecto)."* (Corregido el 2026-10-01 a propuesta de T3, TAL-65.)
+- **Pendiente:** quien aún no ha entrado lleva "· pendiente" en su línea secundaria.
 
 ### Invitados — link de invitación único
 
