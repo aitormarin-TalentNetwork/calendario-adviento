@@ -119,6 +119,12 @@ calendarios del log en la UI:
 - **Rollback de Convex:** seguro en cualquier fase — todo nombre del catálogo tiene
   ≤ 16 caracteres, así que la validación anterior a TAL-60 lo acepta; el render lo decide
   el Next (≥ TAL-60). Solo se pierden temporalmente las funciones de migración.
+  Comprobado en desarrollo (`e2e/tal-60-compat-old-convex.spec.ts`): al desplegar las
+  funciones antiguas, Convex **borra los índices** de `coverIconMigrationLog` pero
+  **conserva sus filas**; al volver a desplegar TAL-60 se recrean. Mientras esté el
+  backend antiguo, su validación (solo longitud) acepta cualquier valor ≤ 16 caracteres;
+  el Next nuevo lo pinta igualmente (un valor desconocido → `gift`) y la siguiente
+  migración lo corrige.
 
 ## Corrección de datos tras migrar
 
