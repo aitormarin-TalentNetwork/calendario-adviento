@@ -164,6 +164,12 @@ export async function listAdminCalendars(
  * longitud) vive en Convex (`createCalendarHandler::assertValidCalendarName`)
  * — mismo criterio que el resto de invariantes de este dominio, nunca
  * solo en la Server Action.
+ *
+ * TAL-57 — `user` tiene que ser Super Admin: Convex lo comprueba dentro de
+ * la propia mutation (`requireSuperAdmin`) y rechaza con "No autorizado."
+ * si no lo es. Ya no es la vía por la que "alguien se convierte en Admin
+ * de su primer calendario" (ver arriba, TAL-5): ahora el Super Admin crea
+ * el calendario (quedando él como ADMIN) y nombra Admins desde /superadmin.
  */
 export async function createCalendarForAdmin(
   user: { id: string },
