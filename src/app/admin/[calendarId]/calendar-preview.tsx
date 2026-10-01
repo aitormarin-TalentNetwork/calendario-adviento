@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { CalendarCoverHeader } from "@/components/calendar-cover-header";
 import { CoverIcon } from "@/components/cover-icon";
 import { CoverText } from "@/components/cover-text";
@@ -234,10 +235,14 @@ export function CalendarPreview({
                 height: "30px",
                 borderRadius: "999px",
                 cursor: "pointer",
-                fontSize: "1rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
               }}
             >
-              ✕
+              {/* TAL-60 — `X` de Lucide (antes ✕). */}
+              <X size={18} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
         </div>
