@@ -39,10 +39,15 @@ export default async function AdminCalendarsPage() {
           escrito. creationKey sigue asignándose tras montar, exclusivamente
           en cliente (TAL-19): mientras no se recargue la página, un doble
           clic o un reenvío del mismo formulario manda la misma clave y el
-          servidor lo trata como el mismo intento — ver createCalendarForAdmin. */}
-      <div style={{ marginTop: "1rem" }}>
-        <NewCalendarSubmit />
-      </div>
+          servidor lo trata como el mismo intento — ver createCalendarForAdmin.
+          TAL-57 — solo el Super Admin puede crear calendarios: el botón solo
+          se le muestra a él (la comprobación real está en el servidor, ver
+          createCalendarAction y convex/calendars.ts::createCalendarHandler). */}
+      {user.isSuperAdmin ? (
+        <div style={{ marginTop: "1rem" }}>
+          <NewCalendarSubmit />
+        </div>
+      ) : null}
 
       {calendars.length === 0 ? (
         <p style={{ marginTop: "1.5rem" }}>Todavía no administras ningún calendario.</p>

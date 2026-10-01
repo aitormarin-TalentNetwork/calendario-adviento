@@ -40,7 +40,34 @@ async function convexRun(fn, argsObj) {
     .trim();
 }
 
+// TAL-57 — crear un calendario es ahora exclusivo del Super Admin
+// (`createCalendarHandler` → `requireSuperAdmin`): los calendarios de
+// prueba los crea un Super Admin de prueba, y el "admin" cuyo borrado
+// concurrente se verifica recibe después su membership ADMIN por el canal
+// de administrador de la CLI — mismo resultado que antes de TAL-57 (un
+// Admin real, no Super Admin, borrando su calendario), solo cambia quién
+// crea.
+async function createCalendarAdministeredBy(adminId, superAdminId, args) {
+  const calendarId = await client.mutation(api.calendars.createCalendarPublic, {
+    serverSecret: goodSecret,
+    userId: superAdminId,
+    ...args,
+  });
+  await convexRun("calendarMemberships:addMembership", { calendarId, userId: adminId, role: "ADMIN" });
+  return calendarId;
+}
+
 async function main() {
+  const superAdminId = await client.mutation(api.users.upsertUserOnLoginPublic, {
+    serverSecret: goodSecret,
+    // Email único por ejecución: `isSuperAdminOnCreate` solo se aplica al
+    // CREAR, y un email fijo podría existir ya en el deployment como
+    // usuario normal (pasó en el de T1: un
+    // `verify-tal12-concurrency-superadmin@example.com` de agosto con
+    // `isSuperAdmin: false`).
+    email: `verify-tal12-concurrency-superadmin-${process.pid}@example.com`,
+    isSuperAdminOnCreate: true,
+  });
   const adminId = await client.mutation(api.users.upsertUserOnLoginPublic, {
     serverSecret: goodSecret,
     email: "verify-tal12-concurrency-admin@example.com",
@@ -55,9 +82,7 @@ async function main() {
   let anyUnauthorizedForAdmin = false;
 
   for (let trial = 1; trial <= TRIALS; trial++) {
-    const calendarId = await client.mutation(api.calendars.createCalendarPublic, {
-      serverSecret: goodSecret,
-      userId: adminId,
+    const calendarId = await createCalendarAdministeredBy(adminId, superAdminId, {
       name: `race ${trial}`,
       coverTitle: "x",
       startDate: "2026-12-01",
@@ -88,9 +113,7 @@ async function main() {
   console.log(`OK: ${TRIALS}/${TRIALS} rondas de concurrencia real (${CONCURRENCY} procesos por ronda) sin ningún "unauthorized" para el Admin real, exactamente 1 "deleted" por ronda`);
 
   // Control: un stranger sin membership, contra un calendario real, sigue "unauthorized".
-  const controlCalendarId = await client.mutation(api.calendars.createCalendarPublic, {
-    serverSecret: goodSecret,
-    userId: adminId,
+  const controlCalendarId = await createCalendarAdministeredBy(adminId, superAdminId, {
     name: "control",
     coverTitle: "x",
     startDate: "2026-12-01",

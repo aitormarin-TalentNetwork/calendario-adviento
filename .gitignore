@@ -23,3 +23,10 @@ next-env.d.ts
 # /src/generated/prisma: derivado, se regenera con `npx convex dev`/
 # `npx convex codegen`, no se trackea).
 /convex/_generated/
+
+# Playwright (TAL-57) — trazas, vídeos y reportes, nunca versionados. Las
+# capturas de evidencia van a docs/evidence/ (ya ignorado arriba).
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

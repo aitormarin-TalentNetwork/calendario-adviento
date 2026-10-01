@@ -57,6 +57,13 @@ export async function createCalendarAction(
   const user = await getAuthorizedUser();
   if (!user) redirect("/login?callbackUrl=/admin");
 
+  // TAL-57 — crear calendario es solo del Super Admin. Defensa en
+  // profundidad: el botón ya está oculto para el resto en /admin, pero esta
+  // acción es un endpoint invocable directamente. La garantía real vive en
+  // Convex (`createCalendarHandler` → `requireSuperAdmin`), que lo relee en
+  // fresco dentro de la misma transacción que crea.
+  if (!user.isSuperAdmin) redirect("/unauthorized");
+
   const name = formData.get("name")?.toString().trim() ?? "";
 
   // La clave la genera la página en cada render (ver
@@ -78,7 +85,17 @@ export async function createCalendarAction(
     return { error: `El nombre no puede superar los ${MAX_CALENDAR_NAME_LENGTH} caracteres.`, name };
   }
 
-  const calendar = await createCalendarForAdmin(user, creationKey, name);
+  let calendar: { id: string };
+  try {
+    calendar = await createCalendarForAdmin(user, creationKey, name);
+  } catch (err) {
+    // Le han quitado el Super Admin entre la lectura de arriba y la
+    // mutation: Convex lo rechaza con el mismo mensaje que
+    // `requireSuperAdmin` — mismo destino que el guard de arriba.
+    // Cualquier otro fallo sigue propagándose igual que antes de TAL-57.
+    if (extractConvexErrorMessage(err) === "No autorizado.") redirect("/unauthorized");
+    throw err;
+  }
   revalidatePath("/admin");
   redirect(`/admin/${calendar.id}`);
 }

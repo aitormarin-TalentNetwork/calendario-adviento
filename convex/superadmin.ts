@@ -31,8 +31,11 @@ export type CalendarStatus = "upcoming" | "live" | "finished";
  * privilegio dentro de la misma transacción que el efecto — mismo
  * criterio que `resolveMemberAccessHandler` (`convex/access.ts`, TAL-11)
  * deriva el email del `userId` cargado, nunca acepta un email aparte.
+ *
+ * TAL-57 — exportada para reutilizarla tal cual en
+ * `calendars.ts::createCalendarHandler` (crear calendario = solo Super Admin).
  */
-async function requireSuperAdmin(ctx: QueryCtx | MutationCtx, actorUserId: Id<"users">): Promise<void> {
+export async function requireSuperAdmin(ctx: QueryCtx | MutationCtx, actorUserId: Id<"users">): Promise<void> {
   const actor = await ctx.db.get(actorUserId);
   if (!actor?.isSuperAdmin) throw new Error("No autorizado.");
 }

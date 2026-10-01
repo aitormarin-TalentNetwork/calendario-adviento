@@ -7,6 +7,7 @@ import { MAX_COUNTDOWN_LABEL_LENGTH } from "./countdownLabelConstants";
 import { MAX_COVER_ICON_LENGTH } from "./coverIconConstants";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
+import { requireSuperAdmin } from "./superadmin";
 
 /**
  * `startDate` no puede ser posterior a `endDate` — la versión Prisma lo
@@ -218,6 +219,23 @@ function assertValidCalendarName(name: string): void {
   }
 }
 
+/**
+ * TAL-57 — crear un calendario es exclusivo del Super Admin. `userId` es
+ * la identidad del actor (no un privilegio afirmado desde fuera): quien
+ * crea, y quien recibe la membership ADMIN del calendario nuevo. El
+ * privilegio se resuelve aquí dentro, releyendo `isSuperAdmin` en fresco
+ * en la misma transacción que el `insert` (`requireSuperAdmin`, mismo
+ * criterio que todo `convex/superadmin.ts`) — ocultar el botón en
+ * `/admin` y el guard de `createCalendarAction` son solo defensa en
+ * profundidad.
+ *
+ * La comprobación va ANTES del atajo de idempotencia por `creationKey`:
+ * si fuera después, alguien que no es Super Admin y repite (o adivina)
+ * una clave ya usada recibiría el id de un calendario ajeno sin pasar por
+ * ninguna autorización. `requireSuperAdmin` ya falla cerrado si el
+ * usuario no existe, así que cubre también la integridad referencial que
+ * antes comprobaba aquí un `ctx.db.get(args.userId)` aparte (TAL-9).
+ */
 async function createCalendarHandler(
   ctx: MutationCtx,
   args: {
@@ -234,17 +252,13 @@ async function createCalendarHandler(
     creationKey: string;
   }
 ): Promise<Id<"calendars">> {
+  await requireSuperAdmin(ctx, args.userId);
+
   const existing = await ctx.db
     .query("calendars")
     .withIndex("by_creation_key", (q) => q.eq("creationKey", args.creationKey))
     .unique();
   if (existing) return existing._id;
-
-  // Integridad referencial (hallazgo de auditoría, TAL-9 ronda 1) —
-  // `v.id("users")` en `args` solo valida que el string TIENE FORMA de id
-  // de esa tabla, no que el documento existe de verdad.
-  const user = await ctx.db.get(args.userId);
-  if (!user) throw new Error("El usuario indicado no existe.");
 
   const skinId = args.skinId ?? (await resolveDefaultSkinId(ctx));
   const skin = await ctx.db.get(skinId);
@@ -632,8 +646,10 @@ export const backfillEmbeddedCoverIcon = internalMutation({
 // internal del mismo fichero, para evitar la referencia circular de tipos
 // ya documentada en convex/users.ts/access.ts). La identidad/autorización
 // (¿es este userId de verdad Admin de este calendario?) se resuelve
-// enteramente en Next.js antes de llamar — src/app/admin/actions.ts,
-// mismo modelo de confianza que TAL-11.
+// en Next.js antes de llamar — src/app/admin/actions.ts, mismo modelo de
+// confianza que TAL-11. Excepción (TAL-57): CREAR un calendario se
+// autoriza además aquí dentro (`requireSuperAdmin` en
+// `createCalendarHandler`), no solo en Next.js.
 
 export const createCalendarPublic = mutation({
   args: {
