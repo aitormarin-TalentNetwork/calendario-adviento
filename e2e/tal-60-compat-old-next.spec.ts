@@ -13,7 +13,7 @@ import { api, convex, serverSecret } from "./helpers/convex";
  *
  * Solo tiene sentido contra un `next dev` del código de main ANTERIOR a
  * TAL-60, levantado aparte (no lo arranca Playwright):
- *   git worktree add --detach <dir> e158e07 && (cd <dir> && npm ci && npx convex codegen && npx next dev -p 3002)
+ *   git worktree add --detach <dir> <main anterior a TAL-60> && (cd <dir> && npm ci && npx convex codegen && npx next dev -p 3002)
  *   E2E_OLD_NEXT=1 E2E_PORT=3002 npx playwright test e2e/tal-60-compat-old-next.spec.ts
  * Sin `E2E_OLD_NEXT=1` se salta (en la suite normal no hay Next antiguo).
  */

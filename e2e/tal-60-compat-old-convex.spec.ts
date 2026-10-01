@@ -12,7 +12,7 @@ import { api, convex, serverSecret } from "./helpers/convex";
  *
  * Solo tiene sentido con las funciones antiguas desplegadas en el
  * deployment de DESARROLLO de la terminal:
- *   (cd <checkout de main e158e07> && npx convex dev --once)
+ *   (cd <checkout del main anterior a TAL-60> && npx convex dev --once)
  *   E2E_OLD_CONVEX=1 E2E_PORT=3001 npx playwright test e2e/tal-60-compat-old-convex.spec.ts
  *   npx convex dev --once   # desde la rama de TAL-60, para volver a las funciones nuevas
  * Sin `E2E_OLD_CONVEX=1` se salta.
