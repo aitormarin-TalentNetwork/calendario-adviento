@@ -119,7 +119,9 @@ export function todayInTimeZone(now: Date, timeZone: string | undefined | null):
  */
 export async function listAdminCalendars(
   userId: string
-): Promise<{ id: string; name: string; coverIcon: string; startDate: Date; endDate: Date; skin: { name: string } }[]> {
+): Promise<
+  { id: string; name: string; coverIcon: string; startDate: Date; endDate: Date; skin: { name: string }; isAdminMember: boolean }[]
+> {
   const calendars = await fetchQuery(api.calendars.listCalendarsForUserPublic, {
     serverSecret: convexAppServerSecret(),
     userId: userId as Id<"users">,
@@ -138,6 +140,10 @@ export async function listAdminCalendars(
     // `convex/calendars.ts::listCalendarsForUserHandler`) — no debería
     // pasar en la práctica; se etiqueta en vez de reventar el render.
     skin: { name: calendar.skin?.name ?? "—" },
+    // TAL-64 — para un Super Admin la lista trae TODOS los calendarios;
+    // `false` en los que no administra por membership ADMIN (llevan la
+    // etiqueta "Super Admin" en /admin). Para un Admin normal, siempre `true`.
+    isAdminMember: calendar.isAdminMember,
   }));
 }
 

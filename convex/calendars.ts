@@ -517,31 +517,53 @@ export const get = internalQuery({
 });
 
 /**
- * Calendarios donde `userId` es ADMIN, con su skin — equivalente a
- * `listAdminCalendars` (Prisma, `include: { skin: true }`). Convex no
- * tiene joins: se resuelve consultando primero las membresías ADMIN del
- * usuario, luego cada calendario+skin por separado (patrón N+1 explícito,
- * el patrón idiomático de Convex, no un rodeo — ver
+ * Calendarios que `userId` puede administrar desde "Mis calendarios", con su
+ * skin — equivalente a `listAdminCalendars` (Prisma, `include: { skin: true }`).
+ * Convex no tiene joins: patrón N+1 explícito, el idiomático de Convex (ver
  * docs/convex-diseno-tal12-crud-calendario.md).
+ *
+ * TAL-64 — el Super Admin administra TODOS los calendarios (ya podía entrar
+ * a cualquier `/admin/<id>` por override, pero no tenía cómo llegar). El
+ * privilegio se resuelve aquí dentro: se carga el usuario por `userId`
+ * (identidad, no un booleano afirmado por quien llama) y se lee
+ * `isSuperAdmin` en fresco en esta misma query — mismo criterio que
+ * `requireSuperAdmin` (`convex/superadmin.ts`).
+ *
+ * - Super Admin: todos los calendarios (`collect()` sin límite, como
+ *   `listCalendarsWithStats`; ver la nota de escala en
+ *   docs/convex-diseno-tal15-panel-superadmin.md — aquí más barato, sin
+ *   días ni vistas).
+ * - Resto: los que administra por membership ADMIN, como antes.
+ *
+ * `isAdminMember` = tiene membership ADMIN en ese calendario (para el Super
+ * Admin, falso en los ajenos: "Mis calendarios" les pone la etiqueta "Super
+ * Admin"). Se calcula con UNA consulta de sus memberships, sin N+1 extra.
  */
 async function listCalendarsForUserHandler(
   ctx: QueryCtx,
   args: { userId: Id<"users"> }
-): Promise<(Doc<"calendars"> & { skin: Doc<"skins"> | null })[]> {
+): Promise<(Doc<"calendars"> & { skin: Doc<"skins"> | null; isAdminMember: boolean })[]> {
+  const user = await ctx.db.get(args.userId);
+  if (!user) return [];
+
   const memberships = await ctx.db
     .query("calendarMemberships")
     .withIndex("by_user", (q) => q.eq("userId", args.userId))
     .filter((q) => q.eq(q.field("role"), "ADMIN"))
     .collect();
+  const adminOf = new Set<Id<"calendars">>(memberships.map((m) => m.calendarId));
+
+  const source: (Doc<"calendars"> | null)[] = user.isSuperAdmin
+    ? await ctx.db.query("calendars").collect()
+    : await Promise.all([...adminOf].map((calendarId) => ctx.db.get(calendarId)));
 
   const calendars = await Promise.all(
-    memberships.map(async (membership) => {
-      const calendar = await ctx.db.get(membership.calendarId);
+    source.map(async (calendar) => {
       // Referencia rota (calendario borrado sin limpiar esta membership) —
       // no debería pasar con `deleteCalendarHandler` arriba, defensivo.
       if (!calendar) return null;
       const skin = await ctx.db.get(calendar.skinId);
-      return { ...calendar, skin };
+      return { ...calendar, skin, isAdminMember: adminOf.has(calendar._id) };
     })
   );
 
