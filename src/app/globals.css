@@ -505,3 +505,101 @@ a {
   outline: 2px solid var(--gold);
   outline-offset: 1px;
 }
+
+/* TAL-58 — "Tus calendarios", lista del modo Usuario
+   (design/design-system.md § "Tus calendarios"; mockup
+   design/propuesta-selector-modo.html, clases `.user-grid`/`.cal-card`/
+   `.tag`). En CSS y no inline por el `@media` de mobile y el
+   `:focus-visible` de la tarjeta — mismo criterio que `.session-indicator`
+   (TAL-28). `padding-top` lo deja libre para `.session-page-main` (hueco
+   del avatar fijo), igual que el resto de pantallas con sesión. */
+.user-calendars-main {
+  flex: 1;
+  width: 100%;
+  max-width: 960px;
+  padding-left: 2rem;
+  padding-right: 2rem;
+  padding-bottom: 2rem;
+}
+
+.user-calendars-title {
+  font-family: var(--font-display);
+}
+
+.user-calendars-sub {
+  margin-top: 0.5rem;
+  color: var(--text-dim);
+}
+
+.user-calendars-grid {
+  list-style: none;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.calendar-card {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--bg-raised);
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.calendar-card:hover {
+  border-color: var(--gold);
+}
+
+.calendar-card:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 2px;
+}
+
+.calendar-card-cover {
+  height: 110px;
+  display: grid;
+  place-items: center;
+  font-size: 2.4rem;
+}
+
+.calendar-card-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calendar-card-name {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  overflow-wrap: anywhere;
+}
+
+.calendar-card-meta {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+}
+
+.calendar-card-tag {
+  align-self: flex-start;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  border: 1px solid var(--border);
+}
+
+@media (max-width: 640px) {
+  .user-calendars-main {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

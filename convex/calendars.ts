@@ -557,6 +557,109 @@ export const listCalendarsForUser = internalQuery({
   handler: listCalendarsForUserHandler,
 });
 
+export type UserModeCalendarRow = {
+  id: Id<"calendars">;
+  name: string;
+  coverTitle: string;
+  coverIcon?: string;
+  backgroundImageUrl?: string;
+  startDate: string;
+  endDate: string;
+  isAdmin: boolean;
+  skin: { _id: Id<"skins">; background?: string; accent?: string; textColor?: string; textPill?: boolean } | null;
+};
+
+/**
+ * TAL-58 — calendarios de la pantalla "Tus calendarios" (modo Usuario):
+ * todos aquellos donde `userId` tiene membership (ADMIN o GUEST) MÁS los
+ * que tiene invitación pendiente por email (invitado que todavía no abrió
+ * nunca su link — solo tiene fila en `invitations`, la membership GUEST
+ * se crea al aceptar en `/c/<id>`, `access.ts::resolveMemberAccessHandler`).
+ * Sin esa segunda rama, un invitado recién invitado vería su lista vacía.
+ *
+ * Es una query: NO acepta invitaciones ni crea memberships — eso sigue
+ * pasando solo en `/c/<id>`, igual que antes de esta tarea.
+ *
+ * El email sale del propio `user` cargado por `userId`, nunca de un
+ * argumento aparte (mismo criterio que `access.ts`, hallazgo TAL-2).
+ *
+ * Deduplicado defensivo por `calendarId`: `by_calendar_and_user` NO es un
+ * índice único en Convex — la unicidad la garantizan las mutations que
+ * insertan (check-then-insert), no el índice. Si alguna vez hubiera dos
+ * memberships para el mismo calendario, sale una sola tarjeta, y ADMIN
+ * gana a GUEST; una invitación solo añade el calendario si no había ya
+ * membership (y las invitaciones duplicadas se colapsan igual).
+ *
+ * Lista blanca explícita de campos (no el documento entero, mismo
+ * criterio que `getPublicCoverInfoForLogin`); los campos del skin van
+ * crudos — el respaldo (`DEFAULT_SKIN_APPEARANCE`) se aplica en Next,
+ * `src/lib/user-mode-calendars.ts::normalizeCardAppearance`.
+ */
+async function listUserModeCalendarsHandler(
+  ctx: QueryCtx,
+  args: { userId: Id<"users"> }
+): Promise<UserModeCalendarRow[]> {
+  const user = await ctx.db.get(args.userId);
+  if (!user) return [];
+
+  const isAdminByCalendar = new Map<Id<"calendars">, boolean>();
+
+  const memberships = await ctx.db
+    .query("calendarMemberships")
+    .withIndex("by_user", (q) => q.eq("userId", args.userId))
+    .collect();
+  for (const membership of memberships) {
+    const previous = isAdminByCalendar.get(membership.calendarId) ?? false;
+    isAdminByCalendar.set(membership.calendarId, previous || membership.role === "ADMIN");
+  }
+
+  const email = user.email.trim().toLowerCase();
+  const invitations = await ctx.db
+    .query("invitations")
+    .withIndex("by_email", (q) => q.eq("email", email))
+    .collect();
+  for (const invitation of invitations) {
+    if (!isAdminByCalendar.has(invitation.calendarId)) isAdminByCalendar.set(invitation.calendarId, false);
+  }
+
+  const rows = await Promise.all(
+    [...isAdminByCalendar.entries()].map(async ([calendarId, isAdmin]) => {
+      const calendar = await ctx.db.get(calendarId);
+      // Referencia rota (calendario borrado sin limpiar) — defensivo.
+      if (!calendar) return null;
+      const skin = await ctx.db.get(calendar.skinId);
+      return {
+        creationTime: calendar._creationTime,
+        row: {
+          id: calendar._id,
+          name: calendar.name,
+          coverTitle: calendar.coverTitle,
+          coverIcon: calendar.coverIcon,
+          backgroundImageUrl: calendar.backgroundImageUrl,
+          startDate: calendar.startDate,
+          endDate: calendar.endDate,
+          isAdmin,
+          skin: skin
+            ? {
+                _id: skin._id,
+                background: skin.background,
+                accent: skin.accent,
+                textColor: skin.textColor,
+                textPill: skin.textPill,
+              }
+            : null,
+        } satisfies UserModeCalendarRow,
+      };
+    })
+  );
+
+  // Mismo orden que `listCalendarsForUserHandler`: más reciente primero.
+  return rows
+    .filter((r) => r !== null)
+    .sort((a, b) => b.creationTime - a.creationTime)
+    .map((r) => r.row);
+}
+
 // TAL-23, hallazgo de auditoría ronda 1: los calendarios creados ANTES de
 // esta tarea ya llevan el 🎄 incrustado a mano al final de `coverTitle`
 // (el único mecanismo que existía para tener un icono — ver el histórico
@@ -789,5 +892,14 @@ export const listCalendarsForUserPublic = query({
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
     return await listCalendarsForUserHandler(ctx, { userId: args.userId });
+  },
+});
+
+// TAL-58 — ver `listUserModeCalendarsHandler`.
+export const listUserModeCalendarsPublic = query({
+  args: { serverSecret: v.string(), userId: v.id("users") },
+  handler: async (ctx, args) => {
+    await requireServerSecret(args.serverSecret);
+    return await listUserModeCalendarsHandler(ctx, { userId: args.userId });
   },
 });
