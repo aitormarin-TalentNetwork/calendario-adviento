@@ -15,6 +15,10 @@
 > razón de fondo de cada decisión — solo cambió el almacén de datos que las
 > implementa, no el razonamiento.
 
+> **Nota TAL-58**: tras el login sin `callbackUrl`, quien no es Admin de ningún
+> calendario ni Super Admin acaba en el modo Usuario (`/c`) — ver
+> `docs/modo-usuario.md`.
+
 ## Librería elegida
 
 **Auth.js v5** (`next-auth@beta`), con proveedor de **Google** — ya apuntado

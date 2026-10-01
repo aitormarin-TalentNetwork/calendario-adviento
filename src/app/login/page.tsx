@@ -102,10 +102,11 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   // el PRD). Usarlo aquí como destino por defecto creaba un bucle
   // /login → / → /login para cualquiera que entrara a /login directamente
   // (sin `callbackUrl`, justo el caso normal ahora que `/` ya no muestra
-  // nada). `/admin` es un destino real para cualquier rol autenticado
-  // (Admin, Super Admin o Guest sin calendarios propios — la página ya
-  // gestiona los tres casos con contenido honesto, sin gate de rol más
-  // allá de estar autenticado, ver TAL-12).
+  // nada). `/admin` reparte según el rol (TAL-58): Admin y Super Admin se
+  // quedan ahí; quien no administra ningún calendario ni es Super Admin
+  // es redirigido al modo Usuario (`/c`, "Tus calendarios" — y de ahí
+  // directo a `/c/<id>` si solo tiene uno). Con `callbackUrl` (link de
+  // invitación `/c/<id>`) manda siempre `callbackUrl`, sin cambios.
   const redirectTo = callbackUrl ?? "/admin";
 
   const calendar = await getCalendarCoverForLogin(callbackUrl);

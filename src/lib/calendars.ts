@@ -3,6 +3,7 @@ import { api } from "../../convex/_generated/api";
 import type { Id } from "../../convex/_generated/dataModel";
 import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
+import { toUserModeCard, type UserModeCard } from "@/lib/user-mode-calendars";
 
 const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -133,6 +134,29 @@ export async function listAdminCalendars(
     // pasar en la práctica; se etiqueta en vez de reventar el render.
     skin: { name: calendar.skin?.name ?? "—" },
   }));
+}
+
+/**
+ * TAL-58 — tarjetas de "Tus calendarios" (modo Usuario): calendarios donde
+ * `userId` es ADMIN o GUEST, más sus invitaciones pendientes — ver
+ * `convex/calendars.ts::listUserModeCalendarsHandler`. Cada fila sale ya
+ * normalizada (título, icono, skin con respaldo, línea secundaria) por
+ * `toUserModeCard` (`src/lib/user-mode-calendars.ts`). Mismo criterio de
+ * errores que `listAdminCalendars`: un fallo de Convex se deja propagar,
+ * `[]` es siempre la lista vacía real.
+ */
+export async function listUserModeCalendars(userId: string): Promise<UserModeCard[]> {
+  const rows = await fetchQuery(api.calendars.listUserModeCalendarsPublic, {
+    serverSecret: convexAppServerSecret(),
+    userId: userId as Id<"users">,
+  });
+  return rows.map((row) =>
+    toUserModeCard({
+      ...row,
+      startDate: parseUtcDateOnly(row.startDate)!,
+      endDate: parseUtcDateOnly(row.endDate)!,
+    })
+  );
 }
 
 /**

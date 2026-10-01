@@ -35,3 +35,17 @@ export async function loginAs(page: Page, email: string): Promise<void> {
 export function uniqueRunId(): string {
   return `${Date.now()}-${process.pid}`;
 }
+
+/**
+ * TAL-58 — igual que `loginAs`, pero entrando por `/login` a secas, sin
+ * `callbackUrl`: es el contrato de "aterrizaje tras login" (destino por
+ * defecto `/admin`, que reparte a modo Usuario a quien no administra nada).
+ * `loginAs` fija `callbackUrl=/admin` y no prueba ese caso.
+ */
+export async function loginAsWithoutCallback(page: Page, email: string): Promise<void> {
+  await page.goto("/login");
+  const devForm = page.locator("form").filter({ has: page.getByRole("button", { name: "Entrar (dev)" }) });
+  await devForm.locator('input[name="email"]').fill(email);
+  await devForm.getByRole("button", { name: "Entrar (dev)" }).click();
+  await expect(page).not.toHaveURL(/\/login/);
+}

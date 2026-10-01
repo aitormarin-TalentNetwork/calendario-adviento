@@ -14,6 +14,9 @@ export default async function AdminCalendarsPage() {
   // la lista vacía real — `[]` aquí siempre significa "todavía no
   // administras ningún calendario", igual que con Prisma.
   const calendars = await listAdminCalendars(user.id);
+  // TAL-58 — quien no es Admin de ningún calendario ni Super Admin nunca ve
+  // administración: va al modo Usuario ("Tus calendarios", `src/app/c/page.tsx`).
+  if (!user.isSuperAdmin && calendars.length === 0) redirect("/c");
 
   return (
     <main
