@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Selector de modo</title>
+<style>
+:root {
+  --pine: #1b3a2f; --pine-2: #234a3b; --paper: #f6f1e4; --paper-2: #efe7d4;
+  --gold: #c99a3d; --gold-2: #e3bb63; --berry: #8c2f39; --ink: #16211c;
+  --bg: var(--paper); --bg-raised: #ffffff; --bg-sunken: var(--paper-2);
+  --text: var(--ink); --text-dim: #57604f; --accent: var(--gold); --accent-ink: #3c2c0c;
+  --border: #ded3ba;
+  --shadow: 0 1px 2px rgba(20,30,20,0.06), 0 8px 24px rgba(20,30,20,0.08);
+  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1e17; --bg-raised: #16281f; --bg-sunken: #0b1712;
+    --text: var(--paper); --text-dim: #b9c9bf; --accent: var(--gold-2); --border: #2c4a3c;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1e17; --bg-raised: #16281f; --bg-sunken: #0b1712;
+  --text: var(--paper); --text-dim: #b9c9bf; --accent: var(--gold-2); --border: #2c4a3c;
+  --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px rgba(0,0,0,0.35);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+
+/* --- Barra de escenarios (solo del mockup, no es parte de la app) --- */
+.scenarios { background: var(--pine); color: var(--paper); padding: 12px 16px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.scenarios strong { font-family: var(--font-display); margin-right: 8px; }
+.scenarios button { font: inherit; font-size: 0.85rem; padding: 6px 12px; border-radius: 999px; border: 1px solid #3d6656; background: transparent; color: var(--paper); cursor: pointer; }
+.scenarios button[aria-pressed="true"] { background: var(--gold); color: var(--accent-ink); border-color: var(--gold); font-weight: 600; }
+.note { max-width: 760px; margin: 16px auto 0; padding: 10px 14px; border-left: 3px solid var(--accent); background: var(--bg-sunken); font-size: 0.9rem; color: var(--text-dim); border-radius: 0 8px 8px 0; }
+
+/* --- Pantalla --- */
+.screen { position: relative; max-width: 760px; margin: 16px auto 48px; min-height: 520px; background: var(--bg); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); padding: 88px 32px 32px; overflow: hidden; }
+
+/* Esquina superior derecha: selector + avatar + salir */
+.session { position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 12px; }
+.mode-switch { display: inline-flex; padding: 3px; border-radius: 999px; background: var(--bg-sunken); border: 1px solid var(--border); }
+.mode-switch button { font: inherit; font-size: 0.85rem; font-weight: 600; padding: 6px 14px; border: 0; border-radius: 999px; background: transparent; color: var(--text-dim); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.mode-switch button[aria-pressed="true"] { background: var(--gold); color: var(--accent-ink); box-shadow: 0 1px 2px rgba(0,0,0,0.15); }
+.mode-switch button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.mode-switch svg { width: 15px; height: 15px; }
+.mode-switch .photo { width: 20px; height: 20px; border-radius: 50%; object-fit: cover; margin-left: -6px; box-shadow: 0 0 0 1.5px rgba(246,241,228,0.8); }
+.avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--pine-2); color: var(--paper); display: grid; place-items: center; font-family: var(--font-display); font-size: 1.1rem; }
+.logout { background: none; border: 0; color: var(--text-dim); cursor: pointer; padding: 4px; display: grid; }
+.logout svg { width: 20px; height: 20px; }
+
+h1 { font-family: var(--font-display); font-weight: 600; margin: 0 0 4px; font-size: 1.9rem; }
+.sub { color: var(--text-dim); margin: 0 0 24px; }
+
+.btn-primary { font: inherit; font-weight: 700; background: var(--gold); color: var(--accent-ink); border: 0; border-radius: 999px; padding: 10px 18px; cursor: pointer; }
+
+/* Lista modo Admin */
+.admin-list { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
+.admin-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; background: var(--bg-raised); border: 1px solid var(--border); border-radius: 10px; }
+.admin-row .name { font-family: var(--font-display); font-size: 1.15rem; }
+.admin-row .dates { font-family: var(--font-mono); font-size: 0.8rem; color: var(--text-dim); font-variant-numeric: tabular-nums; }
+.admin-row a { color: var(--accent); font-weight: 600; text-decoration: none; font-size: 0.9rem; }
+
+/* Lista modo Usuario */
+.user-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+.cal-card { border-radius: 14px; overflow: hidden; border: 1px solid var(--border); background: var(--bg-raised); box-shadow: var(--shadow); cursor: pointer; text-align: left; font: inherit; color: inherit; padding: 0; }
+.cal-card .cover { height: 110px; background: linear-gradient(160deg, #26473a, #1b3a2f); color: var(--paper); display: grid; place-items: center; font-size: 2.4rem; }
+.cal-card .body { padding: 12px 14px; display: flex; flex-direction: column; gap: 4px; }
+.cal-card .name { font-family: var(--font-display); font-size: 1.15rem; }
+.cal-card .meta { font-size: 0.8rem; color: var(--text-dim); }
+.tag { align-self: flex-start; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 999px; background: var(--bg-sunken); color: var(--text-dim); border: 1px solid var(--border); }
+
+/* Calendario directo (un solo calendario) */
+.direct { margin: -88px -32px -32px; min-height: 520px; background: linear-gradient(160deg, #26473a, #1b3a2f); color: var(--paper); padding: 96px 32px 32px; text-align: center; }
+.direct h1 { color: var(--paper); }
+.direct .mini-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; max-width: 420px; margin: 24px auto 0; }
+.direct .mini-grid span { aspect-ratio: 1; border-radius: 8px; background: rgba(246,241,228,0.12); display: grid; place-items: center; font-weight: 700; }
+.direct .mini-grid span.locked { opacity: 0.4; font-size: 0.8rem; }
+.direct .mini-grid span.today { outline: 2px dashed var(--gold-2); color: var(--gold-2); background: rgba(201,154,61,0.15); }
+.screen.dark-top .mode-switch { background: rgba(0,0,0,0.25); border-color: rgba(246,241,228,0.25); }
+.screen.dark-top .mode-switch button { color: #d5ddd6; }
+.screen.dark-top .mode-switch button[aria-pressed="true"] { color: var(--accent-ink); }
+.screen.dark-top .logout { color: #d5ddd6; }
+
+@media (max-width: 640px) {
+  .screen { margin: 12px 0 32px; border-radius: 0; border-left: 0; border-right: 0; padding: 120px 16px 24px; }
+  .session { top: 16px; right: 16px; left: 16px; justify-content: flex-end; }
+  .mode-switch button { padding: 6px 10px; }
+  .direct { margin: -120px -16px -24px; padding-top: 128px; }
+  .admin-row { flex-wrap: wrap; }
+}
+
+/* Menú desplegable del avatar */
+.avatar-btn { background: none; border: 0; padding: 0; cursor: pointer; border-radius: 50%; position: relative; }
+.avatar-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.menu { position: absolute; top: 52px; right: 0; min-width: 220px; background: var(--bg-raised); color: var(--text); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow); padding: 6px; display: none; z-index: 5; text-align: left; }
+.menu.open { display: block; }
+.menu .who { padding: 8px 10px 10px; border-bottom: 1px solid var(--border); margin-bottom: 6px; font-size: 0.8rem; color: var(--text-dim); }
+.menu .label { padding: 6px 10px 2px; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-dim); }
+.menu button { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; font: inherit; font-size: 0.92rem; background: none; border: 0; color: inherit; padding: 8px 10px; border-radius: 8px; cursor: pointer; text-align: left; }
+.menu button:hover { background: var(--bg-sunken); }
+.menu button[aria-checked="true"] { font-weight: 700; }
+.menu button[aria-checked="true"]::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gold); }
+.menu .cal-item { justify-content: flex-start; }
+.menu .cal-item .ic { width: 26px; height: 26px; border-radius: 6px; background: linear-gradient(160deg, #26473a, #1b3a2f); display: grid; place-items: center; font-size: 0.9rem; flex: none; }
+.menu .cal-item[aria-current="true"] { font-weight: 700; background: var(--bg-sunken); }
+.menu hr { border: 0; border-top: 1px solid var(--border); margin: 6px 0; }
+.menu .logout-item { color: var(--berry); justify-content: flex-start; }
+.menu .logout-item svg { width: 18px; height: 18px; }
+</style>
+</head>
+<body>
+
+<div class="scenarios" role="group" aria-label="Escenarios del mockup">
+  <strong>Ver como:</strong>
+  <button data-s="admin-admin" aria-pressed="true">Admin · modo Admin</button>
+  <button data-s="admin-user">Admin · modo Usuario</button>
+  <button data-s="super-admin">Super Admin · modo Admin</button>
+  <button data-s="guest-many">Invitado con varios calendarios</button>
+  <button data-s="guest-one">Invitado con un calendario</button>
+</div>
+
+<p class="note" id="note"></p>
+
+<div class="screen" id="screen"></div>
+
+<script>
+const PHOTO = '<img class="photo" alt="" src="https://i.pravatar.cc/80?img=12">';
+const ICON_USER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+const ICON_ADMIN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>';
+const ICON_LOGOUT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>';
+
+function session(showSwitch, mode, cals, currentName) {
+  const modes = showSwitch ? `
+      <div class="label">Modo</div>
+      <button role="menuitemradio" data-mode="user" aria-checked="${mode === 'user'}">Usuario</button>
+      <button role="menuitemradio" data-mode="admin" aria-checked="${mode === 'admin'}">Admin</button>
+      <hr>` : '';
+  const list = cals && cals.length > 1 ? `
+      <div class="label">${mode === 'admin' ? 'Administrar' : 'Ir a calendario'}</div>
+      ${cals.map(c => `<button class="cal-item" aria-current="${c.name === currentName}"><span class="ic">${c.icon}</span><span>${c.name}</span></button>`).join('')}
+      <hr>` : '';
+  return `<div class="session">
+    <button class="avatar-btn" aria-haspopup="menu" aria-label="Menú de la cuenta"><img class="avatar" style="object-fit:cover" alt="" src="https://i.pravatar.cc/80?img=12"></button>
+    <div class="menu" role="menu">
+      <div class="who">aitor.marin@talent-network.org</div>
+      ${modes}
+      ${list}
+      <button class="logout-item" role="menuitem">${ICON_LOGOUT}<span>Cerrar sesión</span></button>
+    </div>
+  </div>`;
+}
+
+const adminCalendars = [
+  { icon: '🎄', name: 'Adviento familia Marín', dates: '01 dic 2026 – 24 dic 2026' },
+  { icon: '⭐', name: 'Cumple de Lucía', dates: '10 oct 2026 – 20 oct 2026' },
+];
+const userCalendars = [
+  { icon: '🎄', name: 'Adviento familia Marín', meta: 'Lo administras tú', tag: 'Admin' },
+  { icon: '🎁', name: 'Navidad en la oficina', meta: 'Te invitó Laura', tag: null },
+  { icon: '⭐', name: 'Cumple de Lucía', meta: 'Lo administras tú', tag: 'Admin' },
+];
+
+function adminScreen(isSuper) {
+  return `
+    ${session(true, 'admin', adminCalendars.map(c => ({ icon: c.icon, name: c.name })))}
+    <h1>Mis calendarios</h1>
+    <p class="sub">Los calendarios que administras.</p>
+    ${isSuper ? '<button class="btn-primary">+ Nuevo calendario</button>' : ''}
+    <div class="admin-list">
+      ${adminCalendars.map(c => `<div class="admin-row"><div><div class="name">${c.name}</div><div class="dates">${c.dates}</div></div><a href="#">Editar →</a></div>`).join('')}
+    </div>`;
+}
+
+function userList(showSwitch, cals) {
+  return `
+    ${session(showSwitch, 'user', cals)}
+    <h1>Tus calendarios</h1>
+    <p class="sub">Elige cuál quieres abrir.</p>
+    <div class="user-grid">
+      ${cals.map(c => `<button class="cal-card"><div class="cover">${c.icon}</div><div class="body"><span class="name">${c.name}</span><span class="meta">${c.meta}</span>${c.tag ? `<span class="tag">${c.tag}</span>` : ''}</div></button>`).join('')}
+    </div>`;
+}
+
+function directCalendar() {
+  const cells = Array.from({ length: 21 }, (_, i) => {
+    const n = i + 1;
+    const cls = n < 8 ? '' : n === 8 ? 'today' : 'locked';
+    return `<span class="${cls}">${n > 8 ? '🔒' : n}</span>`;
+  }).join('');
+  return `
+    ${session(false, 'user', [{ icon: '🎁', name: 'Navidad en la oficina' }])}
+    <div class="direct">
+      <div style="font-size:2.6rem">🎁</div>
+      <h1>Navidad en la oficina</h1>
+      <p style="opacity:.8;margin:0">Faltan 16 días para la Navidad</p>
+      <div class="mini-grid">${cells}</div>
+    </div>`;
+}
+
+const SCENARIOS = {
+  'admin-admin': { note: 'Admin en modo Admin: la pantalla "Mis calendarios" de hoy, <b>sin</b> el botón "+ Nuevo calendario". Al pulsar la foto se abre el menú: modo (Usuario / Admin, el activo marcado con un punto dorado) y Cerrar sesión. Con más de un calendario, el menú lista también los que administras para saltar directamente a su edición.', render: () => adminScreen(false) },
+  'admin-user': { note: 'Admin en modo Usuario: la lista incluye los calendarios a los que está invitado <b>y</b> los que administra (con la etiqueta "Admin"). Con más de uno, el menú los lista para saltar de un calendario a otro sin volver a esta pantalla.', render: () => userList(true, userCalendars) },
+  'super-admin': { note: 'Super Admin en modo Admin: la misma pantalla, pero <b>con</b> el botón "+ Nuevo calendario". Es el único que lo ve.', render: () => adminScreen(true) },
+  'guest-many': { note: 'Invitado con varios calendarios: entra directamente en la lista. Su menú solo tiene <b>Cerrar sesión</b>, sin la parte de modo.', render: () => userList(false, userCalendars.filter(c => !c.tag).concat([{ icon: '❄️', name: 'Adviento de los abuelos', meta: 'Te invitó Carmen', tag: null }])) },
+  'guest-one': { note: 'Invitado con un solo calendario: se abre el calendario directamente, sin pasar por la lista. Su menú tampoco tiene la parte de modo.', render: () => directCalendar() },
+};
+
+let current = 'admin-admin';
+function show(s) {
+  current = s;
+  const sc = SCENARIOS[s];
+  const screen = document.getElementById('screen');
+  screen.innerHTML = sc.render();
+  screen.classList.toggle('dark-top', s === 'guest-one');
+  document.getElementById('note').innerHTML = sc.note;
+  document.querySelectorAll('.scenarios button').forEach(b => b.setAttribute('aria-pressed', b.dataset.s === s));
+}
+document.querySelector('.scenarios').addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.s); });
+document.getElementById('screen').addEventListener('click', e => {
+  if (e.target.closest('.avatar-btn')) { document.querySelector('.menu').classList.toggle('open'); return; }
+  const b = e.target.closest('.menu button[data-mode]');
+  if (!b) return;
+  const next = b.dataset.mode === 'user' ? 'admin-user' : (current === 'super-admin' ? 'super-admin' : 'admin-admin');
+  show(next);
+  document.querySelector('.menu').classList.add('open');
+});
+show('admin-admin');
+document.querySelector('.menu').classList.add('open');
+document.querySelector('.scenarios').addEventListener('click', () => document.querySelector('.menu').classList.add('open'));
+</script>
+</body>
+</html>

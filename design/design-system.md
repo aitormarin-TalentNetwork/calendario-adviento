@@ -334,6 +334,61 @@ indicador fijo en la esquina superior derecha:
 - Componente compartido `SessionIndicator` (`src/components/session-indicator.tsx`),
   `position: fixed`, mismo patrón en las 4 pantallas.
 
+### Menú de la cuenta (avatar) — modo Usuario | Admin, saltar de calendario, cerrar sesión
+
+**Validado con Aitor, 2026-10-01** (sustituye la primera versión, un selector suelto
+junto al avatar). Fuente: `design/propuesta-selector-modo.html`. **Modifica el
+"Indicador de sesión"** de arriba: el botón de cerrar sesión deja de estar suelto al lado
+del avatar y pasa dentro de este menú.
+
+- **Dónde:** en la esquina superior derecha solo queda la **foto de perfil de Google**
+  (`users.image`; la inicial sobre `--pine-2` solo como respaldo cuando no hay foto —
+  Aitor remarcó que tiene que verse la foto real). Al pulsarla se abre un **menú
+  desplegable** anclado debajo, alineado a la derecha.
+- **Contenido, de arriba abajo:**
+  1. Email de la cuenta, pequeño, en `--text-dim` (solo referencia, no clicable).
+  2. **Modo** (etiqueta de sección en mayúsculas pequeñas): "Usuario" y "Admin",
+     **solo texto, sin iconos**. El activo en negrita con un punto `--gold` a la
+     derecha. **Solo para** quien es Admin de al menos un calendario o Super Admin;
+     un invitado puro no ve esta parte.
+  3. **Lista de calendarios para saltar rápido** — **solo si tiene más de uno** en el
+     modo actual. Cada fila: mini portada (icono del calendario) + nombre. El calendario
+     en el que se está, marcado (negrita + fondo `--bg-sunken`).
+     - En **modo Usuario** (etiqueta "Ir a calendario"): los mismos de "Tus calendarios"
+       (invitado + administrados), cada uno abre `/c/<id>`.
+     - En **modo Admin** (etiqueta "Administrar"): los que administra, cada uno lleva a
+       su **pantalla de edición** `/admin/<id>`.
+  4. **"Cerrar sesión"** — separado por un divisor, **icono log-out + texto**, en
+     `--berry`. (Excepción consciente a "cerrar sesión solo icono": dentro de un menú
+     de texto, el icono suelto se entiende peor — decidido con Aitor 2026-10-01.)
+- **Forma:** fondo `--bg-raised`, borde `--border`, radio `12px`, sombra estándar,
+  padding `6px`, ancho mínimo `220px`. Filas con radio `8px` y hover `--bg-sunken`.
+  Divisores `1px --border` entre secciones. Se cierra al pulsar fuera o con `Escape`;
+  navegable con teclado (`role="menu"`, `menuitemradio` para el modo).
+- **Mobile (<640px):** mismo menú, ancho máximo `calc(100vw - 32px)`, filas con área
+  táctil ≥ 44px.
+
+### "Tus calendarios" — lista del modo Usuario
+
+**Validado con Aitor, 2026-10-01.** Fuente: `design/propuesta-selector-modo.html`.
+
+- Título "Tus calendarios" (`--font-display`), subtítulo "Elige cuál quieres abrir."
+- Grid de **tarjetas** (`auto-fill, minmax(200px, 1fr)`, `gap 16px`): portada arriba
+  (icono/fondo del calendario), debajo nombre en `--font-display` y una línea
+  secundaria en `--text-dim`.
+  - **Nombre:** `coverTitle` (lo que ve el invitado); si está vacío, `name` como
+    respaldo — nunca una tarjeta sin título.
+  - **Línea secundaria:** "Lo administras tú" en los que administra; el rango de fechas
+    (ej. "1 dic – 24 dic 2026") en los que está invitado. (El "Te invitó X" del mockup
+    no aplica: el modelo no guarda quién invitó, y no se amplía el schema para esto —
+    decidido por el PM, 2026-10-01.)
+- **Estado vacío:** "Todavía no tienes ningún calendario. Cuando alguien te invite,
+  aparecerá aquí."
+- Los calendarios que la persona **administra** llevan una etiqueta-píldora pequeña
+  "Admin" (mayúsculas, `0.7rem`, fondo `--bg-sunken`).
+- Si solo hay **un** calendario, no se muestra la lista: se abre ese calendario
+  directamente.
+
 ### Editor de calendario (pantalla de configuración del Admin)
 
 **Validado con Aitor, 2026-08-17.** Fuente: `design/propuesta-editor-calendario.html`.
