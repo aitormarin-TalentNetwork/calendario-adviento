@@ -13,8 +13,10 @@
 //   conveniencia solo totales; la auditoría como mucho 20 ids de muestra.
 // - Idempotente y reanudable: relanzar desde el principio salta lo ya
 //   migrado (ya son nombres válidos) y no lo vuelve a registrar.
-// - Restauración desde el log que nunca pisa una edición posterior del
-//   Admin (`skippedEdited`).
+// - Restauración desde el log que no pisa una edición posterior del Admin
+//   (`skippedEdited`) — salvo si esa edición eligió exactamente el mismo
+//   valor `to` que escribió la migración: no se distingue de "no editado",
+//   pero tampoco cambia nada a la vista (ver `restoreCoverIconsBatch`).
 import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
@@ -212,7 +214,11 @@ type RestoreResult = {
  * Restauración de un lote del log: solo si el calendario sigue teniendo
  * exactamente el `to` que escribió la migración (nadie lo ha editado
  * después) vuelve a `from` y marca la fila `restored`. Si lo editaron →
- * `skippedEdited` (nunca se pisa una elección del Admin). Sirve para
+ * `skippedEdited` (no se pisa una elección del Admin). Límite conocido: si
+ * el Admin re-editó y eligió exactamente el mismo `to`, no se distingue de
+ * "no editado" y se restaura a `from` — sin cambio visual, porque `from`
+ * (emoji antiguo) se pinta como su equivalente `to` por la normalización de
+ * lectura (`normalizeCoverIcon`). Sirve para
  * corregir datos (p. ej. tabla de equivalencias equivocada); NO es un
  * requisito para ningún rollback de Next (docs/iconos.md § "Rollback").
  */
@@ -234,6 +240,9 @@ export const restoreCoverIconsBatch = internalMutation({
         skippedMissing++;
         continue;
       }
+      // Distinto de `to` → lo editó el Admin después de migrar: no se toca.
+      // Igual a `to` → se trata como no editado (incluye el caso, indistinguible,
+      // de una re-edición que eligió justo `to`; sin cambio visual al restaurar).
       if (calendar.coverIcon !== entry.to) {
         skippedEdited++;
         continue;

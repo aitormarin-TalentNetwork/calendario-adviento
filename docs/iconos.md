@@ -119,12 +119,16 @@ calendarios del log en la UI:
 - **Destinos de rollback preparados:**
   - Principal: el propio deploy de producción de TAL-60 (`ROLLBACK_DEPLOY_ID`, fase c).
   - Emergencia, si el problema es de TAL-60: rama `aitormarin/tal-60-rollback-compat` =
-    main antes de TAL-60 + cherry-pick **solo** del commit de compatibilidad, construida
-    y probada en dev. El cherry-pick cambia el SHA, así que se valida comparando su diff
-    con el del commit de compatibilidad con `git patch-id --stable`; su SHA se apunta
-    como `COMPAT_SHA_ALT` y un deploy desde esa rama se valida con
-    `is-ancestor COMPAT_SHA_ALT`. Se publica por el pipeline normal, nunca con
-    "Redeploy".
+    main antes de TAL-60 + cherry-pick de **los dos** commits de compatibilidad, **1 y
+    1b** (y nada más), construida y probada en dev. El cherry-pick cambia los SHA, así que
+    se valida comparando **cada uno** con su original con `git patch-id --stable`:
+    ```
+    git show <SHA_1>  | git patch-id --stable    # = git diff <rama>~2 <rama>~1 | git patch-id --stable
+    git show <SHA_1b> | git patch-id --stable    # = git diff <rama>~1 <rama>   | git patch-id --stable
+    ```
+    El SHA de la punta de la rama se apunta como `COMPAT_SHA_ALT` y un deploy desde esa
+    rama se valida con `is-ancestor COMPAT_SHA_ALT`. Se publica por el pipeline normal,
+    nunca con "Redeploy".
 - **Rollback de Convex:** seguro en cualquier fase — todo nombre del catálogo tiene
   ≤ 16 caracteres, así que la validación anterior a TAL-60 lo acepta; el render lo decide
   el Next (≥ TAL-60). Solo se pierden temporalmente las funciones de migración.
@@ -140,14 +144,27 @@ calendarios del log en la UI:
 Si la tabla de equivalencias resultara equivocada:
 ```
 npx convex run --prod coverIconMigration:runCoverIconRestore '{"migrationId":"tal60-prod-1"}'
-npx convex run --prod coverIconMigration:listMigrationLogPage '{"migrationId":"tal60-prod-1","onlyUnrestored":true}'
 npx convex run --prod coverIconMigration:auditCoverIcons '{}'
 ```
+Listado COMPLETO de las filas sin restaurar (`skippedEdited`): `listMigrationLogPage` es
+paginado (como mucho 200 filas por llamada), así que hay que seguir `continueCursor`
+hasta `isDone: true` — una sola llamada solo enseña la primera página:
+```
+CURSOR=null
+while :; do
+  PAGE=$(npx convex run --prod coverIconMigration:listMigrationLogPage \
+    "{\"migrationId\":\"tal60-prod-1\",\"onlyUnrestored\":true,\"cursor\":$CURSOR}")
+  echo "$PAGE" | jq -c '.entries[]'
+  [ "$(echo "$PAGE" | jq '.isDone')" = "true" ] && break
+  CURSOR=$(echo "$PAGE" | jq '.continueCursor')
+done
+```
 Solo restaura los calendarios cuyo valor sigue siendo el que escribió la migración. Los
-editados después salen como **`skippedEdited`**: se listan todos (segundo comando, con
+editados después salen como **`skippedEdited`**: se listan todos (el bucle de arriba, con
 su valor actual), se comprueba con la auditoría que ningún valor es inválido (por
 construcción solo pueden ser nombres del catálogo o emojis antiguos) y se dejan tal
-cual — nunca se pisa una elección del Admin. No se cierra la restauración hasta
+cual — no se pisa una elección del Admin que sea distinta de lo que escribió la
+migración. **Límite conocido:** si el Admin re-edita un calendario y elige exactamente el mismo icono que había escrito la migración (`to`), no se distingue de "no editado" y la restauración lo devuelve a `from`. Visualmente no cambia nada (`from` se pinta como su equivalente `to` por la normalización de lectura), así que no hay pérdida perceptible. No se cierra la restauración hasta
 completar esos tres pasos; si aparece algún inválido, se para y se escala. Después,
 migración nueva con **otro** `migrationId` (reutilizar el de una migración restaurada se
 rechaza).
