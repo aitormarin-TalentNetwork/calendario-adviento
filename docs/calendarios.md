@@ -14,43 +14,40 @@
 
 ## Cómo se llega a ser Admin de un calendario
 
-> **TAL-57 (vigente, sustituye al párrafo de abajo en cuanto a QUIÉN puede
-> crear)**: crear un calendario es **exclusivo del Super Admin** (PRD §
-> Mejoras propuestas 9). Se aplica en tres capas:
->
-> 1. **Convex, la garantía real**: `createCalendarHandler` empieza por
->    `requireSuperAdmin(ctx, args.userId)` (exportada desde
->    `convex/superadmin.ts`), que relee `isSuperAdmin` en fresco en la misma
->    transacción que el `insert`. Va antes del atajo de idempotencia por
->    `creationKey`, para que repetir una clave ya usada no devuelva el id de
->    un calendario ajeno a quien no es Super Admin. Cubre
->    `createCalendarPublic` y el `internalMutation createCalendar`.
-> 2. **Next.js**: `createCalendarAction` redirige a `/unauthorized` si el
->    usuario no es Super Admin, y también si Convex rechaza con
->    "No autorizado." (le quitaron el rol entre una lectura y otra).
-> 3. **UI**: "+ Nuevo calendario" solo se pinta en `/admin` para el Super
->    Admin.
->
-> El Super Admin que crea queda como `ADMIN` de ese calendario (misma
-> mutation, igual que antes) y nombra al resto de Admins desde
-> `/superadmin`. Un Admin sigue pudiendo **editar y borrar** los
-> calendarios que administra. Tests: `e2e/tal57-create-calendar-permissions.spec.ts`
-> (ver `docs/e2e.md`).
+Hay dos caminos, los dos pasan por el Super Admin:
 
-No hay un paso previo de aprovisionamiento: cualquier usuario autenticado que
-visita `/admin` puede pulsar "+ Nuevo calendario", y eso crea el `Calendar`
-**y** su `CalendarMembership` como `ADMIN` en la misma transacción (ver
-`src/lib/calendars.ts::createCalendarForAdmin`, que ahora llama a
-`calendars.createCalendarPublic` → `convex/calendars.ts::createCalendarHandler`
-— sigue siendo una única mutation, decisión ya cerrada por la Directora al
-diseñar TAL-12 precisamente para no reabrir la ventana de carrera "calendario
-sin ningún Admin todavía" que TAL-7 tardó 2 rondas en cerrar). Es la propia
-creación la que
-"da de alta" al Admin, no al revés — coherente con el brief de TAL-5 ("crear
-un calendario implica también crear la CalendarMembership del creador como
-Admin") y con que TAL-5 no está bloqueada por TAL-4 (Panel Super Admin): un
-Admin puede gestionar sus calendarios sin que exista todavía ningún flujo de
-"alta de Admin" centralizado.
+- **Crear el calendario**: crear un calendario es **exclusivo del Super
+  Admin** (TAL-57, PRD § Mejoras propuestas 9). Al crearlo, el propio Super
+  Admin queda como `ADMIN` de ese calendario: el `Calendar` **y** su
+  `CalendarMembership` se crean en una única mutation
+  (`src/lib/calendars.ts::createCalendarForAdmin` →
+  `calendars.createCalendarPublic` → `convex/calendars.ts::createCalendarHandler`),
+  decisión cerrada al diseñar TAL-12 para no reabrir la ventana de carrera
+  "calendario sin ningún Admin todavía" que TAL-7 tardó 2 rondas en cerrar.
+- **Ser nombrado Admin**: el Super Admin nombra Admins de cada calendario
+  desde `/superadmin` (TAL-4/TAL-15). Un Admin así nombrado puede **editar y
+  borrar** los calendarios que administra, pero no crear calendarios nuevos.
+
+La restricción de creación se aplica en tres capas:
+
+1. **Convex, la garantía real**: `createCalendarHandler` empieza por
+   `requireSuperAdmin(ctx, args.userId)` (exportada desde
+   `convex/superadmin.ts`), que relee `isSuperAdmin` en fresco en la misma
+   transacción que el `insert`. Va antes del atajo de idempotencia por
+   `creationKey`, para que repetir una clave ya usada no devuelva el id de
+   un calendario ajeno a quien no es Super Admin. Cubre
+   `createCalendarPublic` y el `internalMutation createCalendar`.
+2. **Next.js**: `createCalendarAction` redirige a `/unauthorized` si el
+   usuario no es Super Admin, y también si Convex rechaza con
+   "No autorizado." (le quitaron el rol entre una lectura y otra).
+3. **UI**: "+ Nuevo calendario" solo se pinta en `/admin` para el Super
+   Admin.
+
+Tests: `e2e/tal57-create-calendar-permissions.spec.ts` (ver `docs/e2e.md`).
+
+Historia: hasta TAL-57, cualquier usuario autenticado podía crear un
+calendario desde `/admin` y quedar como su Admin (diseño de TAL-5, cuando
+todavía no existía el Panel Super Admin); TAL-57 cerró esa vía.
 
 `/admin` (listado) muestra solo los calendarios donde el usuario en sesión
 es `ADMIN` — no es la vista global de Super Admin (esa es `/superadmin`,
