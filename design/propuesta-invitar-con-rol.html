@@ -47,7 +47,7 @@ select:disabled { opacity:0.55; }
 </head>
 <body>
 <main>
-  <div class="note">Sección "Invitados" del editor de un calendario, ya con el Estilo 2026. Cualquier Admin del calendario puede invitar como <b>Visitante</b> o como <b>Administrador</b>, cambiar el rol de quien ya está y quitar a cualquiera. El último Admin no se puede quitar ni bajar a Visitante. El link de invitación compartido da acceso solo como Visitante.</div>
+  <div class="note">Sección "Invitados" del editor de un calendario, ya con el Estilo 2026. Cualquier Admin del calendario puede invitar como <b>Visitante</b> o como <b>Administrador</b>, cambiar el rol de quien ya está y quitar a cualquiera. El último Admin no se puede quitar ni bajar a Visitante. El link de invitación no da acceso ni rol por sí mismo: cada persona invitada entra con el rol de su invitación (Visitante por defecto). Quien aún no ha entrado aparece como "pendiente".</div>
   <section class="card">
     <h2>Personas del calendario</h2>
     <p class="sub">Invita por email y elige qué puede hacer cada uno.</p>
@@ -59,12 +59,12 @@ select:disabled { opacity:0.55; }
 
     <div class="row"><div class="av">A</div><div class="who"><b>aitor.marin@gmail.com</b><small>Tú</small></div>
       <select><option>Administrador</option><option>Visitante</option></select><button class="del">Quitar</button></div>
-    <div class="row"><div class="av">L</div><div class="who"><b>laura@empresa.com</b><small>Invitada el 2 oct</small></div>
+    <div class="row"><div class="av">L</div><div class="who"><b>laura@empresa.com</b><small>Invitada el 2 oct · pendiente</small></div>
       <select><option>Administrador</option><option selected>Visitante</option></select><button class="del">Quitar</button></div>
     <div class="row"><div class="av">C</div><div class="who"><b>carmen@familia.es</b><small>Invitada el 28 sep</small></div>
       <select><option selected>Administrador</option><option>Visitante</option></select><button class="del">Quitar</button></div>
 
-    <div class="link"><b>Link de invitación</b>: quien entre por aquí accede como <b>Visitante</b>.</div>
+    <div class="link"><b>Link de invitación</b>: cada persona entra con el rol con el que la invitaste (Visitante por defecto).</div>
   </section>
 
   <div class="note" style="margin-top:28px">Caso límite: si en el calendario solo queda un Admin, su rol no se puede cambiar ni se le puede quitar.</div>
