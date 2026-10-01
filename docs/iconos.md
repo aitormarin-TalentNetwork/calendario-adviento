@@ -38,12 +38,21 @@ relleno, `currentColor`. Ningún emoji en la UI (salvo el texto que escribe el A
 1. **Compatibilidad** — catálogo, `normalizeCoverIcon`/`coverIconForWrite`,
    `<CoverIcon>` en todos los sitios de lectura (portada, login, vista previa, `/c`,
    selector), validación tolerante, `lucide-react`. Funciona solo.
+   - **1b. Compatibilidad, menú de la cuenta** — `CalendarRowIcon` de
+     `account-menu.tsx` (TAL-59) con `<CoverIcon>`. Va en commit aparte porque TAL-59
+     entró en la base después de escribir el commit 1; completa la capa de
+     compatibilidad (último sitio de lectura).
 2. UI — candado y botones de cerrar.
 3. Migración — tabla del log, `coverIconMigration.ts`, scripts y este runbook.
 4. Tests.
 
-`COMPAT_SHA` = SHA del commit 1 **tal como queda en main tras el merge** (lo apunta la
-Directora/Integrador aquí y en TAL-60 al publicar): `[PENDIENTE — al publicar]`.
+`COMPAT_SHA` = SHA del commit **1b** (el que completa la capa de compatibilidad; está
+encima del 1, así que un build que lo contiene contiene los dos) **tal como queda en main
+tras el merge**. Lo apunta la Directora/Integrador aquí y en TAL-60 al publicar:
+`[PROVISIONAL — se fija tras el merge final]`. La rama de rollback de emergencia
+(`aitormarin/tal-60-rollback-compat`) es main antes de TAL-60 + cherry-pick de **1 y 1b**,
+y se valida comparando cada uno con `git patch-id --stable`: `[PROVISIONAL — se rehace
+sobre el main del merge final]`.
 
 ## Runbook de producción
 
