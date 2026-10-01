@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { signOutAction, switchModeAction } from "@/app/account-actions";
+import { CoverIcon } from "@/components/cover-icon";
 
 const AVATAR_SIZE = 40;
 
@@ -274,14 +275,12 @@ function ModeItem({
 }
 
 /**
- * Icono de una fila de calendario — el ÚNICO sitio del menú que lo pinta
- * (hoy el `coverIcon` emoji tal cual, con su respaldo ya resuelto en el
- * servidor). TAL-60 (iconos Lucide) solo tendrá que cambiar esto.
+ * Icono de una fila de calendario — el ÚNICO sitio del menú que lo pinta.
+ * TAL-60 — icono Lucide en su recuadro pastel (`<CoverIcon>`, que normaliza
+ * tanto nombres nuevos como emojis antiguos sin migrar). Conserva la clase
+ * `account-menu-calendar-icon` para el tamaño de la fila; el fondo y el
+ * radio los pone `.cover-icon-box` (bloque "TAL-60 — iconos" de globals.css).
  */
 function CalendarRowIcon({ icon }: { icon: string }) {
-  return (
-    <span aria-hidden="true" className="account-menu-calendar-icon">
-      {icon}
-    </span>
-  );
+  return <CoverIcon value={icon} size={16} box={28} className="account-menu-calendar-icon" />;
 }
