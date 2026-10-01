@@ -58,7 +58,8 @@ tristones").
 
 | Token | Claro | Oscuro | Uso |
 |---|---|---|---|
-| `--primary-ink` | `#6b52f5` | `#7157ff` | Fondo del botón primario (texto blanco encima) y enlaces/texto en violeta. `--primary` queda para superficies grandes (bloque de cuenta atrás) |
+| `--primary-ink` | `#6b52f5` | `#8f7bff` | Texto y enlaces en violeta (en oscuro: 5,65 sobre `--bg`, 5,08 sobre `--surface`) |
+| `--primary-btn` | `#6b52f5` | `#7157ff` | Fondo del botón primario, con texto blanco encima (4,66 en oscuro). `--primary` queda para superficies grandes (bloque de cuenta atrás) |
 | `--on-sun` | `#1d2320` | `#1d2320` | Texto sobre `--sun` en los dos modos (en oscuro `--ink` es claro y no se lee sobre amarillo) |
 | `--coral-ink` | `#d0353a` | `--coral` | Texto de peligro/borrar en claro. `--coral` sigue para fondos y acentos |
 
