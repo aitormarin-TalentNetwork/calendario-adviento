@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estilo moderno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f4f2ee;
+  --surface: #ffffff;
+  --surface-2: #f7f6f3;
+  --ink: #1d2320;
+  --ink-dim: #6b726e;
+  --line: #ebe8e1;
+  --pine: #1f4d3a;
+  --pine-soft: #e3efe8;
+  --sun: #ffc857;
+  --sun-soft: #fff3d6;
+  --coral: #ff7a59;
+  --coral-soft: #ffe6de;
+  --lilac: #8b7cf6;
+  --lilac-soft: #ece9ff;
+  --weekend: #e0574f;
+  --radius-xl: 28px;
+  --radius-lg: 20px;
+  --radius-md: 14px;
+  --shadow: 0 2px 6px rgba(29,35,32,0.04), 0 12px 32px rgba(29,35,32,0.08);
+  --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111513; --surface: #1a201d; --surface-2: #212825; --ink: #f2f1ec; --ink-dim: #a3aba6;
+    --line: #2a322e; --pine-soft: #1f3a2e; --sun-soft: #3a3120; --coral-soft: #3b2620; --lilac-soft: #2a2645;
+    --shadow: 0 2px 6px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111513; --surface: #1a201d; --surface-2: #212825; --ink: #f2f1ec; --ink-dim: #a3aba6;
+  --line: #2a322e; --pine-soft: #1f3a2e; --sun-soft: #3a3120; --coral-soft: #3b2620; --lilac-soft: #2a2645;
+  --shadow: 0 2px 6px rgba(0,0,0,0.3), 0 12px 32px rgba(0,0,0,0.35);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+header.top { max-width: 1240px; margin: 0 auto; padding: 32px 16px 8px; }
+header.top h1 { margin: 0 0 6px; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+header.top p { margin: 0; color: var(--ink-dim); max-width: 720px; line-height: 1.5; }
+.chips-legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.chips-legend span { font-size: 0.8rem; font-weight: 600; padding: 6px 12px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); }
+
+.phones { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 28px; justify-items: center; }
+.phone-wrap { display: flex; flex-direction: column; gap: 10px; align-items: center; width: 100%; max-width: 360px; }
+.phone-wrap .cap { font-size: 0.85rem; font-weight: 700; color: var(--ink-dim); }
+.phone { width: 100%; max-width: 360px; height: 720px; background: var(--bg); border-radius: 40px; border: 8px solid #101412; overflow: hidden; position: relative; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.screen { flex: 1; overflow-y: auto; padding: 18px 18px 90px; }
+
+/* barra superior */
+.bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.hello { display: flex; flex-direction: column; }
+.hello small { color: var(--ink-dim); font-size: 0.8rem; font-weight: 500; }
+.hello strong { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.01em; }
+.avatar { width: 42px; height: 42px; border-radius: 50%; object-fit: cover; border: 2px solid var(--surface); box-shadow: 0 0 0 2px var(--sun); }
+
+h2 { font-size: 1.5rem; font-weight: 800; letter-spacing: -0.025em; margin: 0 0 4px; line-height: 1.15; }
+.sub { color: var(--ink-dim); font-size: 0.9rem; margin: 0 0 16px; }
+
+/* segment / chips */
+.seg { display: flex; gap: 8px; margin-bottom: 16px; overflow-x: auto; }
+.seg span { flex: none; font-size: 0.82rem; font-weight: 700; padding: 8px 14px; border-radius: 999px; background: var(--surface); color: var(--ink-dim); border: 1px solid var(--line); }
+.seg span.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+
+/* tarjeta de calendario */
+.cal { border-radius: var(--radius-xl); padding: 18px; margin-bottom: 14px; position: relative; overflow: hidden; }
+.cal.sun { background: var(--sun-soft); }
+.cal.coral { background: var(--coral-soft); }
+.cal.lilac { background: var(--lilac-soft); }
+.cal .row { display: flex; justify-content: space-between; align-items: flex-start; }
+.cal .emoji { width: 52px; height: 52px; border-radius: 18px; background: var(--surface); display: grid; place-items: center; font-size: 1.7rem; box-shadow: 0 4px 12px rgba(0,0,0,0.06); }
+.tag { font-size: 0.72rem; font-weight: 700; padding: 5px 10px; border-radius: 999px; background: var(--surface); }
+.cal h3 { margin: 14px 0 2px; font-size: 1.1rem; font-weight: 800; letter-spacing: -0.01em; }
+.cal .meta { font-size: 0.82rem; color: var(--ink-dim); font-weight: 500; }
+.progress { margin-top: 14px; display: flex; align-items: center; gap: 10px; font-size: 0.78rem; font-weight: 700; }
+.progress .track { flex: 1; height: 8px; border-radius: 999px; background: rgba(255,255,255,0.7); overflow: hidden; }
+.progress .fill { height: 100%; border-radius: 999px; background: var(--ink); }
+
+/* cuenta atrás */
+.hero { background: var(--hero); color: #fff; border-radius: var(--radius-xl); padding: 20px; margin-bottom: 16px; position: relative; overflow: hidden; }
+.hero::after { content: ""; position: absolute; right: -40px; top: -40px; width: 160px; height: 160px; border-radius: 50%; background: var(--hero-glow); }
+.hero small { font-weight: 600; opacity: 0.8; font-size: 0.82rem; }
+.hero .big { font-size: 2.6rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin: 6px 0 4px; }
+.hero .big span { color: var(--sun); }
+.hero .for { font-weight: 600; font-size: 0.95rem; }
+
+/* grid */
+.month { background: var(--surface); border-radius: var(--radius-xl); padding: 16px 14px; box-shadow: var(--shadow); }
+.month-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.month-h strong { font-size: 1rem; font-weight: 800; }
+.month-h span { font-size: 0.75rem; font-weight: 700; color: var(--ink-dim); background: var(--surface-2); padding: 4px 10px; border-radius: 999px; }
+.wd, .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.wd span { text-align: center; font-size: 0.7rem; font-weight: 700; color: var(--ink-dim); padding-bottom: 4px; }
+.wd span:nth-child(n+6) { color: var(--weekend); }
+.d { aspect-ratio: 1; border-radius: 12px; display: grid; place-items: center; font-weight: 800; font-size: 0.95rem; background: var(--surface-2); position: relative; }
+.d.we { color: var(--weekend); }
+.d.seen { background: linear-gradient(140deg, var(--seen-a), var(--seen-b)); color: #fff; font-size: 0.7rem; place-items: end end; padding: 4px 6px; }
+.d.today { background: var(--sun); color: var(--ink); box-shadow: 0 6px 14px rgba(255,200,87,0.55); transform: scale(1.06); }
+.d.locked { background: transparent; border: 1.5px dashed var(--line); color: var(--ink-dim); font-weight: 600; opacity: 0.7; }
+.d.out { background: transparent; color: var(--ink-dim); opacity: 0.25; font-weight: 600; }
+
+/* admin */
+.btn { display: inline-flex; background: var(--hero) !important; color: #fff !important; align-items: center; gap: 8px; font: inherit; font-weight: 800; font-size: 0.9rem; border: 0; border-radius: 999px; padding: 12px 18px; background: var(--ink); color: var(--bg); }
+.btn.full { width: 100%; justify-content: center; margin-bottom: 16px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 16px; }
+.stat { background: var(--surface); border-radius: var(--radius-lg); padding: 12px; box-shadow: var(--shadow); }
+.stat b { display: block; font-size: 1.35rem; font-weight: 800; letter-spacing: -0.02em; }
+.stat small { color: var(--ink-dim); font-size: 0.72rem; font-weight: 600; }
+.arow { display: flex; align-items: center; gap: 12px; background: var(--surface); border-radius: var(--radius-lg); padding: 12px; margin-bottom: 10px; box-shadow: var(--shadow); }
+.arow .emoji { width: 46px; height: 46px; border-radius: 16px; display: grid; place-items: center; font-size: 1.4rem; flex: none; }
+.arow .t { flex: 1; min-width: 0; }
+.arow .t b { display: block; font-weight: 800; font-size: 0.95rem; }
+.arow .t small { color: var(--ink-dim); font-size: 0.78rem; font-weight: 500; }
+.pill { font-size: 0.7rem; font-weight: 800; padding: 5px 9px; border-radius: 999px; }
+.pill.live { background: var(--lilac-soft); color: var(--ink); }
+.pill.soon { background: var(--coral-soft); color: var(--ink); }
+
+/* tab bar */
+.tabbar { position: absolute; left: 14px; right: 14px; bottom: 14px; background: var(--ink); border-radius: 999px; display: flex; justify-content: space-around; padding: 10px; }
+.tabbar span { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; color: #9aa39e; }
+.tabbar span.on { background: var(--sun); color: var(--ink); }
+.tabbar svg { width: 22px; height: 22px; }
+
+/* modal vídeo */
+.sheet { position: absolute; inset: auto 0 0 0; background: var(--surface); border-radius: 28px 28px 0 0; padding: 14px 18px 24px; box-shadow: 0 -10px 40px rgba(0,0,0,0.15); }
+.grab { width: 40px; height: 5px; border-radius: 999px; background: var(--line); margin: 0 auto 14px; }
+.video { aspect-ratio: 16/9; border-radius: 20px; background: var(--hero); display: grid; place-items: center; }
+.play { width: 58px; height: 58px; border-radius: 50%; background: var(--sun); display: grid; place-items: center; }
+.msg { margin-top: 14px; background: var(--sun-soft); border-radius: 18px; padding: 14px; font-size: 0.9rem; line-height: 1.45; font-weight: 500; }
+.dim { position: absolute; inset: 0; background: rgba(17,21,19,0.45); }
+.ic svg { width: 26px; height: 26px; stroke-width: 2; }
+.arow .ic svg { width: 22px; height: 22px; }
+.icon-row { max-width: 1240px; margin: 0 auto; padding: 0 16px; }
+.icon-row h3 { font-size: 1rem; font-weight: 800; margin: 8px 0 10px; }
+.icon-grid { display: flex; flex-wrap: wrap; gap: 10px; }
+.icon-grid div { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: var(--surface); box-shadow: var(--shadow); }
+.icon-grid svg { width: 26px; height: 26px; }
+
+/* Paletas alternativas — más vivas */
+:root { --hero: var(--pine); --hero-glow: rgba(255,200,87,0.25); --seen-a: #ffb199; --seen-b: #ff7a59; }
+html[data-palette="alegre"] { --bg:#fff8ee; --pine:#7b61ff; --hero:#7b61ff; --hero-glow:rgba(255,210,63,0.45); --sun:#ffd23f; --sun-soft:#e6e0ff; --coral:#ff5a5f; --coral-soft:#ffd9d6; --lilac:#3ddc97; --lilac-soft:#cdf7e3; --pine-soft:#e6e0ff; --seen-a:#ff8a8d; --seen-b:#ff5a5f; --weekend:#ff5a5f; }
+html[data-palette="navidad-pop"] { --bg:#fff7f2; --pine:#1fb57a; --hero:#f2374b; --hero-glow:rgba(255,194,61,0.5); --sun:#ffc23d; --sun-soft:#dff1ff; --coral:#f2374b; --coral-soft:#ffd6db; --lilac:#1fb57a; --lilac-soft:#c9f2df; --pine-soft:#c9f2df; --seen-a:#3fd394; --seen-b:#1fb57a; --weekend:#f2374b; }
+html[data-palette="caramelo"] { --bg:#fffaf3; --pine:#ff6fb5; --hero:#4f8dff; --hero-glow:rgba(255,228,92,0.55); --sun:#ffe45c; --sun-soft:#e8e3ff; --coral:#ff6fb5; --coral-soft:#ffd9ec; --lilac:#4fc3f7; --lilac-soft:#d3f0fd; --pine-soft:#ffd9ec; --seen-a:#ff9bcb; --seen-b:#ff6fb5; --weekend:#ff6fb5; }
+.palettes { display:flex; flex-wrap:wrap; gap:8px; margin-top:16px; align-items:center; }
+.palettes b { font-size:0.85rem; margin-right:4px; }
+.palettes button { font:inherit; font-weight:700; font-size:0.85rem; border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:999px; padding:8px 14px; cursor:pointer; display:inline-flex; gap:8px; align-items:center; }
+.palettes button[aria-pressed="true"] { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+.palettes i { width:12px; height:12px; border-radius:50%; display:inline-block; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Propuesta de estilo: moderno y desenfadado</h1>
+  <p>Una sola tipografía sans redondeada (Plus Jakarta Sans), sin serifas en ningún sitio. Tarjetas con esquinas muy redondeadas y colores pastel suaves, títulos grandes y en negrita, botones en píldora y mucho aire. Iconos de línea modernos (Lucide) en vez de emojis. Elige paleta arriba: tres opciones más vivas y la anterior para comparar. Pantallas vistas en móvil.</p>
+  <div class="palettes" id="palettes"><b>Paleta:</b>
+    <button data-p="alegre" aria-pressed="true"><i style="background:#7b61ff"></i><i style="background:#ffd23f"></i><i style="background:#ff5a5f"></i><i style="background:#3ddc97"></i>Alegre</button>
+    <button data-p="navidad-pop" aria-pressed="false"><i style="background:#f2374b"></i><i style="background:#1fb57a"></i><i style="background:#ffc23d"></i>Navidad pop</button>
+    <button data-p="caramelo" aria-pressed="false"><i style="background:#ff6fb5"></i><i style="background:#4f8dff"></i><i style="background:#ffe45c"></i><i style="background:#4fc3f7"></i>Caramelo</button>
+    <button data-p="" aria-pressed="false"><i style="background:#1f4d3a"></i><i style="background:#ffc857"></i>Actual (más sobria)</button>
+  </div>
+  <div class="chips-legend" style="display:none"><span>Aa · Plus Jakarta Sans</span><span style="background:#1f4d3a;color:#fff">Pino</span><span style="background:#ffc857">Sol</span><span style="background:#ffe6de">Coral</span><span style="background:#ece9ff">Lila</span></div>
+</header>
+
+<section class="icon-row"><h3>Iconos de portada: de emoji a icono de línea moderno (Lucide)</h3><div class="icon-grid"><div style="color:var(--pine)"><i data-lucide="tree-pine"></i></div><div style="color:var(--coral)"><i data-lucide="gift"></i></div><div style="color:var(--lilac)"><i data-lucide="snowflake"></i></div><div style="color:var(--sun)"><i data-lucide="bell"></i></div><div style="color:var(--pine)"><i data-lucide="candy-cane"></i></div><div style="color:var(--coral)"><i data-lucide="star"></i></div><div style="color:var(--lilac)"><i data-lucide="sparkles"></i></div><div style="color:var(--sun)"><i data-lucide="party-popper"></i></div><div style="color:var(--pine)"><i data-lucide="cake"></i></div><div style="color:var(--coral)"><i data-lucide="heart"></i></div><div style="color:var(--lilac)"><i data-lucide="sun"></i></div><div style="color:var(--sun)"><i data-lucide="moon"></i></div><div style="color:var(--pine)"><i data-lucide="flower-2"></i></div><div style="color:var(--coral)"><i data-lucide="music"></i></div><div style="color:var(--lilac)"><i data-lucide="camera"></i></div><div style="color:var(--sun)"><i data-lucide="plane"></i></div><div style="color:var(--pine)"><i data-lucide="baby"></i></div><div style="color:var(--coral)"><i data-lucide="dog"></i></div></div></section>
+<div class="phones">
+
+  <!-- 1. Tus calendarios -->
+  <div class="phone-wrap"><div class="cap">1 · Tus calendarios (modo Usuario)</div>
+  <div class="phone"><div class="screen">
+    <div class="bar"><div class="hello"><small>Hola,</small><strong>Aitor</strong></div><img class="avatar" src="https://i.pravatar.cc/80?img=12" alt=""></div>
+    <h2>Tus calendarios</h2><p class="sub">Elige cuál quieres abrir hoy.</p>
+    <div class="seg"><span class="on">Todos</span><span>En marcha</span><span>Próximos</span></div>
+    <div class="cal sun"><div class="row"><div class="emoji ic" style="color:var(--pine)"><i data-lucide="tree-pine"></i></div><span class="tag">Admin</span></div><h3>Adviento familia Marín</h3><div class="meta">Lo administras tú</div>
+      <div class="progress"><div class="track"><div class="fill" style="width:33%"></div></div>8/24</div></div>
+    <div class="cal coral"><div class="row"><div class="emoji ic" style="color:var(--coral)"><i data-lucide="gift"></i></div></div><h3>Navidad en la oficina</h3><div class="meta">1 dic – 24 dic 2026</div>
+      <div class="progress"><div class="track"><div class="fill" style="width:20%"></div></div>5/24</div></div>
+    <div class="cal lilac"><div class="row"><div class="emoji ic" style="color:var(--lilac)"><i data-lucide="cake"></i></div><span class="tag">Admin</span></div><h3>Cumple de Lucía</h3><div class="meta">Empieza en 9 días</div></div>
+  </div></div></div>
+
+  <!-- 2. Calendario del invitado -->
+  <div class="phone-wrap"><div class="cap">2 · Calendario del invitado</div>
+  <div class="phone"><div class="screen">
+    <div class="bar"><div class="hello"><small>Navidad en la oficina</small><strong>¡Hoy toca sorpresa!</strong></div><img class="avatar" src="https://i.pravatar.cc/80?img=12" alt=""></div>
+    <div class="hero"><small>Cuenta atrás</small><div class="big"><span>16</span> días</div><div class="for">para la Navidad</div></div>
+    <div class="month">
+      <div class="month-h"><strong>Diciembre</strong><span>5 de 24 vistos</span></div>
+      <div class="wd"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+      <div class="days" id="days"></div>
+    </div>
+  </div></div></div>
+
+  <!-- 3. Vídeo del día -->
+  <div class="phone-wrap"><div class="cap">3 · Al abrir un día</div>
+  <div class="phone"><div class="screen" style="filter:blur(1px)">
+    <div class="bar"><div class="hello"><small>Navidad en la oficina</small><strong>¡Hoy toca sorpresa!</strong></div><img class="avatar" src="https://i.pravatar.cc/80?img=12" alt=""></div>
+    <div class="hero"><small>Cuenta atrás</small><div class="big"><span>16</span> días</div><div class="for">para la Navidad</div></div>
+  </div>
+  <div class="dim"></div>
+  <div class="sheet"><div class="grab"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h2 style="font-size:1.25rem;margin:0">Día 8</h2><span class="pill live">Nuevo</span></div>
+    <div class="video"><div class="play"><svg width="22" height="22" viewBox="0 0 24 24" fill="#1d2320"><path d="M8 5v14l11-7z"/></svg></div></div>
+    <div class="msg">¡Feliz día 8! Hoy os traemos el villancico que grabamos en la última cena de equipo.</div>
+  </div></div></div>
+
+  <!-- 4. Panel del Admin -->
+  <div class="phone-wrap"><div class="cap">4 · Mis calendarios (modo Admin)</div>
+  <div class="phone"><div class="screen">
+    <div class="bar"><div class="hello"><small>Modo Admin</small><strong>Mis calendarios</strong></div><img class="avatar" src="https://i.pravatar.cc/80?img=12" alt=""></div>
+        <button class="btn full">+ Nuevo calendario</button>
+    <div class="arow"><div class="emoji ic" style="background:var(--sun-soft);color:var(--pine)"><i data-lucide="tree-pine"></i></div><div class="t"><b>Adviento familia Marín</b><small>1 dic – 24 dic · 12 invitados</small></div><span class="pill live">En marcha</span></div>
+    <div class="arow"><div class="emoji ic" style="background:var(--lilac-soft);color:var(--lilac)"><i data-lucide="cake"></i></div><div class="t"><b>Cumple de Lucía</b><small>10 oct – 20 oct · 26 invitados</small></div><span class="pill soon">Próximo</span></div>
+    <p class="sub" style="font-size:0.78rem;margin-top:12px">El botón "+ Nuevo calendario" solo lo ve el Super Admin (TAL-57).</p>
+  </div>
+  </div></div>
+
+</div>
+
+<script>
+// Diciembre 2026 empieza en martes. Rango del calendario: 1–24. Hoy: 8.
+const days = document.getElementById('days');
+let html = '<span></span>';
+for (let d = 1; d <= 31; d++) {
+  const dow = (d) % 7; // 1 dic = martes → índice 1
+  const we = dow === 5 || dow === 6;
+  let cls = 'd';
+  if (d > 24) cls += ' out';
+  else if (d === 8) cls += ' today';
+  else if (d < 8 && d !== 3 && d !== 6) cls += ' seen';
+  else if (d < 8) cls += '';
+  else cls += ' locked';
+  if (we && !cls.includes('seen') && !cls.includes('today')) cls += ' we';
+  html += `<span class="${cls}">${d > 8 && d <= 24 ? d : d}</span>`;
+}
+days.innerHTML = html;
+</script>
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>lucide.createIcons();
+const setP = p => { if (p) document.documentElement.dataset.palette = p; else delete document.documentElement.dataset.palette;
+  document.querySelectorAll('#palettes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.p === p)); };
+document.getElementById('palettes').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setP(b.dataset.p); });
+setP('alegre');</script>
+</body>
+</html>

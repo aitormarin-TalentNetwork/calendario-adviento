@@ -10,7 +10,98 @@
 > (grid de calendario, validado 2026-08-16). Las tres piezas están cerradas — este
 > documento ya no tiene secciones provisionales.
 
-## Tokens
+## Estilo 2026 — rediseño "moderno y desenfadado" (Onda 4)
+
+**Validado con Aitor, 2026-10-01.** Fuentes: `design/propuesta-estilo-moderno.html`
+(paleta "Alegre", tipografía, iconos, pantallas en móvil) +
+`design/propuesta-skins-modernos.html` (los 8 skins). **Sustituye** a § "Tokens" (color,
+tipografía, forma), al catálogo de skins de § "Skins" y a los emojis de § "Selector de
+icono de portada". **Vigencia:** se aplica en la Onda 4. Las tareas de la Onda 3
+(TAL-57/58/59) se terminan con los tokens anteriores y la Onda 4 las repinta junto con el
+resto, para no rehacer nada a medias.
+
+### Tipografía — una sola familia
+
+- **Plus Jakarta Sans** (Google Fonts, licencia OFL) en **toda** la app, servida desde la
+  propia app con `next/font/google` (sin depender de la fuente del sistema: tiene que
+  verse igual en Mac, Windows, iPhone y Android). Pesos `400, 500, 600, 700, 800`.
+- **Desaparecen** `--font-display` (serifa) y `--font-mono` (monoespaciada) en todos los
+  usos — títulos, portada, cuenta atrás, diálogos, grid, editor, avatar, link de
+  invitación. Un único token `--font` (respaldo: `-apple-system, BlinkMacSystemFont,
+  "Segoe UI", Roboto, sans-serif`).
+- **Jerarquía por peso y tamaño, no por familia:** títulos de pantalla `800`,
+  `letter-spacing: -0.02em` a `-0.025em`; subtítulos y etiquetas `600-700`; texto `400-500`.
+- **Números y fechas** (cuenta atrás, número de día, rangos de fechas):
+  `font-variant-numeric: tabular-nums` — cifras de ancho fijo, sin cambiar de familia.
+
+### Color — paleta "Alegre" (estilo de la app y skin nº 1)
+
+| Token | Claro | Oscuro | Uso |
+|---|---|---|---|
+| `--bg` | `#fff8ee` | `#111513` | Fondo de página (crema) |
+| `--surface` | `#ffffff` | `#1a201d` | Tarjetas, menús, diálogos |
+| `--surface-2` | `#f7f6f3` | `#212825` | Superficie hundida, casillas |
+| `--ink` | `#1d2320` | `#f2f1ec` | Texto |
+| `--ink-dim` | `#6b726e` | `#a3aba6` | Texto secundario |
+| `--line` | `#ebe8e1` | `#2a322e` | Bordes, divisores |
+| `--primary` | `#7b61ff` | `#8f7bff` | Violeta — bloque destacado (cuenta atrás), botón primario, enlaces |
+| `--sun` | `#ffd23f` | `#ffd23f` | Amarillo — "hoy", número destacado, foco |
+| `--coral` | `#ff5a5f` | `#ff7a7e` | Coral — fin de semana, peligro, visto |
+| `--mint` | `#3ddc97` | `#3ddc97` | Menta — estados positivos ("En marcha") |
+| `--primary-soft` / `--coral-soft` / `--mint-soft` | `#e6e0ff` / `#ffd9d6` / `#cdf7e3` | `#2a2645` / `#3b2620` / `#1f3a2e` | Fondos pastel de tarjetas y recuadros de icono |
+
+**Sin ocres, marrones ni verde pino** en la app (Aitor: "esos marrones y verde
+tristones"). El texto sobre `--primary` es blanco; sobre `--sun`, `--ink`.
+
+### Forma
+
+- Radios: `28px` tarjetas grandes y bloques destacados; `20px` tarjetas/filas; `14px`
+  recuadros de icono e inputs; `10-12px` casillas del grid; `999px` botones, píldoras,
+  etiquetas.
+- Sombra: `0 2px 6px rgba(29,35,32,0.04), 0 12px 32px rgba(29,35,32,0.08)` (más intensa en
+  oscuro). Mucho aire: `gap` 14-18px entre tarjetas.
+- Botón primario: píldora `--primary`, texto blanco, `800`. Secundario: píldora
+  `--surface` con borde `--line`. Peligro: texto `--coral`.
+
+### Iconos — de emoji a icono de línea
+
+- **Lucide** (licencia ISC) en toda la app — trazo `2px`, sin relleno, `currentColor`.
+  **Ningún emoji** en la interfaz (Aitor: los emojis "parecen de los ochenta, poco
+  profesionales").
+- Los **iconos de portada** (§ "Selector de icono de portada") pasan a ser iconos Lucide
+  dentro de un **recuadro redondeado** (`14-18px`) con fondo pastel y el icono en el color
+  del skin. Catálogo por categorías equivalente al actual (árbol, regalo, copo, campana,
+  bastón de caramelo, estrella, destellos, confeti, tarta, corazón, sol, luna, flor,
+  música, cámara, avión, bebé, perro…), mismo buscador en español.
+- Los calendarios que ya existen con un emoji de portada se migran al icono Lucide
+  equivalente (si no hay equivalente claro, "regalo").
+
+### Skins — 8 estilos muy distintos
+
+Sustituyen a los 24 del catálogo anterior. Misma arquitectura (registros en la tabla
+`skins` de Convex, nada hardcodeado) y misma regla de marcas. La tipografía es la misma
+en todos — un skin cambia colores y ambiente, nunca la fuente. Valores exactos de cada
+uno en `design/propuesta-skins-modernos.html`.
+
+| # | Skin | Ambiente | Colores clave |
+|---|---|---|---|
+| 1 | **Alegre** (estándar) | El de la app. Por defecto en calendarios nuevos | violeta `#7b61ff`, sol `#ffd23f`, coral `#ff5a5f`, menta `#3ddc97` sobre crema |
+| 2 | **Navidad pop** | Navidad viva, nada sobria | rojo `#f2374b`, verde `#1fb57a`, dorado `#ffc23d` |
+| 3 | **Caramelo** | Dulce, infantil | rosa `#ff6fb5`, azul `#4f8dff`, limón `#ffe45c`, celeste `#4fc3f7` |
+| 4 | **Noche** | Oscuro elegante | azul noche `#10142a`, violeta `#5b3fd1`, dorado `#f5c451` |
+| 5 | **Nieve** | Frío, limpio | blanco azulado `#f2f8ff`, azul `#5aa9ff` → `#2f6bff` |
+| 6 | **Minimal** | Sobrio moderno | blanco, negro `#111111`, un toque naranja `#ff4d2e` |
+| 7 | **Tira Cómica** | Cómic (rehecho) | rojo `#e63946`, azul `#2fa8e0`, amarillo `#ffd23f`, contorno negro `2.5px` + sombra dura `3px 3px 0` |
+| 8 | **Rojiblanco** | Fútbol (rehecho), sin escudo | rayas `#d61f26`/blanco **solo en el bloque de la cuenta atrás**, textos sobre píldora blanca; resto blanco |
+
+**Migración de calendarios existentes:** los que usan Tira Cómica o Rojiblanco conservan
+su skin (versión nueva); **todos los demás pasan a "Alegre"**. Los 22 skins antiguos
+restantes se retiran del catálogo.
+
+**Fuera de la Onda 4** (aparecían en el mockup solo como ambientación): barra de progreso
+"8/24", filtros "Todos / En marcha / Próximos" y etiquetas de estado en el panel del Admin.
+
+## Tokens (estilo anterior — vigente hasta la Onda 4, ver § "Estilo 2026")
 
 ### Color
 
@@ -147,6 +238,11 @@ casilla **bloqueada** (día futuro, sin abrir todavía):
   para probarlo.
 
 ### Skins
+
+> **Catálogo sustituido en la Onda 4** por los 8 skins de § "Estilo 2026". Siguen
+> vigentes de esta sección: la arquitectura (tabla `skins`, catálogo ilimitado), la regla
+> de marcas, el campo `textColor`/píldora, el fondo a pantalla completa y el selector de
+> cuadrados del editor.
 
 **Validado con Aitor, 2026-08-16.** Fuente: `design/propuesta-skins.html`. Catálogo
 inicial de **22 skins** (los 4 del MVP shippeado — Dorado/Grosella/Medianoche/Pino — más

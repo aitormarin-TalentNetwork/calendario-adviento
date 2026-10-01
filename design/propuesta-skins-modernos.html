@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skins modernos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --page: #fff8ee; --page-ink: #1d2320; --page-dim: #6b726e; --page-line: #ebe4d6;
+  --font: "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --page: #111513; --page-ink: #f2f1ec; --page-dim: #a3aba6; --page-line: #2a322e; }
+}
+:root[data-theme="dark"] { --page: #111513; --page-ink: #f2f1ec; --page-dim: #a3aba6; --page-line: #2a322e; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--page-ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+header { max-width: 1240px; margin: 0 auto; padding: 32px 16px 8px; }
+header h1 { margin: 0 0 6px; font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+header p { margin: 0; color: var(--page-dim); max-width: 760px; line-height: 1.5; }
+.grid { max-width: 1240px; margin: 0 auto; padding: 24px 16px 64px; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 28px; }
+.skin { display: flex; flex-direction: column; gap: 10px; }
+.skin .cap { display: flex; align-items: baseline; gap: 8px; }
+.skin .cap b { font-size: 1rem; font-weight: 800; }
+.skin .cap span { font-size: 0.82rem; color: var(--page-dim); }
+.skin .cap em { font-style: normal; font-size: 0.7rem; font-weight: 800; padding: 3px 8px; border-radius: 999px; background: var(--page-ink); color: var(--page); }
+
+/* Pantalla del invitado, pintada con las variables de cada skin */
+.screen { border-radius: 32px; padding: 18px; background: var(--bg); color: var(--ink); box-shadow: 0 2px 6px rgba(0,0,0,0.05), 0 14px 36px rgba(0,0,0,0.10); border: 1px solid var(--page-line); }
+.top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.top small { display: block; font-size: 0.75rem; font-weight: 600; color: var(--dim); }
+.top strong { font-size: 1.05rem; font-weight: 800; letter-spacing: -0.01em; }
+.tile { width: 42px; height: 42px; border-radius: 14px; display: grid; place-items: center; background: var(--tile); color: var(--accent); }
+.tile svg { width: 22px; height: 22px; }
+.hero { border-radius: 24px; padding: 16px 18px; background: var(--hero); color: var(--hero-ink); position: relative; overflow: hidden; margin-bottom: 12px; }
+.hero::after { content: ""; position: absolute; right: -30px; top: -30px; width: 120px; height: 120px; border-radius: 50%; background: var(--glow); }
+.hero small { font-size: 0.75rem; font-weight: 600; opacity: 0.85; }
+.hero .big { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin: 4px 0 2px; }
+.hero .big span { color: var(--hero-num); }
+.hero .for { font-size: 0.88rem; font-weight: 600; }
+.month { border-radius: 22px; padding: 12px; background: var(--card); }
+.wd, .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.wd span { text-align: center; font-size: 0.65rem; font-weight: 700; color: var(--dim); padding-bottom: 3px; }
+.wd span:nth-child(n+6) { color: var(--weekend); }
+.d { aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 0.8rem; background: var(--cell); color: var(--ink); }
+.d.we { color: var(--weekend); }
+.d.seen { background: linear-gradient(140deg, var(--seen-a), var(--seen-b)); color: #fff; font-size: 0.6rem; place-items: end end; padding: 3px 5px; }
+.d.today { background: var(--today); color: var(--today-ink); transform: scale(1.06); box-shadow: 0 5px 12px var(--today-shadow); }
+.d.locked { background: transparent; border: 1.5px dashed var(--line); color: var(--dim); font-weight: 600; }
+.d.out { background: transparent; color: var(--dim); opacity: 0.3; font-weight: 600; }
+.swatches { display: flex; gap: 6px; }
+.swatches i { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.08); }
+
+/* 1 · Alegre (estándar) */
+.s-alegre { --bg:#fff8ee; --ink:#1d2320; --dim:#6b726e; --line:#e8dfcf; --card:#ffffff; --cell:#f6f1ff; --tile:#e6e0ff; --accent:#7b61ff;
+  --hero:#7b61ff; --hero-ink:#fff; --hero-num:#ffd23f; --glow:rgba(255,210,63,0.45); --today:#ffd23f; --today-ink:#1d2320; --today-shadow:rgba(255,210,63,0.6);
+  --seen-a:#ff8a8d; --seen-b:#ff5a5f; --weekend:#ff5a5f; }
+/* 2 · Navidad pop */
+.s-navidad { --bg:#fff7f2; --ink:#2a1a1c; --dim:#7a6466; --line:#f0d9d3; --card:#ffffff; --cell:#fff0ee; --tile:#ffd6db; --accent:#f2374b;
+  --hero:#f2374b; --hero-ink:#fff; --hero-num:#ffc23d; --glow:rgba(255,194,61,0.5); --today:#ffc23d; --today-ink:#2a1a1c; --today-shadow:rgba(255,194,61,0.6);
+  --seen-a:#3fd394; --seen-b:#1fb57a; --weekend:#f2374b; }
+/* 3 · Caramelo */
+.s-caramelo { --bg:#fffaf3; --ink:#24202a; --dim:#77707f; --line:#f1dfe8; --card:#ffffff; --cell:#fff0f7; --tile:#d3f0fd; --accent:#4f8dff;
+  --hero:#4f8dff; --hero-ink:#fff; --hero-num:#ffe45c; --glow:rgba(255,228,92,0.55); --today:#ffe45c; --today-ink:#24202a; --today-shadow:rgba(255,228,92,0.7);
+  --seen-a:#ff9bcb; --seen-b:#ff6fb5; --weekend:#ff6fb5; }
+/* 4 · Noche */
+.s-noche { --bg:#10142a; --ink:#f3f1ff; --dim:#a4a8c8; --line:#2c3256; --card:#181d3a; --cell:#222852; --tile:#2a2f5e; --accent:#f5c451;
+  --hero:linear-gradient(140deg,#2b2f6b,#5b3fd1); --hero-ink:#fff; --hero-num:#f5c451; --glow:rgba(245,196,81,0.3); --today:#f5c451; --today-ink:#10142a; --today-shadow:rgba(245,196,81,0.45);
+  --seen-a:#8f7bff; --seen-b:#5b3fd1; --weekend:#ff8fb1; }
+/* 5 · Nieve */
+.s-nieve { --bg:#f2f8ff; --ink:#14233a; --dim:#64748b; --line:#d6e4f5; --card:#ffffff; --cell:#e8f2ff; --tile:#dcecff; --accent:#2f6bff;
+  --hero:linear-gradient(140deg,#5aa9ff,#2f6bff); --hero-ink:#fff; --hero-num:#ffffff; --glow:rgba(255,255,255,0.35); --today:#2f6bff; --today-ink:#fff; --today-shadow:rgba(47,107,255,0.4);
+  --seen-a:#9fd0ff; --seen-b:#5aa9ff; --weekend:#2f6bff; }
+/* 6 · Minimal */
+.s-minimal { --bg:#ffffff; --ink:#111111; --dim:#7a7a7a; --line:#e6e6e6; --card:#f6f6f6; --cell:#ffffff; --tile:#111111; --accent:#ffffff;
+  --hero:#111111; --hero-ink:#fff; --hero-num:#ff4d2e; --glow:rgba(255,77,46,0.25); --today:#ff4d2e; --today-ink:#fff; --today-shadow:rgba(255,77,46,0.35);
+  --seen-a:#3a3a3a; --seen-b:#111111; --weekend:#ff4d2e; }
+/* 7 · Tira Cómica */
+.s-comic { --bg:#fdf8ec; --ink:#1a1a1a; --dim:#5c5650; --line:#1a1a1a; --card:#ffffff; --cell:#ffffff; --tile:#ffd23f; --accent:#1a1a1a;
+  --hero:#e63946; --hero-ink:#fff; --hero-num:#ffd23f; --glow:rgba(47,168,224,0.55); --today:#ffd23f; --today-ink:#1a1a1a; --today-shadow:rgba(0,0,0,0);
+  --seen-a:#2fa8e0; --seen-b:#2fa8e0; --weekend:#e63946; }
+.s-comic .hero, .s-comic .month, .s-comic .tile, .s-comic .d:not(.out):not(.locked) { border: 2.5px solid #1a1a1a; box-shadow: 3px 3px 0 #1a1a1a; }
+.s-comic .d.locked { border-color: #1a1a1a; }
+/* 8 · Rojiblanco */
+.s-rojiblanco { --bg:#ffffff; --ink:#1a1a1a; --dim:#6b6b6b; --line:#e9d2d3; --card:#ffffff; --cell:#fbeeee; --tile:#1a1a1a; --accent:#ffffff;
+  --hero:repeating-linear-gradient(90deg, #d61f26 0 22px, #ffffff 22px 44px); --hero-ink:#1a1a1a; --hero-num:#d61f26; --glow:rgba(0,0,0,0); --today:#1a1a1a; --today-ink:#fff; --today-shadow:rgba(0,0,0,0.25);
+  --seen-a:#e5484e; --seen-b:#d61f26; --weekend:#d61f26; }
+.s-rojiblanco .hero > * { position: relative; z-index: 1; background: #fff; display: inline-block; padding: 2px 10px; border-radius: 999px; }
+.s-rojiblanco .hero .big { padding: 4px 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Skins modernos: pocos y muy distintos entre sí</h1>
+  <p>Ocho estilos con la estética nueva: tipografía Plus Jakarta Sans, iconos de línea y formas redondeadas. Cambian los colores y el ambiente. El nº 1, <b>Alegre</b>, es el estándar: lo usa toda la app y lo llevan por defecto los calendarios nuevos. Cada tarjeta muestra la pantalla del invitado con ese skin. El 7 y el 8 son "Tira Cómica" y "Rojiblanco", que ya tenías, rehechos con la estética nueva.</p>
+</header>
+<div class="grid" id="grid"></div>
+
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
+<script>
+const SKINS = [
+  { n: 1, cls: 's-alegre', name: 'Alegre', desc: 'violeta, sol, coral', icon: 'party-popper', title: 'Cumple de Lucía', std: true, sw: ['#7b61ff','#ffd23f','#ff5a5f','#3ddc97'] },
+  { n: 2, cls: 's-navidad', name: 'Navidad pop', desc: 'rojo y verde vivos', icon: 'tree-pine', title: 'Navidad en la oficina', sw: ['#f2374b','#1fb57a','#ffc23d'] },
+  { n: 3, cls: 's-caramelo', name: 'Caramelo', desc: 'rosa, azul y limón', icon: 'candy', title: 'Adviento de los peques', sw: ['#ff6fb5','#4f8dff','#ffe45c','#4fc3f7'] },
+  { n: 4, cls: 's-noche', name: 'Noche', desc: 'oscuro elegante con dorado', icon: 'moon-star', title: 'Cuenta atrás de fin de año', sw: ['#10142a','#5b3fd1','#f5c451'] },
+  { n: 5, cls: 's-nieve', name: 'Nieve', desc: 'azules fríos y blanco', icon: 'snowflake', title: 'Invierno en familia', sw: ['#f2f8ff','#5aa9ff','#2f6bff'] },
+  { n: 7, cls: 's-comic', name: 'Tira Cómica', desc: 'cómic: rojo, azul, amarillo y contorno negro', icon: 'zap', title: 'Calendario de superhéroes', sw: ['#e63946','#2fa8e0','#ffd23f','#1a1a1a'] },
+  { n: 8, cls: 's-rojiblanco', name: 'Rojiblanco', desc: 'rayas rojas y blancas, sin escudo', icon: 'trophy', title: 'Adviento futbolero', sw: ['#d61f26','#ffffff','#1a1a1a'] },
+  { n: 6, cls: 's-minimal', name: 'Minimal', desc: 'blanco y negro con un toque', icon: 'gift', title: 'Regalos del equipo', sw: ['#ffffff','#111111','#ff4d2e'] },
+];
+function days() {
+  let h = '<span></span>';
+  for (let d = 1; d <= 27; d++) {
+    const dow = d % 7, we = dow === 5 || dow === 6;
+    let c = 'd';
+    if (d > 24) c += ' out'; else if (d === 8) c += ' today'; else if (d < 8 && d !== 3 && d !== 6) c += ' seen'; else if (d > 8) c += ' locked';
+    if (we && !/seen|today/.test(c)) c += ' we';
+    h += `<span class="${c}">${d}</span>`;
+  }
+  return h;
+}
+document.getElementById('grid').innerHTML = SKINS.sort((a,b)=>a.n-b.n).map(s => `
+  <div class="skin">
+    <div class="cap"><b>${s.n} · ${s.name}</b><span>${s.desc}</span>${s.std ? '<em>Estándar</em>' : ''}</div>
+    <div class="screen ${s.cls}">
+      <div class="top"><div><small>${s.title}</small><strong>¡Hoy toca sorpresa!</strong></div><div class="tile"><i data-lucide="${s.icon}"></i></div></div>
+      <div class="hero"><small>Cuenta atrás</small><div class="big"><span>16</span> días</div><div class="for">para el gran día</div></div>
+      <div class="month"><div class="wd"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div><div class="days">${days()}</div></div>
+    </div>
+    <div class="swatches">${s.sw.map(c => `<i style="background:${c}"></i>`).join('')}</div>
+  </div>`).join('');
+lucide.createIcons();
+</script>
+</body>
+</html>
