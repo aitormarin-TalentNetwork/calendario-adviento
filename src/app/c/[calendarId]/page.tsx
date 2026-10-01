@@ -10,7 +10,7 @@ import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly, todayInTimeZone } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COUNTDOWN_LABEL, daysUntil, formatCountdownMessage } from "@/lib/countdown";
-import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
+import { CoverIcon } from "@/components/cover-icon";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { resolveCalendarAccess } from "@/lib/roles";
@@ -38,7 +38,7 @@ async function getCalendarForGuestPage(
   calendarId: string
 ): Promise<{
   coverTitle: string;
-  coverIcon: string;
+  coverIcon: string | null;
   endDate: Date;
   countdownLabel: string;
   appearance: SkinAppearance;
@@ -52,9 +52,9 @@ async function getCalendarForGuestPage(
   if (!calendar) return null;
   return {
     coverTitle: calendar.coverTitle,
-    // Respaldo para calendarios creados antes de TAL-23 — ver
-    // convex/schema.ts § coverIcon.
-    coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
+    // TAL-60 — valor crudo; `<CoverIcon>` aplica el respaldo y normaliza
+    // emojis antiguos sin migrar (`normalizeCoverIcon`).
+    coverIcon: calendar.coverIcon ?? null,
     endDate: parseUtcDateOnly(calendar.endDate)!,
     // Respaldo para calendarios creados antes de TAL-27 — ver
     // convex/schema.ts § countdownLabel.
@@ -230,11 +230,7 @@ export default async function GuestCalendarPage({
         titleTag="h1"
         paintBackground={false}
         containerStyle={{ marginBottom: "1.5rem", borderRadius: "0.75rem", padding: "1.25rem 1.5rem" }}
-        title={
-          <>
-            <span aria-hidden="true">{calendar.coverIcon}</span> {calendar.coverTitle}
-          </>
-        }
+        title={calendar.coverTitle}
         countdown={(treatment) =>
           countdownMessage ? (
             <p style={{ marginTop: "0.5rem" }}>
@@ -246,7 +242,14 @@ export default async function GuestCalendarPage({
             <CountdownMarkerLoader endDate={endDate.toISOString().slice(0, 10)} label={countdownLabel} treatment={treatment} />
           )
         }
-      />
+      >
+        {/* TAL-60 — icono Lucide en su recuadro pastel, encima del título
+            (antes, emoji en línea con el h1), coloreado con el accent del
+            skin si da contraste ≥ 3:1 (`resolveCoverIconColors`). */}
+        <div style={{ marginBottom: "0.75rem" }}>
+          <CoverIcon value={calendar.coverIcon} size={26} box={52} accent={appearance.accent} />
+        </div>
+      </CalendarCoverHeader>
 
       {tz ? (
         <ServerResolvedDoors

@@ -100,7 +100,7 @@ test("toUserModeCard compone título, icono por defecto, skin de respaldo y lín
   ).toEqual({
     id: "c1",
     title: "Interno",
-    icon: "🎄",
+    icon: "tree-pine",
     appearance: DEFAULT_SKIN_APPEARANCE,
     backgroundImageUrl: null,
     subtitle: "28 dic 2026 – 6 ene 2027",

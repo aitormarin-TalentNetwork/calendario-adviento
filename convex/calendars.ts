@@ -4,7 +4,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { DAY_OUTSIDE_RANGE_ERROR_MESSAGE } from "./calendarErrorMessages";
 import { MAX_CALENDAR_NAME_LENGTH } from "./calendarNameConstants";
 import { MAX_COUNTDOWN_LABEL_LENGTH } from "./countdownLabelConstants";
-import { MAX_COVER_ICON_LENGTH } from "./coverIconConstants";
+import { DEFAULT_COVER_ICON, coverIconForWrite } from "./coverIconCatalog";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
 import { requireSuperAdmin } from "./superadmin";
@@ -72,19 +72,17 @@ function assertSafeBackgroundImageUrl(url: string | undefined): void {
 }
 
 /**
- * Deliberadamente NO valida contra el catálogo de `src/lib/cover-icons.ts`
- * (brief de TAL-23: "catálogo sin límite fijo en la lógica", mismo
- * criterio que ya se aplicó a la validación de email en `inviteGuest`,
- * TAL-16 — aquí ni siquiera existe un catálogo fijo del lado de Convex).
- * Solo la cota de longitud defensiva, igual que `videoUrl`/`message`
- * (TAL-13).
+ * TAL-60 — lista blanca del catálogo Lucide (`convex/coverIconCatalog.ts`),
+ * que sustituye a la cota de longitud de TAL-23 (`MAX_COVER_ICON_LENGTH`,
+ * eliminada). Durante la transición también acepta los emojis del catálogo
+ * antiguo y los guarda TAL CUAL (`coverIconForWrite`): mientras el Next
+ * anterior a TAL-60 siga sirviendo en un despliegue, lo que escribe sigue
+ * siendo un emoji que él sabe pintar. Los convierte la migración
+ * (`convex/coverIconMigration.ts`), ver docs/iconos.md.
  */
 function assertValidCoverIcon(icon: string | undefined): void {
   if (icon === undefined) return;
-  if (icon.length === 0) throw new Error("El icono de portada no puede estar vacío.");
-  if (icon.length > MAX_COVER_ICON_LENGTH) {
-    throw new Error(`El icono de portada no puede superar los ${MAX_COVER_ICON_LENGTH} caracteres.`);
-  }
+  if (coverIconForWrite(icon) === null) throw new Error("Icono de portada no válido.");
 }
 
 /**
@@ -715,7 +713,6 @@ async function listUserModeCalendarsHandler(
 // texto hasta que alguien lo edite a mano.
 const LEGACY_DEFAULT_COVER_TITLE = "¡Feliz cuenta atrás, equipo! 🎄";
 const LEGACY_EMBEDDED_ICON_SUFFIX = " 🎄";
-const LEGACY_EMBEDDED_ICON = "🎄";
 
 /**
  * Backfill real, no un simple respaldo de lectura — Convex no tiene un
@@ -751,7 +748,11 @@ async function backfillEmbeddedCoverIconHandler(
     }
     await ctx.db.patch(calendar._id, {
       coverTitle: calendar.coverTitle.slice(0, -LEGACY_EMBEDDED_ICON_SUFFIX.length).trimEnd(),
-      coverIcon: LEGACY_EMBEDDED_ICON,
+      // TAL-60 — escribe ya el nombre Lucide (antes escribía el
+      // emoji 🎄): así da igual si este backfill corre antes o después de
+      // `coverIconMigration`. Las constantes `LEGACY_*` siguen siendo
+      // emojis porque DETECTAN el formato viejo del título.
+      coverIcon: DEFAULT_COVER_ICON,
       updatedAt: Date.now(),
     });
     migrated++;
