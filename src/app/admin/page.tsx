@@ -4,6 +4,7 @@ import { NewCalendarSubmit } from "@/components/new-calendar-submit";
 import { SessionIndicator } from "@/components/session-indicator";
 import { formatCalendarDate, listAdminCalendars } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
+import { canUseAdminMode } from "@/lib/roles";
 
 export default async function AdminCalendarsPage() {
   const user = await getAuthorizedUser();
@@ -16,7 +17,8 @@ export default async function AdminCalendarsPage() {
   const calendars = await listAdminCalendars(user.id);
   // TAL-58 — quien no es Admin de ningún calendario ni Super Admin nunca ve
   // administración: va al modo Usuario ("Tus calendarios", `src/app/c/page.tsx`).
-  if (!user.isSuperAdmin && calendars.length === 0) redirect("/c");
+  // TAL-59 — la regla vive en `canUseAdminMode` (una sola definición).
+  if (!canUseAdminMode(user, calendars.length)) redirect("/c");
 
   return (
     <main
@@ -30,7 +32,7 @@ export default async function AdminCalendarsPage() {
           `user.isSuperAdmin` (el mismo override global que ya usa el resto
           de la app) en vez de `resolveCalendarAccess` — no hay ningún
           calendario concreto contra el que resolverlo aquí. */}
-      <SessionIndicator email={user.email} image={user.image} roleLabel={user.isSuperAdmin ? "Super Admin" : "Admin"} />
+      <SessionIndicator user={user} mode="admin" adminCalendars={calendars} />
       <h1>Mis calendarios</h1>
 
       {/* TAL-32 — el botón "+ Nuevo calendario" va ENCIMA de la tabla, no

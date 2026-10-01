@@ -136,6 +136,35 @@ export const getByIdPublic = query({
   },
 });
 
+/**
+ * TAL-59 — guarda el último modo elegido en el menú de la cuenta. Solo
+ * escribe `preferredMode`; si el usuario no existe falla cerrado. QUIÉN
+ * puede elegir "admin" lo decide Next.js antes de llamar
+ * (`switchModeAction` → `canUseAdminMode`), y aun así guardar "admin" para
+ * quien no puede usar ese modo sería inocuo: el aterrizaje
+ * (`src/app/start/page.tsx`) vuelve a comprobar el rol antes de usarlo.
+ */
+async function setPreferredModeHandler(
+  ctx: MutationCtx,
+  args: { userId: Id<"users">; mode: "user" | "admin" }
+): Promise<void> {
+  const user = await ctx.db.get(args.userId);
+  if (!user) throw new Error("El usuario indicado no existe.");
+  await ctx.db.patch(args.userId, { preferredMode: args.mode });
+}
+
+export const setPreferredModePublic = mutation({
+  args: {
+    serverSecret: v.string(),
+    userId: v.id("users"),
+    mode: v.union(v.literal("user"), v.literal("admin")),
+  },
+  handler: async (ctx, args) => {
+    await requireServerSecret(args.serverSecret);
+    await setPreferredModeHandler(ctx, { userId: args.userId, mode: args.mode });
+  },
+});
+
 export const upsertUserOnLoginPublic = mutation({
   args: {
     serverSecret: v.string(),

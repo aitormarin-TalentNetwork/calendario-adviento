@@ -119,7 +119,7 @@ export function todayInTimeZone(now: Date, timeZone: string | undefined | null):
  */
 export async function listAdminCalendars(
   userId: string
-): Promise<{ id: string; name: string; startDate: Date; endDate: Date; skin: { name: string } }[]> {
+): Promise<{ id: string; name: string; coverIcon: string; startDate: Date; endDate: Date; skin: { name: string } }[]> {
   const calendars = await fetchQuery(api.calendars.listCalendarsForUserPublic, {
     serverSecret: convexAppServerSecret(),
     userId: userId as Id<"users">,
@@ -127,6 +127,11 @@ export async function listAdminCalendars(
   return calendars.map((calendar) => ({
     id: calendar._id,
     name: calendar.name,
+    // TAL-59 — el menú de la cuenta pinta el icono de cada calendario en
+    // modo Admin. Convex ya devuelve el documento entero; el respaldo se
+    // resuelve aquí una vez (mismo que `toUserModeCard` y la portada), así
+    // que nadie aguas abajo ve `undefined`.
+    coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
     startDate: parseUtcDateOnly(calendar.startDate)!,
     endDate: parseUtcDateOnly(calendar.endDate)!,
     // `skin` puede ser `null` si la referencia está rota (defensivo, ver

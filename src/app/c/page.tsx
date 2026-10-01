@@ -30,7 +30,7 @@ export default async function UserCalendarsPage() {
 
   return (
     <main className="session-page-main user-calendars-main">
-      <SessionIndicator email={user.email} image={user.image} />
+      <SessionIndicator user={user} mode="user" />
       <h1 className="user-calendars-title">Tus calendarios</h1>
 
       {calendars.length === 0 ? (

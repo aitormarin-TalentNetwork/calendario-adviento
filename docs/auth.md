@@ -19,6 +19,11 @@
 > calendario ni Super Admin acaba en el modo Usuario (`/c`) — ver
 > `docs/modo-usuario.md`.
 
+> **Nota TAL-59**: el destino por defecto del login pasa a ser `/start`, que
+> reparte según el rol y el último modo elegido en el menú de la cuenta
+> (`users.preferredMode`). El logout vive ahora dentro de ese menú — ver
+> `docs/menu-cuenta.md`.
+
 ## Librería elegida
 
 **Auth.js v5** (`next-auth@beta`), con proveedor de **Google** — ya apuntado

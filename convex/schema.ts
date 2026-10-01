@@ -25,6 +25,13 @@ export default defineSchema({
     // (ver `createUserHandler`), para no quedarse con una foto vieja si el
     // usuario cambia su avatar de Google más adelante.
     image: v.optional(v.string()),
+    // TAL-59 — último modo elegido en el menú de la cuenta ("Usuario" |
+    // "Admin"). Decide a dónde aterriza tras un login sin `callbackUrl`
+    // (`src/app/start/page.tsx`). Opcional: ausente = "admin" para quien
+    // puede usar ese modo (el comportamiento de antes de TAL-59), sin
+    // migración. Solo lo escribe `users.setPreferredModePublic`, desde la
+    // elección explícita en el menú (ver docs/menu-cuenta.md).
+    preferredMode: v.optional(v.union(v.literal("user"), v.literal("admin"))),
     // Sin `createdAt` propio — el campo de sistema `_creationTime` (todo
     // documento de Convex lo tiene) cubre exactamente el mismo dato.
   }).index("by_email", ["email"]),

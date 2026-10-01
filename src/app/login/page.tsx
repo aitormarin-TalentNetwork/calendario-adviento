@@ -102,12 +102,12 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   // el PRD). Usarlo aquí como destino por defecto creaba un bucle
   // /login → / → /login para cualquiera que entrara a /login directamente
   // (sin `callbackUrl`, justo el caso normal ahora que `/` ya no muestra
-  // nada). `/admin` reparte según el rol (TAL-58): Admin y Super Admin se
-  // quedan ahí; quien no administra ningún calendario ni es Super Admin
-  // es redirigido al modo Usuario (`/c`, "Tus calendarios" — y de ahí
-  // directo a `/c/<id>` si solo tiene uno). Con `callbackUrl` (link de
-  // invitación `/c/<id>`) manda siempre `callbackUrl`, sin cambios.
-  const redirectTo = callbackUrl ?? "/admin";
+  // nada). TAL-59 — `/start` reparte según el rol y el último modo
+  // elegido en el menú de la cuenta: un invitado puro va siempre al modo
+  // Usuario (`/c`, TAL-58); un Admin/Super Admin, a su último modo (Admin
+  // si nunca eligió). Con `callbackUrl` (link de invitación `/c/<id>`)
+  // manda siempre `callbackUrl`, sin cambios.
+  const redirectTo = callbackUrl ?? "/start";
 
   const calendar = await getCalendarCoverForLogin(callbackUrl);
 

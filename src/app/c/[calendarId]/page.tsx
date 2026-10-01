@@ -210,11 +210,7 @@ export default async function GuestCalendarPage({
           NO-GO de TAL-24). `position: fixed`, así que no vive dentro de
           la cabecera oscurecida — flota en la esquina de la pantalla
           igual que en las otras 3 pantallas. */}
-      <SessionIndicator
-        email={user.email}
-        image={user.image}
-        roleLabel={access.kind === "super-admin" ? "Super Admin" : access.role}
-      />
+      <SessionIndicator user={user} mode="user" currentCalendarId={calendarId} />
       {/* TAL-49 — cabecera compartida con la vista previa en vivo del editor
           de Admin (`calendar-preview.tsx`), ver `calendar-cover-header.tsx`.
 
