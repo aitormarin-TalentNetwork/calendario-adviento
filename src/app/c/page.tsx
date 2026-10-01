@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { CoverIcon } from "@/components/cover-icon";
 import { SessionIndicator } from "@/components/session-indicator";
 import { listUserModeCalendars } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
@@ -49,7 +50,8 @@ export default async function UserCalendarsPage() {
                     aria-hidden="true"
                     style={skinBackgroundStyle(calendar.appearance.background, calendar.backgroundImageUrl)}
                   >
-                    {calendar.icon}
+                    {/* TAL-60 — icono Lucide en su recuadro pastel (antes, emoji suelto). */}
+                    <CoverIcon value={calendar.icon} size={26} box={52} accent={calendar.appearance.accent} />
                   </div>
                   <div className="calendar-card-body">
                     <span className="calendar-card-name">{calendar.title}</span>

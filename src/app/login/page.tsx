@@ -4,7 +4,7 @@ import type { Id } from "../../../convex/_generated/dataModel";
 import { devLoginEnabled } from "@/lib/auth.config";
 import { signIn } from "@/lib/auth";
 import { convexAppServerSecret } from "@/lib/convex-server";
-import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
+import { CoverIcon } from "@/components/cover-icon";
 
 // Hallazgo de auditoría, ronda 1: `fetchQuery` (`convex/nextjs`) no acepta
 // ningún `signal`/timeout propio — si Convex está inalcanzable de verdad
@@ -70,7 +70,7 @@ const GUEST_CALLBACK_RE = /^\/c\/([^/?]+)/;
  */
 async function getCalendarCoverForLogin(
   callbackUrl: string | undefined
-): Promise<{ coverTitle: string; coverIcon: string; coverImageUrl: string | null } | null> {
+): Promise<{ coverTitle: string; coverIcon: string | null; coverImageUrl: string | null } | null> {
   const match = callbackUrl?.match(GUEST_CALLBACK_RE);
   if (!match) return null;
 
@@ -85,7 +85,9 @@ async function getCalendarCoverForLogin(
     if (!calendar) return null;
     return {
       coverTitle: calendar.coverTitle,
-      coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
+      // TAL-60 — valor crudo; `<CoverIcon>` lo normaliza (nombre Lucide,
+      // emoji antiguo sin migrar o ausente → siempre un icono del catálogo).
+      coverIcon: calendar.coverIcon ?? null,
       coverImageUrl: calendar.coverImageUrl ?? null,
     };
   } catch {
@@ -132,10 +134,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           style={{ width: "120px", height: "120px", objectFit: "cover", borderRadius: "50%" }}
         />
       )}
-      <h1 style={{ fontSize: "1.8rem" }}>
-        <span aria-hidden="true">{calendar?.coverIcon ?? DEFAULT_COVER_ICON}</span>{" "}
-        {calendar?.coverTitle ?? "¡Feliz cuenta atrás, equipo!"}
-      </h1>
+      {/* TAL-60 — icono Lucide en su recuadro, encima del título (antes,
+          emoji en línea con el h1). Sin skin en esta página (lista blanca
+          de TAL-25): color por defecto `--icon-tile-fg`. Sin calendario
+          (`callbackUrl` ausente o inválido) → el árbol por defecto, igual
+          que antes con el 🎄. */}
+      <CoverIcon value={calendar?.coverIcon} size={32} box={64} />
+      <h1 style={{ fontSize: "1.8rem" }}>{calendar?.coverTitle ?? "¡Feliz cuenta atrás, equipo!"}</h1>
 
       <form
         action={async () => {

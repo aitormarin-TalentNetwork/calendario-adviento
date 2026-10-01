@@ -12,7 +12,7 @@ import { createCalendarForAdmin, parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
 import { extractConvexErrorMessage } from "@/lib/convex-error";
 import { MAX_COUNTDOWN_LABEL_LENGTH } from "@/lib/countdown";
-import { MAX_COVER_ICON_LENGTH } from "@/lib/cover-icons";
+import { coverIconForWrite } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
 
@@ -169,14 +169,13 @@ export async function updateCalendarAction(
   if (!name || !coverTitle || !coverIcon || !startDateRaw || !endDateRaw || !skinId) {
     return { error: "Faltan campos obligatorios.", values };
   }
-  // El selector de icono (TAL-23) ya limita a los del catálogo, pero esto
-  // es un límite de seguridad, no de UX — mismo criterio que el resto de
-  // campos de este formulario: nunca confiar en que el cliente mandó algo
-  // razonable. No se valida contra el catálogo exacto (brief: "sin límite
-  // fijo en la lógica"), solo la cota de longitud defensiva — igual que
-  // `convex/calendars.ts::assertValidCoverIcon`.
-  if (coverIcon.length > MAX_COVER_ICON_LENGTH) {
-    return { error: "El icono de portada no es válido.", values };
+  // TAL-60 — misma lista blanca que `convex/calendars.ts::assertValidCoverIcon`
+  // (`coverIconForWrite`: nombres Lucide del catálogo, y durante la
+  // transición los emojis del catálogo antiguo, que se guardan tal cual).
+  // El selector ya limita a los del catálogo; esto es el límite de
+  // seguridad — nunca confiar en que el cliente mandó algo razonable.
+  if (coverIconForWrite(coverIcon) === null) {
+    return { error: "Elige un icono de la lista.", values };
   }
   // Texto libre, opcional (vacío = "usa el respaldo por defecto",
   // `DEFAULT_COUNTDOWN_LABEL` — ver convex/schema.ts § countdownLabel) —

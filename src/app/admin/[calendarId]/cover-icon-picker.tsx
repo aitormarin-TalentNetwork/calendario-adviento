@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { COVER_ICON_CATEGORIES } from "@/lib/cover-icons";
+import { Search, X } from "lucide-react";
+import { CoverIcon } from "@/components/cover-icon";
+import { COVER_ICON_CATEGORIES, normalizeCoverIcon } from "@/lib/cover-icons";
 
 type CoverIconPickerProps = {
   value: string;
@@ -35,6 +37,13 @@ type CoverIconPickerProps = {
  * de cerrar, foco devuelto al disparador al cerrar) — mismo ya
  * establecido en `door-grid.tsx` (modal de vídeo del Invitado), no un
  * mecanismo nuevo.
+ *
+ * TAL-60 — iconos Lucide en vez de emojis (design-system.md § "Estilo 2026 →
+ * Iconos"): mismas categorías y mismo buscador en español (`searchTerms`),
+ * casillas y disparador con `<CoverIcon>`, lupa (`Search`) dentro del
+ * buscador y `X` para cerrar. `value` llega normalizado
+ * (`edit-calendar-form.tsx`), pero se vuelve a normalizar aquí para marcar
+ * bien la casilla seleccionada aunque llegara un emoji antiguo.
  */
 export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerProps) {
   const [open, setOpen] = useState(false);
@@ -42,12 +51,15 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
+  const selectedName = normalizeCoverIcon(value);
+
   const filteredCategories = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return COVER_ICON_CATEGORIES;
     return COVER_ICON_CATEGORIES.map((category) => ({
-      ...category,
-      icons: category.icons.filter((icon) => icon.searchTerms.toLowerCase().includes(query)),
+      label: category.label,
+      icons: query
+        ? category.icons.filter((icon) => icon.searchTerms.toLowerCase().includes(query))
+        : category.icons,
     })).filter((category) => category.icons.length > 0);
   }, [search]);
 
@@ -61,8 +73,8 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
     triggerRef.current?.focus();
   }
 
-  function selectIcon(emoji: string) {
-    onChange(emoji);
+  function selectIcon(name: string) {
+    onChange(name);
     // Design System: "Al elegir un icono, el diálogo se cierra y el icono
     // elegido pasa a mostrarse en la casilla de la página" — no hace
     // falta un botón "Guardar" aparte dentro del diálogo.
@@ -90,18 +102,18 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
         aria-label="Icono"
         title="Icono"
         style={{
-          width: "44px",
-          height: "44px",
-          borderRadius: "11px",
+          width: "52px",
+          height: "52px",
+          padding: 0,
+          borderRadius: "16px",
           background: "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: "1.4rem",
           flexShrink: 0,
         }}
       >
-        {value}
+        <CoverIcon value={selectedName} size={24} box={48} />
       </button>
 
       {open && (
@@ -136,28 +148,36 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
               <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem" }}>Elegir icono de portada</h4>
-              <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--text-dim)", fontSize: "1.1rem", cursor: "pointer" }}>
-                ✕
+              <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: "0.25rem" }}>
+                <X size={20} strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
 
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="🔍 Buscar icono…"
-              style={{
-                width: "100%",
-                padding: "8px 12px",
-                margin: "12px 0 16px",
-                borderRadius: "999px",
-                border: "1px solid var(--border)",
-                background: "var(--bg)",
-                color: "var(--text)",
-                fontFamily: "var(--font-body)",
-                fontSize: "0.88rem",
-              }}
-            />
+            <div style={{ position: "relative", margin: "12px 0 16px" }}>
+              <Search
+                size={16}
+                strokeWidth={2}
+                aria-hidden="true"
+                style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-dim)", pointerEvents: "none" }}
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar icono…"
+                aria-label="Buscar icono"
+                style={{
+                  width: "100%",
+                  padding: "8px 12px 8px 34px",
+                  borderRadius: "999px",
+                  border: "1px solid var(--border)",
+                  background: "var(--bg)",
+                  color: "var(--text)",
+                  fontFamily: "var(--font-body)",
+                  fontSize: "0.88rem",
+                }}
+              />
+            </div>
 
             {filteredCategories.length === 0 && (
               <p style={{ fontSize: "0.85rem", color: "var(--text-dim)" }}>Ningún icono coincide con la búsqueda.</p>
@@ -177,20 +197,26 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                   {category.label}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "6px" }}>
-                  {category.icons.map(({ emoji, searchTerms }) => {
-                    const selected = emoji === value;
+                  {category.icons.map(({ name, searchTerms }) => {
+                    const selected = name === selectedName;
                     return (
                       <button
-                        key={emoji}
+                        key={name}
                         type="button"
                         title={searchTerms}
+                        aria-label={searchTerms}
                         aria-pressed={selected}
-                        onClick={() => selectIcon(emoji)}
+                        data-icon-name={name}
+                        onClick={() => selectIcon(name)}
                         style={{
                           aspectRatio: "1",
                           borderRadius: "9px",
                           border: `1px solid ${selected ? "var(--gold)" : "transparent"}`,
-                          background: "var(--paper-2)",
+                          // TAL-60 — token con tema (`--paper-2` es fijo y en
+                          // oscuro dejaba un icono claro sobre fondo claro: el
+                          // emoji traía su propio color, un icono de línea no).
+                          background: "var(--bg-sunken)",
+                          color: "var(--text)",
                           boxShadow: selected ? "0 0 0 2px rgba(201,154,61,0.25)" : "none",
                           fontSize: "1.2rem",
                           cursor: "pointer",
@@ -199,7 +225,7 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                           justifyContent: "center",
                         }}
                       >
-                        {emoji}
+                        <CoverIcon value={name} size={22} />
                       </button>
                     );
                   })}

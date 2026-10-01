@@ -12,7 +12,7 @@ import { CoverIconPicker } from "@/app/admin/[calendarId]/cover-icon-picker";
 import { SkinPicker, type SkinOption } from "@/app/admin/[calendarId]/skin-picker";
 import { SubmitButton } from "@/components/submit-button";
 import { DEFAULT_COUNTDOWN_LABEL, MAX_COUNTDOWN_LABEL_LENGTH } from "@/lib/countdown";
-import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
+import { normalizeCoverIcon } from "@/lib/cover-icons";
 import { DEFAULT_SKIN_APPEARANCE } from "@/lib/skin-appearance";
 
 type EditCalendarFormProps = {
@@ -20,7 +20,7 @@ type EditCalendarFormProps = {
     id: string;
     name: string;
     coverTitle: string;
-    coverIcon: string;
+    coverIcon: string | null;
     countdownLabel: string;
     startDate: Date;
     endDate: Date;
@@ -35,11 +35,10 @@ function initialValues(calendar: EditCalendarFormProps["calendar"]): UpdateCalen
   return {
     name: calendar.name,
     coverTitle: calendar.coverTitle,
-    // El valor de respaldo (calendarios creados antes de TAL-23) ya se
-    // resuelve más abajo, donde se lee el calendario (`getCalendarForAdminPage`,
-    // `page.tsx`) — `calendar.coverIcon` aquí siempre llega con un valor
-    // real, nunca vacío.
-    coverIcon: calendar.coverIcon || DEFAULT_COVER_ICON,
+    // TAL-60 — siempre un nombre del catálogo Lucide: un emoji antiguo sin
+    // migrar (o un valor ausente) se normaliza aquí, así que al guardar el
+    // formulario nunca reenvía un emoji (`normalizeCoverIcon`).
+    coverIcon: normalizeCoverIcon(calendar.coverIcon),
     // Mismo criterio que `coverIcon` — el respaldo por defecto
     // (`DEFAULT_COUNTDOWN_LABEL`) ya se resolvió en `getCalendarForAdminPage`.
     countdownLabel: calendar.countdownLabel || DEFAULT_COUNTDOWN_LABEL,
@@ -182,6 +181,7 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
             backgroundImageUrl={fieldValues.backgroundImageUrl || null}
             textColor={previewTextColor}
             textPill={previewTextPill}
+            accent={selectedSkin?.accent ?? null}
           />
         </div>
         <div className="editor-field">

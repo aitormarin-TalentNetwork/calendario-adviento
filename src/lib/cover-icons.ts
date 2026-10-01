@@ -1,110 +1,123 @@
 /**
- * Catálogo de iconos de portada (TAL-23) — Design System
- * (`design/design-system.md` § "Selector de icono de portada (Admin)"),
- * fuente `design/propuesta-skins.html`. Constante de frontend a
- * propósito, no un enum acoplado a validación estricta en Convex ni
- * registros de una tabla (a diferencia de `skins`, TAL-12/TAL-22) — el
- * brief pide explícitamente que ampliar la lista más adelante sea tocar
- * este array, no cambiar lógica en varios sitios. Cada icono lleva un
- * `searchTerms` en español para el buscador (`🔍 Buscar icono…`) — el
- * mockup no especifica el texto de búsqueda de cada emoji (es un `<div>`
- * estático, sin JS real), así que esta es una decisión de implementación,
- * no de fidelidad visual: términos cortos y directos en español, no
- * nombres técnicos de Unicode.
+ * Iconos de portada (TAL-60: Lucide en vez de emojis) — Design System
+ * (`design/design-system.md` § "Estilo 2026 → Iconos").
+ *
+ * El catálogo (nombres, categorías, términos de búsqueda en español), la
+ * tabla de los emojis antiguos y la normalización viven en el fichero
+ * neutral `convex/coverIconCatalog.ts`, porque Convex también los necesita
+ * (validación y migración). Aquí solo se añade lo que Convex NO debe
+ * arrastrar a su bundle: el componente de Lucide de cada nombre.
+ *
+ * Un import explícito por icono — nunca `import { icons } from "lucide-react"`,
+ * que metería los ~1.800 iconos en el bundle del cliente del selector.
+ * `satisfies Record<CoverIconName, LucideIcon>` hace que el compilador falle
+ * si a algún nombre del catálogo le falta su componente.
  */
-import { MAX_COVER_ICON_LENGTH } from "../../convex/coverIconConstants";
+import {
+  Baby,
+  Balloon,
+  Bell,
+  Bird,
+  BookHeart,
+  Cake,
+  CakeSlice,
+  Camera,
+  CandyCane,
+  Cat,
+  CloudSnow,
+  Clover,
+  Cookie,
+  Disc3,
+  Dog,
+  Fish,
+  Flame,
+  Flower,
+  Flower2,
+  Gem,
+  Gift,
+  HandHeart,
+  Heart,
+  HeartHandshake,
+  Mail,
+  Martini,
+  Moon,
+  MoonStar,
+  MountainSnow,
+  Music,
+  PartyPopper,
+  PawPrint,
+  Plane,
+  Rabbit,
+  Rainbow,
+  Rose,
+  Snowflake,
+  Sparkles,
+  Squirrel,
+  Star,
+  Sun,
+  TreePine,
+  Turtle,
+  Wine,
+  type LucideIcon,
+} from "lucide-react";
+import type { CoverIconName } from "../../convex/coverIconCatalog";
 
-// Reexportado desde el fichero neutral compartido con Convex (sugerencia
-// no bloqueante de auditoría, TAL-23 ronda 1 — antes vivía duplicado a
-// mano aquí y en `convex/calendars.ts`) — ver
-// `convex/coverIconConstants.ts` para el porqué de vivir ahí y no aquí.
-export { MAX_COVER_ICON_LENGTH };
+export {
+  ALL_COVER_ICON_NAMES,
+  COVER_ICON_CATEGORIES,
+  DEFAULT_COVER_ICON,
+  FALLBACK_COVER_ICON,
+  LEGACY_EMOJI_TO_COVER_ICON,
+  coverIconForWrite,
+  isCoverIconName,
+  isLegacyCoverEmoji,
+  normalizeCoverIcon,
+} from "../../convex/coverIconCatalog";
+export type { CoverIconName } from "../../convex/coverIconCatalog";
 
-export type CoverIconCategory = {
-  label: string;
-  icons: { emoji: string; searchTerms: string }[];
-};
-
-export const COVER_ICON_CATEGORIES: CoverIconCategory[] = [
-  {
-    label: "Navidad",
-    icons: [
-      { emoji: "🎄", searchTerms: "árbol de navidad" },
-      { emoji: "🎁", searchTerms: "regalo" },
-      { emoji: "❄️", searchTerms: "copo de nieve" },
-      { emoji: "☃️", searchTerms: "muñeco de nieve" },
-      { emoji: "🔔", searchTerms: "campana" },
-      { emoji: "🕯️", searchTerms: "vela" },
-      { emoji: "🧑‍🎄", searchTerms: "papá noel santa" },
-      { emoji: "🦌", searchTerms: "reno" },
-      { emoji: "🍪", searchTerms: "galleta" },
-    ],
-  },
-  {
-    label: "Fiesta",
-    icons: [
-      { emoji: "🎉", searchTerms: "confeti fiesta" },
-      { emoji: "🎊", searchTerms: "confeti bola" },
-      { emoji: "🥳", searchTerms: "cara de fiesta" },
-      { emoji: "🎈", searchTerms: "globo" },
-      { emoji: "🍾", searchTerms: "champán botella brindis" },
-      { emoji: "🥂", searchTerms: "brindis copas" },
-      { emoji: "🪩", searchTerms: "bola de discoteca" },
-      { emoji: "🎂", searchTerms: "tarta cumpleaños" },
-      { emoji: "🎆", searchTerms: "fuegos artificiales" },
-    ],
-  },
-  {
-    label: "Cariño",
-    icons: [
-      { emoji: "❤️", searchTerms: "corazón rojo amor" },
-      { emoji: "💕", searchTerms: "corazones" },
-      { emoji: "💖", searchTerms: "corazón brillante" },
-      { emoji: "💐", searchTerms: "ramo de flores" },
-      { emoji: "🌹", searchTerms: "rosa" },
-      { emoji: "😍", searchTerms: "cara enamorada" },
-      { emoji: "🤗", searchTerms: "abrazo" },
-      { emoji: "💌", searchTerms: "carta de amor" },
-      { emoji: "😻", searchTerms: "gato enamorado" },
-    ],
-  },
-  {
-    label: "Naturaleza y cielo",
-    icons: [
-      { emoji: "⭐", searchTerms: "estrella" },
-      { emoji: "🌟", searchTerms: "estrella brillante" },
-      { emoji: "💫", searchTerms: "destello mareo" },
-      { emoji: "✨", searchTerms: "destellos brillo" },
-      { emoji: "🌈", searchTerms: "arcoíris" },
-      { emoji: "☀️", searchTerms: "sol" },
-      { emoji: "🌙", searchTerms: "luna" },
-      { emoji: "🌸", searchTerms: "flor de cerezo" },
-      { emoji: "🌻", searchTerms: "girasol" },
-    ],
-  },
-  {
-    label: "Animales y fantasía",
-    icons: [
-      { emoji: "🦄", searchTerms: "unicornio" },
-      { emoji: "🐱", searchTerms: "gato" },
-      { emoji: "🐶", searchTerms: "perro" },
-      { emoji: "🐰", searchTerms: "conejo" },
-      { emoji: "🐻", searchTerms: "oso" },
-      { emoji: "🦋", searchTerms: "mariposa" },
-      { emoji: "🐼", searchTerms: "panda" },
-      { emoji: "🐧", searchTerms: "pingüino" },
-      { emoji: "🦊", searchTerms: "zorro" },
-    ],
-  },
-];
-
-export const ALL_COVER_ICONS: string[] = COVER_ICON_CATEGORIES.flatMap((cat) => cat.icons.map((i) => i.emoji));
-
-/**
- * Valor de respaldo para calendarios creados antes de TAL-23 (el campo
- * `coverIcon` es `v.optional()` en el schema, ver `convex/schema.ts`) y
- * para cualquier calendario nuevo si por lo que sea no llega ninguno —
- * el mismo 🎄 que antes estaba fijo dentro del texto de `coverTitle`
- * (brief de TAL-23, punto 7: "no dejar portadas sin icono").
- */
-export const DEFAULT_COVER_ICON = "🎄";
+export const COVER_ICON_COMPONENTS = {
+  "tree-pine": TreePine,
+  gift: Gift,
+  snowflake: Snowflake,
+  bell: Bell,
+  "candy-cane": CandyCane,
+  cookie: Cookie,
+  flame: Flame,
+  "cloud-snow": CloudSnow,
+  "mountain-snow": MountainSnow,
+  "party-popper": PartyPopper,
+  balloon: Balloon,
+  cake: Cake,
+  "cake-slice": CakeSlice,
+  wine: Wine,
+  martini: Martini,
+  music: Music,
+  "disc-3": Disc3,
+  camera: Camera,
+  heart: Heart,
+  "hand-heart": HandHeart,
+  "heart-handshake": HeartHandshake,
+  flower: Flower,
+  rose: Rose,
+  mail: Mail,
+  "book-heart": BookHeart,
+  gem: Gem,
+  baby: Baby,
+  star: Star,
+  sparkles: Sparkles,
+  sun: Sun,
+  moon: Moon,
+  "moon-star": MoonStar,
+  rainbow: Rainbow,
+  "flower-2": Flower2,
+  clover: Clover,
+  plane: Plane,
+  rabbit: Rabbit,
+  cat: Cat,
+  dog: Dog,
+  bird: Bird,
+  fish: Fish,
+  turtle: Turtle,
+  squirrel: Squirrel,
+  "paw-print": PawPrint,
+} satisfies Record<CoverIconName, LucideIcon>;
