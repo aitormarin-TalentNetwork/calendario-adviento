@@ -561,6 +561,24 @@ junto al marcador de cuenta atrás.
     "Sí, eliminar calendario" (rojo) y "Cancelar" (ghost). Ver
     `design/propuesta-editor-calendario.html`.
 
+### Personas del calendario — invitar como Visitante o Administrador
+
+**Validado con Aitor, 2026-10-01.** Fuente: `design/propuesta-invitar-con-rol.html`
+(dibujado ya en el Estilo 2026; si se construye antes de la Onda 4, mismos elementos con
+los tokens vigentes).
+
+- **Invitar:** email + control segmentado **Visitante | Administrador** (por defecto
+  Visitante) + "Invitar ahora".
+- **Lista de personas:** avatar con inicial, email, línea secundaria ("Tú" / fecha de
+  invitación), **desplegable de rol** (Administrador / Visitante) y botón **"Quitar"**
+  (texto `--coral-ink`). Se mantiene también **"Borrar por completo"** como hoy.
+- **Quién:** cualquier Admin del calendario (y el Super Admin) puede invitar como Admin,
+  cambiar roles y quitar a cualquiera, incluidos otros Admins.
+- **Último Admin protegido:** si solo queda un Admin, su desplegable y su "Quitar" salen
+  deshabilitados con el aviso *"Es el único Admin del calendario: nombra a otro antes de
+  cambiar su rol o quitarlo."* La regla se comprueba también en el servidor.
+- **Link de invitación compartido:** da acceso **solo como Visitante**, siempre.
+
 ### Invitados — link de invitación único
 
 **Validado con Aitor, 2026-08-17.** Fuente: `design/propuesta-editor-calendario.html`.

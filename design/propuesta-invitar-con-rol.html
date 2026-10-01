@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Invitar con rol</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#fff8ee; --surface:#ffffff; --surface-2:#f7f6f3; --ink:#1d2320; --ink-dim:#6b726e; --line:#ebe8e1;
+  --primary:#7b61ff; --primary-ink:#6b52f5; --primary-soft:#e6e0ff; --mint-soft:#cdf7e3; --coral-ink:#d0353a;
+  --shadow:0 2px 6px rgba(29,35,32,0.04), 0 12px 32px rgba(29,35,32,0.08);
+  --font:"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg:#111513; --surface:#1a201d; --surface-2:#212825; --ink:#f2f1ec; --ink-dim:#a3aba6; --line:#2a322e; --primary-soft:#2a2645; --mint-soft:#1f3a2e; --primary-ink:#9d8cff; --coral-ink:#ff7a7e; }
+}
+:root[data-theme="dark"] { --bg:#111513; --surface:#1a201d; --surface-2:#212825; --ink:#f2f1ec; --ink-dim:#a3aba6; --line:#2a322e; --primary-soft:#2a2645; --mint-soft:#1f3a2e; --primary-ink:#9d8cff; --coral-ink:#ff7a7e; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); -webkit-font-smoothing:antialiased; }
+main { max-width:720px; margin:0 auto; padding:32px 16px 64px; }
+.note { background:var(--surface-2); border-radius:14px; padding:12px 14px; color:var(--ink-dim); font-size:0.88rem; line-height:1.5; margin-bottom:20px; }
+.card { background:var(--surface); border-radius:28px; padding:22px; box-shadow:var(--shadow); }
+h2 { margin:0 0 4px; font-size:1.4rem; font-weight:800; letter-spacing:-0.02em; }
+.sub { margin:0 0 18px; color:var(--ink-dim); font-size:0.9rem; }
+.invite { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:22px; }
+.invite input { flex:1 1 220px; font:inherit; padding:12px 14px; border-radius:14px; border:1px solid var(--line); background:var(--bg); color:var(--ink); }
+.seg { display:inline-flex; padding:3px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); }
+.seg button { font:inherit; font-weight:700; font-size:0.85rem; border:0; background:transparent; color:var(--ink-dim); padding:8px 14px; border-radius:999px; cursor:pointer; }
+.seg button[aria-pressed="true"] { background:var(--ink); color:var(--bg); }
+.btn { font:inherit; font-weight:800; border:0; border-radius:999px; padding:12px 18px; background:var(--primary-ink); color:#fff; cursor:pointer; }
+.row { display:flex; align-items:center; gap:12px; padding:12px 0; border-top:1px solid var(--line); flex-wrap:wrap; }
+.av { width:38px; height:38px; border-radius:50%; background:var(--primary-soft); color:var(--primary-ink); display:grid; place-items:center; font-weight:800; flex:none; }
+.who { flex:1 1 180px; min-width:0; }
+.who b { display:block; font-weight:700; overflow:hidden; text-overflow:ellipsis; }
+.who small { color:var(--ink-dim); font-size:0.8rem; }
+select { font:inherit; font-weight:700; font-size:0.85rem; padding:8px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--ink); }
+select:disabled { opacity:0.55; }
+.del { font:inherit; font-weight:700; font-size:0.85rem; border:0; background:none; color:var(--coral-ink); cursor:pointer; padding:8px; }
+.del:disabled { opacity:0.35; cursor:not-allowed; }
+.hint { font-size:0.75rem; color:var(--ink-dim); flex-basis:100%; padding-left:50px; margin-top:-4px; }
+.link { margin-top:18px; background:var(--surface-2); border-radius:14px; padding:12px 14px; font-size:0.85rem; color:var(--ink-dim); }
+.link b { color:var(--ink); }
+</style>
+</head>
+<body>
+<main>
+  <div class="note">Sección "Invitados" del editor de un calendario, ya con el Estilo 2026. Cualquier Admin del calendario puede invitar como <b>Visitante</b> o como <b>Administrador</b>, cambiar el rol de quien ya está y quitar a cualquiera. El último Admin no se puede quitar ni bajar a Visitante. El link de invitación compartido da acceso solo como Visitante.</div>
+  <section class="card">
+    <h2>Personas del calendario</h2>
+    <p class="sub">Invita por email y elige qué puede hacer cada uno.</p>
+    <div class="invite">
+      <input type="email" placeholder="email@ejemplo.com">
+      <div class="seg" role="group" aria-label="Rol"><button aria-pressed="true">Visitante</button><button aria-pressed="false">Administrador</button></div>
+      <button class="btn">Invitar ahora</button>
+    </div>
+
+    <div class="row"><div class="av">A</div><div class="who"><b>aitor.marin@gmail.com</b><small>Tú</small></div>
+      <select><option>Administrador</option><option>Visitante</option></select><button class="del">Quitar</button></div>
+    <div class="row"><div class="av">L</div><div class="who"><b>laura@empresa.com</b><small>Invitada el 2 oct</small></div>
+      <select><option>Administrador</option><option selected>Visitante</option></select><button class="del">Quitar</button></div>
+    <div class="row"><div class="av">C</div><div class="who"><b>carmen@familia.es</b><small>Invitada el 28 sep</small></div>
+      <select><option selected>Administrador</option><option>Visitante</option></select><button class="del">Quitar</button></div>
+
+    <div class="link"><b>Link de invitación</b>: quien entre por aquí accede como <b>Visitante</b>.</div>
+  </section>
+
+  <div class="note" style="margin-top:28px">Caso límite: si en el calendario solo queda un Admin, su rol no se puede cambiar ni se le puede quitar.</div>
+  <section class="card">
+    <div class="row" style="border-top:0"><div class="av">A</div><div class="who"><b>aitor.marin@gmail.com</b><small>Tú</small></div>
+      <select disabled><option>Administrador</option></select><button class="del" disabled>Quitar</button>
+      <div class="hint">Es el único Admin del calendario: nombra a otro antes de cambiar su rol o quitarlo.</div></div>
+  </section>
+</main>
+<script>
+document.querySelectorAll('.seg').forEach(g => g.addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; g.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x === b)); }));
+</script>
+</body>
+</html>
