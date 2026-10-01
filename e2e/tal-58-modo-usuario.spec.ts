@@ -155,6 +155,36 @@ test("3 · Admin en modo Usuario: ve invitados + administrados, con etiqueta Adm
   await page.context().close();
 });
 
+test("3b · membership ADMIN + invitación pendiente al MISMO calendario → una sola tarjeta, como Admin", async ({
+  browser,
+}) => {
+  // El Admin ya es ADMIN de A (addAdminPublic en beforeAll); además se le
+  // invita a A como invitado. `listUserModeCalendarsHandler` debe deduplicar
+  // por calendarId y dejar ganar a ADMIN — sin tarjeta repetida.
+  await invite(calendarA, ADMIN_EMAIL);
+
+  const adminId = await seedUser({ email: ADMIN_EMAIL });
+  const rows = await convex.query(api.calendars.listUserModeCalendarsPublic, {
+    serverSecret: serverSecret(),
+    userId: adminId,
+  });
+  const rowsA = rows.filter((row) => row.id === calendarA);
+  expect(rowsA).toHaveLength(1);
+  expect(rowsA[0].isAdmin).toBe(true);
+  expect(rows).toHaveLength(2);
+
+  const page = await newPage(browser);
+  await loginAs(page, ADMIN_EMAIL);
+  await page.goto("/c");
+  const cards = page.locator(".calendar-card");
+  await expect(cards).toHaveCount(2);
+  const cardsA = cards.filter({ hasText: TITLE_A });
+  await expect(cardsA).toHaveCount(1);
+  await expect(cardsA.locator(".calendar-card-tag")).toHaveText("Admin");
+  await expect(cardsA).toContainText("Lo administras tú");
+  await page.context().close();
+});
+
 test("4 · invitado puro que visita /admin acaba en modo Usuario, sin nada de administración", async ({ browser }) => {
   const page = await newPage(browser);
   await loginAs(page, GUEST_MANY_EMAIL);
