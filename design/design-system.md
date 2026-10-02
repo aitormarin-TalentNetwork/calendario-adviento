@@ -357,6 +357,25 @@ genéricos inspirados libremente, **sin nombre de club, ciudad, escudo ni liga c
 - Nombre: **"Rojiblanco"**. Descripción sugerida: *"Rayas verticales de camiseta de
   fútbol clásica, rojo y blanco — sin escudo ni nombre de equipo."*
 
+### Imagen de la casilla "Visto" — prioridad de fuentes
+
+**Acordado con Aitor, 2026-10-01.** Hoy solo los vídeos de YouTube tienen miniatura; los
+de Vimeo y Drive se quedan con el fondo de color. A partir de ahora, la casilla de un día
+"Visto" (y su equivalente en el editor de días) usa, **en este orden**:
+
+1. **Imagen del día subida por el Admin** (campo opcional nuevo, ver abajo).
+2. **Miniatura automática del vídeo**: YouTube (como hoy), **Vimeo** (oEmbed oficial,
+   obtenida al guardar el día) y **Drive** (`drive.google.com/thumbnail?id=…`, solo si
+   responde con una imagen real; si no, se pasa al siguiente).
+3. **Fondo de color del skin** (como hoy). Nunca una casilla rota o vacía.
+
+**Campo nuevo en el diálogo de editar día:** "Imagen del día (opcional)", con el mismo
+patrón de formulario que el resto de campos (etiqueta a la izquierda en desktop). Botón
+para subir una imagen (JPG, PNG o WebP, máx. 5 MB) con vista previa en miniatura (radio
+`12px`) y opción "Quitar". Texto de ayuda: *"Se mostrará en la casilla del día cuando el
+invitado ya haya visto el vídeo. Si no subes ninguna, usamos la miniatura del vídeo."*
+La imagen se guarda en el almacenamiento de archivos de Convex (no URL externa).
+
 ### Imagen de fondo del calendario (nuevo campo, distinto de "Foto de portada")
 
 **Pedido explícito de Aitor, 2026-08-17.** Hoy `coverImageUrl` ("Foto de portada") solo
