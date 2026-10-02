@@ -70,6 +70,10 @@ mismas relaciones. Diferencias de traducción, tabla por tabla:
   `createdAt` propio, mismo motivo que `users`.
 - **days** — `date` como `"YYYY-MM-DD"`, mismo criterio que
   `Calendar.startDate/endDate`. `videoUrl`/`message` igual.
+  TAL-67 añade `imageStorageId`, `thumbnailStorageId` y `thumbnailVideoUrl` (opcionales),
+  los índices `by_image_storage`/`by_thumbnail_storage` y las tablas `dayFileIntents`,
+  `dayFileUnresolvedWindows`, `dayFileReconcileLease` y `dayThumbnailMigrationLog`. Ver
+  docs/dias.md § "Imagen de la casilla Visto (TAL-67)".
 - **dayViews** — sin `viewedAt` propio: igual que `users.createdAt`,
   `_creationTime` ya es exactamente "cuándo se creó esta fila", y una
   `DayView` nunca se actualiza tras crearse (el `upsert` de la versión Prisma

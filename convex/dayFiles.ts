@@ -698,3 +698,24 @@ export const expireLeaseForTests = internalMutation({
     return lease?.token ?? null;
   },
 });
+
+/**
+ * Runbook de rollback, paso 4: vacía por lotes las tablas propias de TAL-67
+ * (después de exportar las ventanas sin resolver). No toca `_storage`: los
+ * ficheros de los días ya los borró `stripDayImagesForRollback`.
+ */
+export const clearTal67TablesForRollback = internalMutation({
+  args: {
+    table: v.union(
+      v.literal("dayFileIntents"),
+      v.literal("dayFileUnresolvedWindows"),
+      v.literal("dayFileReconcileLease"),
+      v.literal("dayThumbnailMigrationLog")
+    ),
+  },
+  handler: async (ctx, args): Promise<{ deleted: number; isDone: boolean }> => {
+    const rows = await ctx.db.query(args.table).take(500);
+    for (const row of rows) await ctx.db.delete(row._id);
+    return { deleted: rows.length, isDone: rows.length < 500 };
+  },
+});
