@@ -473,7 +473,7 @@ function DayDialogForm({
   return (
     <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: "0.4rem" }}>
       {state.status === "error" && state.error ? (
-        <p role="alert" style={{ color: "#c00" }}>
+        <p role="alert" style={{ color: "var(--coral-ink)" }}>
           {state.error}
         </p>
       ) : null}

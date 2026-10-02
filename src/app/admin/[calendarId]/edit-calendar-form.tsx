@@ -339,7 +339,7 @@ export function EditCalendarForm({ calendar, skins }: EditCalendarFormProps) {
       style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1.5rem" }}
     >
       {state.error ? (
-        <p role="alert" style={{ color: "#c00" }}>
+        <p role="alert" style={{ color: "var(--coral-ink)" }}>
           {state.error}
         </p>
       ) : null}

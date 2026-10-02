@@ -182,7 +182,7 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
       <section>
         <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Admins</h2>
 
-        {errorMessage && <p style={{ color: "crimson" }}>{errorMessage}</p>}
+        {errorMessage && <p style={{ color: "var(--coral-ink)" }}>{errorMessage}</p>}
 
         <form
           action={addAdminAction}

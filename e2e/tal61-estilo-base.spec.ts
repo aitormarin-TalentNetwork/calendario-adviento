@@ -218,6 +218,13 @@ test("1 · ninguna serifa ni monoespaciada en ninguna pantalla (diálogos y men�
   await anon.goto("/login");
   expect(await fontOffenders(anon), "/login").toEqual([]);
   expect(await anon.evaluate(() => document.fonts.check('16px "Plus Jakarta Sans"'))).toBe(true);
+  // --icon-tile-fg* solo se admite en .cover-icon-box porque ahí solo hay un
+  // <svg> (icono), nunca texto (caso 10).
+  const tiles = await anon.locator(".cover-icon-box").evaluateAll((els) =>
+    els.map((el) => ({ text: (el.textContent ?? "").trim(), svg: el.querySelectorAll("svg").length, children: el.children.length }))
+  );
+  expect(tiles.length).toBeGreaterThan(0);
+  for (const tile of tiles) expect(tile).toEqual({ text: "", svg: 1, children: 1 });
   await anon.context().close();
 
   const page = await newPage(browser);
@@ -562,25 +569,50 @@ for (const [vp, viewport] of [
   });
 }
 
-// --- Barrido de colores de TEXTO en el código (NO-GO loop 1) ---
-// Cubre también estados que el E2E no puede provocar fácilmente (p. ej.
-// `people === null`, "no disponible"): cada `color:` de texto fuera del
-// calendario tiene que usar un token con contraste AA comprobado en el
-// caso 4. `--accent`, `--primary` y `--coral` como color de TEXTO solo se
-// admiten dentro de la superficie del calendario, donde el skin sobrescribe
-// `--accent` (TAL-62): /c/[id] y la sección de días del editor
-// (`days-section.tsx` fija `--accent` con el acento del skin).
+// --- Barrido de colores de TEXTO en el código (NO-GO loops 1 y 2) ---
+// Recorre TODAS las declaraciones `color:` de src/ (.tsx y .css). Solo pasa
+// sin más una declaración cuyo valor es exactamente un token de texto AA
+// (comprobado en el caso 4). Cualquier otra cosa — literal (hex o nombre),
+// `inherit`, expresión dinámica (ternario, variable), `--accent`/`--primary`
+// /`--coral` o tokens de icono — falla, salvo que esté en EXCEPTIONS con su
+// fichero:línea exacto y el motivo. Sin exclusiones de ficheros enteros.
+// Las líneas son a propósito frágiles: si el código se mueve, el test obliga
+// a volver a revisar la excepción.
 const SRC = path.resolve(__dirname, "..", "src");
-const SKIN_SCOPED = [
-  "app/c/[calendarId]/door-grid.tsx",
-  "app/c/[calendarId]/door-grid-loader.tsx",
-  "app/c/[calendarId]/page.tsx",
-  "app/c/[calendarId]/countdown-marker-loader.tsx",
-  "app/admin/[calendarId]/days-grid-editor.tsx",
-];
-const AA_TEXT_TOKENS = new Set(["ink", "ink-dim", "primary-ink", "coral-ink", "on-sun", "bg", "foreground"]);
-// Iconos (gráfico, ≥ 3:1 en el caso 4), no texto.
-const ICON_TOKENS = new Set(["icon-tile-fg", "icon-tile-fg-light", "icon-tile-fg-dark"]);
+const AA_TEXT_TOKENS = new Set(["ink", "ink-dim", "primary-ink", "coral-ink", "on-sun"]);
+const SKIN = "superficie del calendario: el skin sobrescribe --accent/el color (TAL-62 cubre su contraste)";
+const EXCEPTIONS: Record<string, string> = {
+  // globals.css
+  "app/globals.css:189": "blanco sobre --primary-btn (.btn-primary): 5,06 claro / 4,66 oscuro (caso 4)",
+  "app/globals.css:211": "blanco sobre --coral-btn (.btn-danger-solid): 4,94 (caso 4)",
+  "app/globals.css:258": "body: --foreground = --ink (alias legacy de Next)",
+  "app/globals.css:272": "a { color: inherit }: el enlace hereda un color AA del contenedor; los enlaces visibles fijan --primary-ink",
+  "app/globals.css:337": "inicial del avatar: blanco sobre --primary-btn (5,06 / 4,66)",
+  "app/globals.css:693": ".toast: burbuja invertida, texto --bg sobre fondo --ink (15,2 / 16,3)",
+  "app/globals.css:881": ".superadmin-calendar-card: hereda --ink de la página (la tarjeta es un <a>)",
+  "app/globals.css:916": ".cover-icon-box: solo envuelve un <svg> de <CoverIcon>, nunca texto (icono ≥ 3:1, caso 4; lo comprueba el caso 1 en el DOM)",
+  "app/globals.css:921": ".cover-icon-box (oscuro): ídem, solo <svg>",
+  "app/globals.css:926": ".cover-icon-box (data-theme=dark): ídem, solo <svg>",
+  "app/globals.css:1011": "opción marcada del segmentado de TAL-65: blanco sobre --primary-btn (5,06 / 4,66)",
+  // Editor (fuera del calendario)
+  "app/admin/[calendarId]/days-grid-editor.tsx:512": "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)",
+  "app/admin/[calendarId]/calendar-preview.tsx:232": "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin",
+  // Superficie del calendario (skin): grid del editor dentro de la sección de días (days-section.tsx fija --accent con el del skin) y /c/[id]
+  "app/admin/[calendarId]/days-grid-editor.tsx:48": "casilla del grid: hereda; " + SKIN,
+  "app/admin/[calendarId]/days-grid-editor.tsx:103": "número sobre miniatura de vídeo (blanco) o de hoy (--accent del skin); " + SKIN,
+  "app/admin/[calendarId]/days-grid-editor.tsx:113": "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN,
+  "app/admin/[calendarId]/days-grid-editor.tsx:266": "inicial S/D en --coral-ink, resto heredado; " + SKIN,
+  "app/c/[calendarId]/door-grid.tsx:29": "puerta: hereda; " + SKIN,
+  "app/c/[calendarId]/door-grid.tsx:121": "número sobre miniatura (blanco) o de hoy (--accent del skin); " + SKIN,
+  "app/c/[calendarId]/door-grid.tsx:129": "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN,
+  "app/c/[calendarId]/door-grid.tsx:697": "inicial S/D en --coral-ink, resto heredado; " + SKIN,
+  "app/c/[calendarId]/door-grid.tsx:808": "burbuja de paciencia invertida: --bg sobre --ink (15,2 / 16,3)",
+  "app/c/[calendarId]/door-grid-loader.tsx:59": "«Cargando calendario…» en --accent del skin; " + SKIN,
+  "app/c/[calendarId]/door-grid-loader.tsx:63": "aviso de carga en --accent del skin; " + SKIN,
+  "app/c/[calendarId]/page.tsx:299": "aviso de rango demasiado largo en --accent del skin; " + SKIN,
+  "components/cover-text.tsx:37": "texto de portada: el color lo da el tratamiento del skin (resolveCoverTextTreatment, TAL-47); " + SKIN,
+  "components/cover-text.tsx:51": "ídem (variante píldora); " + SKIN,
+};
 
 function* walk(dir: string): Generator<string> {
   for (const entry of readdirSync(dir)) {
@@ -590,26 +622,47 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
-test("10 · ningún color de texto fuera del calendario usa un token sin AA (barrido del código, incluido people === null)", () => {
+/** Valor de cada `color:` de la línea (TSX: hasta `,`/`}`; CSS: hasta `;`). */
+function colorValues(line: string, isCss: boolean): string[] {
+  const out: string[] = [];
+  for (const m of line.matchAll(/(?<![A-Za-z-])color:\s*/g)) {
+    const rest = line.slice(m.index! + m[0].length);
+    out.push((isCss ? rest.split(";")[0] : rest.split(/,(?![^(]*\))|\s\}/)[0]).trim());
+  }
+  return out;
+}
+
+function isAaValue(value: string, isCss: boolean): boolean {
+  const m = isCss ? value.match(/^var\(--([a-z0-9-]+)\)$/) : value.match(/^"var\(--([a-z0-9-]+)\)"$/);
+  return !!m && AA_TEXT_TOKENS.has(m[1]);
+}
+
+test("10 · ningún color de texto fuera de la lista blanca AA sin excepción justificada (barrido de todo src/)", () => {
   const offenders: string[] = [];
+  const usedExceptions = new Set<string>();
   for (const file of walk(SRC)) {
     const rel = path.relative(SRC, file);
-    const lines = readFileSync(file, "utf8").split("\n");
-    lines.forEach((line, i) => {
-      // `color:` de texto (no backgroundColor/borderColor/background/border…).
-      const match = line.match(/(?:^|[\s{,])color:\s*(.+)$/);
-      if (!match) return;
-      for (const [, token] of match[1].matchAll(/var\(--([a-z0-9-]+)/g)) {
-        if (AA_TEXT_TOKENS.has(token) || ICON_TOKENS.has(token)) continue;
-        if (token === "accent" && SKIN_SCOPED.includes(rel)) continue;
-        offenders.push(`${rel}:${i + 1} → --${token}: ${line.trim()}`);
+    const isCss = file.endsWith(".css");
+    readFileSync(file, "utf8").split("\n").forEach((line, i) => {
+      const trimmed = line.trim();
+      if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
+      for (const value of colorValues(line, isCss)) {
+        if (isAaValue(value, isCss)) continue;
+        const key = `${rel}:${i + 1}`;
+        if (EXCEPTIONS[key]) {
+          usedExceptions.add(key);
+          continue;
+        }
+        offenders.push(`${key} → color: ${value}`);
       }
     });
   }
   expect(offenders, offenders.join("\n")).toEqual([]);
+  // Ninguna excepción huérfana: si el código cambia, se revisa la lista.
+  const stale = Object.keys(EXCEPTIONS).filter((k) => !usedExceptions.has(k));
+  expect(stale, `excepciones que ya no corresponden a ninguna línea: ${stale.join(", ")}`).toEqual([]);
 
-  // El estado concreto del NO-GO: "Las personas del calendario no están
-  // disponibles ahora mismo" usa --coral-ink (AA en claro y oscuro, caso 4).
+  // El estado del NO-GO del loop 1 (people === null) usa --coral-ink.
   const guests = readFileSync(path.join(SRC, "app/admin/[calendarId]/guests-section.tsx"), "utf8");
   expect(guests).toMatch(/color: "var\(--coral-ink\)" \}\}>Las personas del calendario no están disponibles ahora mismo\./);
 });
