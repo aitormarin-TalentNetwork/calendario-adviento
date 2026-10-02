@@ -108,7 +108,7 @@ uno en `design/propuesta-skins-modernos.html`.
 **Migración de calendarios existentes:** los que usan Tira Cómica, Rojiblanco o **Nieve**
 (el antiguo, que tiene equivalente con el mismo nombre en el catálogo nuevo; decidido por
 el PM el 2026-10-01) pasan a la versión nueva de su skin; **todos los demás pasan a
-"Alegre"**. Los 22 skins antiguos
+"Alegre"**. Los 21 skins antiguos
 restantes se retiran del catálogo.
 
 **Fuera de la Onda 4** (aparecían en el mockup solo como ambientación): barra de progreso
