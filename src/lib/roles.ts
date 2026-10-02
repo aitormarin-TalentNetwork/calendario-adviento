@@ -74,3 +74,15 @@ export async function resolveCalendarAccess(
     return null;
   }
 }
+
+/**
+ * TAL-59 — ¿puede esta persona usar el modo Admin? Es Super Admin o
+ * administra al menos un calendario. Única definición de la regla: la usan
+ * el aterrizaje (`/start`), el redirect de `/admin` (TAL-58), el menú de la
+ * cuenta (si enseña la sección "Modo") y `switchModeAction`. Pura a
+ * propósito: cada llamador le pasa el número de calendarios que administra
+ * desde la lista que ya ha cargado, sin consultas duplicadas.
+ */
+export function canUseAdminMode(user: { isSuperAdmin: boolean }, administeredCount: number): boolean {
+  return user.isSuperAdmin || administeredCount > 0;
+}

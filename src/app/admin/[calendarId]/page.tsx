@@ -123,11 +123,7 @@ export default async function AdminCalendarPage({
       className="session-page-main"
       style={{ flex: 1, paddingLeft: "2rem", paddingRight: "2rem", paddingBottom: "2rem", maxWidth: "900px" }}
     >
-      <SessionIndicator
-        email={user.email}
-        image={user.image}
-        roleLabel={access?.kind === "super-admin" ? "Super Admin" : "Admin"}
-      />
+      <SessionIndicator user={user} mode="admin" currentCalendarId={calendarId} />
       <h1>Editar calendario</h1>
 
       <EditCalendarForm calendar={calendar} skins={skins} />

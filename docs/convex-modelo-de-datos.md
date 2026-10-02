@@ -47,6 +47,9 @@ mismas relaciones. Diferencias de traducción, tabla por tabla:
 - **users** — `email`/`name`/`isSuperAdmin` igual. Sin `createdAt` propio: el
   campo de sistema `_creationTime` (todo documento de Convex lo tiene) cubre
   exactamente el mismo dato, así que añadir uno propio sería redundante.
+  TAL-28 añadió `image` (foto de Google) y TAL-59 `preferredMode`
+  (`"user" | "admin"`, opcional: último modo elegido en el menú de la
+  cuenta, ver `docs/menu-cuenta.md`).
 - **calendars** — `name`/`coverTitle`/`coverImageUrl`/`creationKey` igual.
   `startDate`/`endDate` como `v.string()` en formato `"YYYY-MM-DD"`, no un
   timestamp — ver "Fechas como día natural" más abajo. `skinId` es
