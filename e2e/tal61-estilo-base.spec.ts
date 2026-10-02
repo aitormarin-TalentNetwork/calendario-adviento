@@ -347,6 +347,9 @@ test("4 · contraste WCAG de los pares de uso (claro y oscuro)", () => {
       ["--on-sun/--sun", t["--on-sun"], t["--sun"]],
       ["--ink/--primary-soft (píldoras)", t["--ink"], t["--primary-soft"]],
       ["--ink/--surface-2 (aviso de vídeo, TAL-66)", t["--ink"], t["--surface-2"]],
+      ["--ink/--mint-soft (estado «En marcha», TAL-74)", t["--ink"], t["--mint-soft"]],
+      ["--ink/--primary-soft (estado «Próximo», TAL-74)", t["--ink"], t["--primary-soft"]],
+      ["--ink/--surface-2 (estado «Terminado», TAL-74)", t["--ink"], t["--surface-2"]],
     ];
     for (const [label, fg, bg] of text) {
       expect(contrast(fg, bg), `${scheme} ${label} sobre ${bg}`).toBeGreaterThanOrEqual(4.5);
