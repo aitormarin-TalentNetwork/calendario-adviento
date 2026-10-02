@@ -372,7 +372,12 @@ de Vimeo y Drive se quedan con el fondo de color. A partir de ahora, la casilla 
 **La miniatura automática se guarda como copia propia** (ajuste del 2026-10-01): al guardar
 el día, el servidor descarga **una sola vez** la miniatura del proveedor (una imagen
 pequeña, nunca el vídeo) y guarda una copia en el almacenamiento de archivos de Convex.
-La casilla muestra siempre esa copia, sin depender del proveedor en cada visita. Si no
+La casilla muestra esa copia, sin depender del proveedor en cada visita. **Transición:**
+mientras un día de YouTube todavía no tenga copia (por ejemplo, entre el despliegue y la
+migración), se sirve la miniatura directa de YouTube como hoy, nunca el color del skin
+(decidido por el PM el 2026-10-01). Si el Admin intenta subir una imagen en un día aún sin
+guardar, el editor dice: *"Guarda primero el vídeo del día para poder añadirle una
+imagen."* Si no
 se pudo obtener (por ejemplo, un Drive sin miniatura), el editor avisa al Admin al
 guardar: *"No hemos podido sacar una imagen de este vídeo. Puedes subir una tú."*
 
