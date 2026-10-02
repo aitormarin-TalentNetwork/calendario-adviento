@@ -48,11 +48,18 @@ relleno, `currentColor`. Ningún emoji en la UI (salvo el texto que escribe el A
 
 `COMPAT_SHA` = SHA del commit **1b** (el que completa la capa de compatibilidad; está
 encima del 1, así que un build que lo contiene contiene los dos) **tal como queda en main
-tras el merge**. Lo apunta la Directora/Integrador aquí y en TAL-60 al publicar:
-`[PROVISIONAL — se fija tras el merge final]`. La rama de rollback de emergencia
-(`aitormarin/tal-60-rollback-compat`) es main antes de TAL-60 + cherry-pick de **1 y 1b**,
-y se valida comparando cada uno con `git patch-id --stable`: `[PROVISIONAL — se rehace
-sobre el main del merge final]`.
+tras el merge**. Lo confirma el Integrador aquí y en TAL-60 al publicar.
+
+| Dato | Valor (rama rebasada sobre main `2d43fff`) | Estado |
+|---|---|---|
+| Commit 1 | `c2ce2fc` (patch-id `5a146f23…`) | a confirmar tras el merge |
+| Commit 1b = `COMPAT_SHA` | `903ffee` (patch-id `1c93073c…`) | a confirmar tras el merge |
+| Rama `aitormarin/tal-60-rollback-compat` | `2d43fff` + cherry-pick de 1 y 1b → punta `7535c6a` = `COMPAT_SHA_ALT` | a confirmar tras el merge |
+
+La rama de rollback de emergencia es main antes de TAL-60 + cherry-pick de **1 y 1b**, y
+se valida comparando cada uno con `git patch-id --stable` (ver § "Rollback"). Si el merge
+a main reescribe los SHA (rebase o squash), se vuelven a calcular con el mismo
+procedimiento: los patch-id no cambian.
 
 ## Runbook de producción
 
