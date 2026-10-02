@@ -105,8 +105,10 @@ uno en `design/propuesta-skins-modernos.html`.
 | 7 | **Tira Cómica** | Cómic (rehecho) | rojo `#e63946`, azul `#2fa8e0`, amarillo `#ffd23f`, contorno negro `2.5px` + sombra dura `3px 3px 0` |
 | 8 | **Rojiblanco** | Fútbol (rehecho), sin escudo | rayas `#d61f26`/blanco **solo en el bloque de la cuenta atrás**, textos sobre píldora blanca; resto blanco |
 
-**Migración de calendarios existentes:** los que usan Tira Cómica o Rojiblanco conservan
-su skin (versión nueva); **todos los demás pasan a "Alegre"**. Los 22 skins antiguos
+**Migración de calendarios existentes:** los que usan Tira Cómica, Rojiblanco o **Nieve**
+(el antiguo, que tiene equivalente con el mismo nombre en el catálogo nuevo; decidido por
+el PM el 2026-10-01) pasan a la versión nueva de su skin; **todos los demás pasan a
+"Alegre"**. Los 22 skins antiguos
 restantes se retiran del catálogo.
 
 **Fuera de la Onda 4** (aparecían en el mockup solo como ambientación): barra de progreso
