@@ -6,11 +6,11 @@
  * y no todos los accents de skin lo dan contra el fondo pastel del recuadro.
  * Regla: se usa el accent del skin en cada tema SOLO si da ≥ 3:1 contra el
  * fondo de ese tema; si no (o si el accent no es un hex, p. ej. el respaldo
- * `var(--gold)` de `DEFAULT_SKIN_APPEARANCE`), `null` → el CSS cae al token
+ * `var(--primary)` de `DEFAULT_SKIN_APPEARANCE`), `null` → el CSS cae al token
  * `--icon-tile-fg` (`globals.css`, bloque "TAL-60 — iconos").
  *
- * `ICON_TILE_BG` replica los valores provisionales de `--icon-tile-bg`
- * (= `--primary-soft` del Design System). Contrato con TAL-61 (T1): si ese
+ * `ICON_TILE_BG` replica los valores de `--icon-tile-bg` (= `--primary-soft`
+ * del Design System, definitivos desde TAL-61). Contrato con TAL-61 (T1): si ese
  * token cambia de valor, se actualiza aquí y se vuelve a pasar
  * `scripts/verify-tal60-icon-contrast.mjs`.
  */

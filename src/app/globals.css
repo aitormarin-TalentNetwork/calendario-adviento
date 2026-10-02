@@ -897,34 +897,16 @@ a {
    (solape con TAL-61, que reescribe los tokens base).
 
    Contrato de nombres acordado con T1 (TAL-61): `--icon-tile-bg` (fondo
-   pastel del recuadro) y `--icon-tile-fg` (color del icono sin skin). La
-   que publique segunda solo cambia VALORES, nunca nombres. Provisionales
-   aquí: `--icon-tile-bg` = valores de `--primary-soft` del Design System
-   (#e6e0ff / #2a2645 — también en `ICON_TILE_BG`,
-   src/lib/cover-icon-colors.ts); `--icon-tile-fg` = la tinta del tema
-   (`--primary` todavía no existe; TAL-61 lo dejará en `var(--primary)`).
+   pastel del recuadro) y `--icon-tile-fg` (color del icono sin skin).
+   TAL-61 (publicada después) los define con sus valores definitivos en el
+   bloque de tokens del principio del fichero: `--icon-tile-bg:
+   var(--primary-soft)` y `--icon-tile-fg: var(--primary)`; aquí ya no se
+   redefinen (los provisionales de TAL-60 se retiraron al rebasar).
 
    `--icon-tile-fg-light`/`--icon-tile-fg-dark` NO son tokens: los pone
    inline `<CoverIcon>` con el accent del skin cuando da ≥ 3:1 contra el
    fondo de ese tema (`resolveCoverIconColors`); si no, cae a
    `--icon-tile-fg`. */
-:root {
-  --icon-tile-bg: #e6e0ff;
-  --icon-tile-fg: #16211c;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --icon-tile-bg: #2a2645;
-    --icon-tile-fg: #ece6d6;
-  }
-}
-
-:root[data-theme="dark"] {
-  --icon-tile-bg: #2a2645;
-  --icon-tile-fg: #ece6d6;
-}
-
 .cover-icon-box {
   display: inline-grid;
   place-items: center;
