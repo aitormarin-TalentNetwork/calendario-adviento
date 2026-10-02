@@ -3,27 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useFormStatus } from "react-dom";
 
-const TRIGGER_STYLE: React.CSSProperties = {
-  background: "var(--berry)",
-  border: "1px solid var(--berry)",
-  color: "#fff5f0",
-  borderRadius: "999px",
-  padding: "0.6rem 1.25rem",
-  fontWeight: 600,
-  cursor: "pointer",
-};
-
-const CONFIRM_STYLE: React.CSSProperties = { ...TRIGGER_STYLE };
-
-const CANCEL_STYLE: React.CSSProperties = {
-  background: "transparent",
-  border: "1px solid var(--line)",
-  color: "var(--ink)",
-  borderRadius: "999px",
-  padding: "0.6rem 1.25rem",
-  fontWeight: 600,
-  cursor: "pointer",
-};
+// TAL-61 — estilos de botón con las clases opt-in de `globals.css`
+// (`.btn-danger-solid` sobre `--coral-btn`, texto blanco 4,94:1; `.btn`
+// secundario para "Cancelar") en vez de objetos de estilo inline.
 
 /**
  * Ajuste de Aitor sobre TAL-33 (ya Done): `ConfirmSubmitButton` usaba
@@ -73,7 +55,7 @@ export function DeleteCalendarButton({ calendarName }: { calendarName: string })
 
   return (
     <>
-      <button ref={triggerRef} type="button" onClick={openDialog} style={TRIGGER_STYLE}>
+      <button ref={triggerRef} type="button" onClick={openDialog} className="btn btn-danger-solid">
         Eliminar calendario
       </button>
 
@@ -113,7 +95,7 @@ export function DeleteCalendarButton({ calendarName }: { calendarName: string })
             </p>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
               <ConfirmDeleteButton />
-              <button ref={cancelButtonRef} type="button" onClick={closeDialog} style={CANCEL_STYLE}>
+              <button ref={cancelButtonRef} type="button" onClick={closeDialog} className="btn">
                 Cancelar
               </button>
             </div>
@@ -136,7 +118,7 @@ export function DeleteCalendarButton({ calendarName }: { calendarName: string })
 function ConfirmDeleteButton() {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending} style={CONFIRM_STYLE}>
+    <button type="submit" disabled={pending} className="btn btn-danger-solid">
       {pending ? "…" : "Sí, eliminar calendario"}
     </button>
   );

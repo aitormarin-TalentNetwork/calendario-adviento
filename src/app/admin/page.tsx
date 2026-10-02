@@ -66,7 +66,7 @@ export default async function AdminCalendarsPage() {
         <div style={{ overflowX: "auto", marginTop: "1.5rem" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
-              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--accent)" }}>
+              <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
                 <th style={{ padding: "0.5rem 0.75rem 0.5rem 0" }}>Nombre</th>
                 <th style={{ padding: "0.5rem 0.75rem" }}>Fechas</th>
                 <th style={{ padding: "0.5rem 0 0.5rem 0.75rem" }}>Skin</th>
@@ -76,7 +76,7 @@ export default async function AdminCalendarsPage() {
               {calendars.map((calendar) => (
                 <tr
                   key={calendar.id}
-                  style={{ borderBottom: "1px solid color-mix(in srgb, var(--accent) 30%, transparent)" }}
+                  style={{ borderBottom: "1px solid var(--line)" }}
                 >
                   <td style={{ padding: "0.5rem 0.75rem 0.5rem 0", whiteSpace: "nowrap" }}>
                     {/* TAL-32, pedido explícito de Aitor: el nombre tiene
@@ -85,7 +85,7 @@ export default async function AdminCalendarsPage() {
                         un <Link> sin ningún estilo propio de enlace, así
                         que en una tabla no quedaba claro qué se podía
                         pinchar. */}
-                    <Link href={`/admin/${calendar.id}`} style={{ textDecoration: "underline", color: "var(--accent)" }}>
+                    <Link href={`/admin/${calendar.id}`} style={{ textDecoration: "underline", color: "var(--primary-ink)", fontWeight: 600 }}>
                       {calendar.name}
                     </Link>
                     {/* TAL-64 — el Super Admin ve TODOS los calendarios; los que

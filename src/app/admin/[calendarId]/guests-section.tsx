@@ -192,7 +192,7 @@ export async function GuestsSection({
           <p className="people-link-note">Cada persona entra con el rol con el que la invitaste (Visitante por defecto).</p>
         </>
       ) : (
-        <p style={{ color: "var(--accent)" }}>
+        <p style={{ color: "var(--ink-dim)" }}>
           Falta configurar la variable de entorno APP_URL para mostrar el link de invitación de
           forma segura en este entorno.
         </p>

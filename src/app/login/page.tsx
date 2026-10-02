@@ -148,18 +148,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           await signIn("google", { redirectTo });
         }}
       >
-        <button
-          type="submit"
-          style={{
-            padding: "0.75rem 1.5rem",
-            borderRadius: "999px",
-            border: "1px solid var(--accent)",
-            background: "transparent",
-            color: "inherit",
-            fontSize: "1rem",
-            cursor: "pointer",
-          }}
-        >
+        <button type="submit" className="btn btn-primary">
           Continuar con Google
         </button>
       </form>
@@ -176,13 +165,13 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
           }}
           style={{ display: "flex", flexDirection: "column", gap: "0.5rem", width: "260px" }}
         >
-          <p style={{ fontSize: "0.75rem", color: "var(--accent)" }}>
+          <p style={{ fontSize: "0.75rem", color: "var(--ink-dim)" }}>
             Login de desarrollo (simulado) — solo disponible en local, sin
             credenciales reales de Google.
           </p>
           <input name="email" type="email" placeholder="tu@email.com" required />
           <input name="name" type="text" placeholder="Nombre (opcional)" />
-          <button type="submit">Entrar (dev)</button>
+          <button type="submit" className="btn">Entrar (dev)</button>
         </form>
       )}
     </main>

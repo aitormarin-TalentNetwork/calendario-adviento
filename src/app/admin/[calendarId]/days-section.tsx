@@ -125,7 +125,7 @@ export async function DaysSection({
     return (
       <section style={{ marginTop: "2rem" }}>
         <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
-        <p style={{ color: "var(--accent)" }}>Esta sección no está disponible ahora mismo.</p>
+        <p style={{ color: "var(--coral-ink)" }}>Esta sección no está disponible ahora mismo.</p>
       </section>
     );
   }
@@ -144,7 +144,7 @@ export async function DaysSection({
     return (
       <section style={{ marginTop: "2rem" }}>
         <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Días del calendario</h2>
-        <p style={{ color: "var(--accent)" }}>
+        <p style={{ color: "var(--ink-dim)" }}>
           Este calendario dura {span} días — más de los {MAX_MANAGEABLE_DAYS} que se pueden gestionar aquí día a
           día. Acorta el rango de fechas arriba antes de asignar vídeos.
         </p>

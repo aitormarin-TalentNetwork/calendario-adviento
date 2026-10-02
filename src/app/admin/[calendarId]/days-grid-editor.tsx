@@ -55,7 +55,7 @@ function cellStyle(day: DayInfo, isToday: boolean, isSelected: boolean): React.C
     base.boxShadow = "inset 0 0 0 2px var(--accent)";
   }
   if (!day.videoUrl) {
-    return { ...base, background: "var(--day-open-bg)" };
+    return { ...base, background: "var(--surface-2)" };
   }
   return base;
 }
@@ -100,7 +100,7 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
       // Hallazgo de auditoría, ronda 1: el color de "hoy" (--accent) tiene
       // que aplicarse SIEMPRE, se combine con el estado que se combine —
       // antes esta rama ignoraba "hoy" por completo.
-      color: isToday ? "var(--accent)" : "var(--paper)",
+      color: isToday ? "var(--accent)" : "#ffffff",
       padding: "1px 6px",
       borderRadius: "999px",
       fontVariantNumeric: "tabular-nums",
@@ -110,7 +110,7 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
     fontVariantNumeric: "tabular-nums",
     fontSize: "1.9rem",
     fontWeight: 800,
-    color: isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--ink)",
+    color: isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)",
   };
 }
 
@@ -263,7 +263,7 @@ export function DaysGridEditor({
                       background: "var(--surface)",
                       textAlign: "center",
                       padding: "6px 0",
-                      color: i >= 5 ? "var(--weekend-text)" : undefined,
+                      color: i >= 5 ? "var(--coral-ink)" : undefined,
                       fontWeight: i >= 5 ? 700 : undefined,
                     }}
                   >
@@ -311,7 +311,7 @@ export function DaysGridEditor({
                     if (day.videoUrl) {
                       style.backgroundImage = thumbnailUrl
                         ? `linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), url("${thumbnailUrl}")`
-                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--pine)";
+                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--primary)";
                       style.backgroundSize = "cover";
                       style.backgroundPosition = "center";
                     }
@@ -508,8 +508,8 @@ function DayDialogForm({
               padding: "6px 16px",
               fontSize: "0.82rem",
               cursor: "pointer",
-              background: videoSource === value ? "var(--gold)" : "transparent",
-              color: videoSource === value ? "#241a06" : "var(--ink-dim)",
+              background: videoSource === value ? "var(--primary-btn)" : "transparent",
+              color: videoSource === value ? "#ffffff" : "var(--ink-dim)",
               fontWeight: videoSource === value ? 600 : 400,
             }}
           >
@@ -557,7 +557,7 @@ function DayDialogForm({
           // `required`/`type="url"` del campo de vídeo del MISMO formulario
           // — borrar no depende de que ese campo tenga un valor válido en
           // ese momento (hallazgo de auditoría, ronda 1, TAL-21).
-          <button type="submit" formNoValidate formAction={deleteDayAction.bind(null, calendarId, day.dateStr)}>
+          <button type="submit" className="btn btn-danger" formNoValidate formAction={deleteDayAction.bind(null, calendarId, day.dateStr)}>
             Quitar vídeo
           </button>
         )}

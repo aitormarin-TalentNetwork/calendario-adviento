@@ -31,7 +31,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
   if (door.isToday) {
     // Ajuste 2026-08-17 (design-system.md § "Grid de días"): "hoy" tiene
     // que notarse claramente de un vistazo, no solo al fijarse — borde
-    // más grueso (2px, antes 1.5px) + fondo sutil en --gold al 10% de
+    // más grueso (2px, antes 1.5px) + fondo sutil en --sun al 10% de
     // opacidad (token fijo, no --accent: "hoy" es una marca universal,
     // no depende del skin elegido). `boxShadow` inset con spread grande
     // en vez de `background`/`backgroundImage`: esta celda puede
@@ -39,7 +39,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
     // visto-con-miniatura) que ya ocupa esas dos propiedades más abajo —
     // el box-shadow se pinta como una capa aparte encima, sin pisarlas.
     base.border = "2px dashed var(--accent)";
-    base.boxShadow = "inset 0 0 0 999px color-mix(in srgb, var(--gold) 10%, transparent)";
+    base.boxShadow = "inset 0 0 0 999px color-mix(in srgb, var(--sun) 10%, transparent)";
   }
   if (door.state === "locked") {
     // TAL-41 — antes `cursor: "default"` (día bloqueado = no interactivo);
@@ -52,7 +52,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
     return { ...base, cursor: "pointer" };
   }
   // unseen ("abierto, sin ver")
-  return { ...base, cursor: "pointer", background: "var(--day-open-bg)" };
+  return { ...base, cursor: "pointer", background: "var(--surface-2)" };
 }
 
 /**
@@ -117,8 +117,8 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
       // que aplicarse SIEMPRE, se combine con el estado que se combine —
       // antes esta rama ignoraba `isToday` por completo, así que abrir el
       // vídeo de hoy mismo (unseen → watched, cambio optimista) apagaba el
-      // número dorado a --paper en el propio clic.
-      color: door.isToday ? "var(--accent)" : "var(--paper)",
+      // número de acento a blanco en el propio clic.
+      color: door.isToday ? "var(--accent)" : "#ffffff",
       borderRadius: "999px",
       fontVariantNumeric: "tabular-nums",
     };
@@ -126,7 +126,7 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
   return {
     fontVariantNumeric: "tabular-nums",
     fontWeight: 800,
-    color: door.isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--ink)",
+    color: door.isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)",
   };
 }
 
@@ -141,11 +141,11 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
  * design-system.md § "Grid de días"): filas de 7 (lunes a domingo)
  * agrupadas por mes, cabecera de mes sticky, número grande sans-serif
  * (TAL-61: la única familia de la app, `--font`, con `tabular-nums`), fin
- * de semana en `--berry`.
+ * de semana en `--coral-ink`.
  *
  * TAL-24 — `background` (el `background` real del skin del calendario,
  * `src/lib/skin-appearance.ts`) se aplica SOLO a la cabecera sticky de
- * cada mes (antes un `--pine` fijo) — decisión deliberada de NO tocar el
+ * cada mes (antes un color fijo del DS anterior) — decisión deliberada de NO tocar el
  * fondo de las casillas individuales (`cellStyle`, más abajo): esas ya
  * codifican los 4 estados (bloqueado/abierto/visto/hoy) que TAL-21 acaba
  * de auditar, y aplicar un degradado arbitrario del skin ahí arriesgaba
@@ -388,7 +388,7 @@ export function DoorGrid({
    * TAL-41 — efecto de "impaciencia" (design-system.md § "Grid de días"):
    * al pinchar un día bloqueado (futuro, dentro del rango, todavía sin
    * abrir) no pasa nada funcionalmente (el vídeo sigue bloqueado), pero
-   * la casilla da un pulso corto en `--berry` (nunca `--gold` — a
+   * la casilla da un pulso corto en `--coral` (nunca `--sun` — a
    * propósito distinto del pop dorado de TAL-40, "primera apertura") y
    * aparece un letrero centrado con la cuenta atrás real hasta ese día
    * concreto.
@@ -547,16 +547,16 @@ export function DoorGrid({
         .dg-bursting {
           animation: dg-reveal-pop 0.62s cubic-bezier(0.34, 1.56, 0.64, 1) both;
           z-index: 3;
-          box-shadow: 0 0 0 3px var(--gold), 0 8px 26px rgba(201, 154, 61, 0.55);
+          box-shadow: 0 0 0 3px var(--sun), 0 8px 26px rgba(255, 210, 63, 0.55);
         }
         .dg-bursting .dg-num {
           opacity: 0;
           transition: opacity 0.15s;
         }
-        /* TAL-41 — efecto de "impaciencia": pulso corto en --berry al
+        /* TAL-41 — efecto de "impaciencia": pulso corto en --coral al
            pinchar un día bloqueado, portado de
            design/propuesta-grid-calendario.html — deliberadamente en
-           --berry, nunca --gold, para que se note de un vistazo que es
+           --coral, nunca --sun, para que se note de un vistazo que es
            un "todavía no" distinto del pop dorado de "primera apertura"
            (TAL-40). */
         @keyframes dg-impatience-pulse {
@@ -579,7 +579,7 @@ export function DoorGrid({
         .dg-pulsing {
           animation: dg-impatience-pulse 0.45s ease both;
           z-index: 3;
-          box-shadow: 0 0 0 3px var(--berry), 0 6px 18px rgba(140, 47, 57, 0.4);
+          box-shadow: 0 0 0 3px var(--coral), 0 6px 18px rgba(255, 90, 95, 0.4);
         }
         @media (max-width: 640px) {
           .dg-month-header {
@@ -694,7 +694,7 @@ export function DoorGrid({
                       background: "var(--surface)",
                       textAlign: "center",
                       padding: "6px 0",
-                      color: i >= 5 ? "var(--weekend-text)" : undefined,
+                      color: i >= 5 ? "var(--coral-ink)" : undefined,
                       fontWeight: i >= 5 ? 700 : undefined,
                     }}
                   >
@@ -737,7 +737,7 @@ export function DoorGrid({
                     if (door.state === "watched") {
                       style.backgroundImage = thumbnailUrl
                         ? `linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), url("${thumbnailUrl}")`
-                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--pine)";
+                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--primary)";
                       style.backgroundSize = "cover";
                       style.backgroundPosition = "center";
                     }
@@ -800,8 +800,8 @@ export function DoorGrid({
           top: "50%",
           left: "50%",
           zIndex: 70,
-          background: "var(--pine)",
-          color: "var(--paper)",
+          background: "var(--ink)",
+          color: "var(--bg)",
           padding: "18px 26px",
           borderRadius: "14px",
           boxShadow: "0 20px 50px rgba(10,16,12,0.45)",
@@ -821,7 +821,7 @@ export function DoorGrid({
             ¡Respira!
             <br />
             Te {patienceInfo.days === 1 ? "queda" : "quedan"}{" "}
-            <strong style={{ color: "var(--gold-2)" }}>{patienceInfo.days}</strong>{" "}
+            <strong className="num">{patienceInfo.days}</strong>{" "}
             {patienceInfo.days === 1 ? "día" : "días"} para abrir este regalo.
           </>
         )}

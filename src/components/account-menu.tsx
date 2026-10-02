@@ -26,7 +26,7 @@ const ITEM_SELECTOR = '[role="menuitem"], [role="menuitemradio"]';
  * Menú de la cuenta (TAL-59, design/design-system.md § "Menú de la cuenta
  * (avatar)"). Patrón WAI-ARIA "menu button", sin librerías:
  *
- * - Disparador: la foto de Google (o la inicial sobre `--pine-2` como
+ * - Disparador: la foto de Google (o la inicial sobre `--primary-btn` como
  *   respaldo). Enter/Espacio/↓ abren y enfocan el primer item; ↑ abre y
  *   enfoca el último.
  * - Dentro: ↓/↑ en círculo, Home/End, Escape cierra y devuelve el foco al

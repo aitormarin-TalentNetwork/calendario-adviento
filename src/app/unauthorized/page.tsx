@@ -17,7 +17,7 @@ export default async function UnauthorizedPage() {
       }}
     >
       <h1 style={{ fontSize: "1.5rem" }}>No tienes acceso a esto</h1>
-      <p style={{ color: "var(--accent)" }}>
+      <p style={{ color: "var(--ink-dim)" }}>
         {session?.user
           ? `${session.user.email} no tiene invitación ni rol para lo que intentabas abrir.`
           : "Inicia sesión para continuar."}
@@ -29,7 +29,7 @@ export default async function UnauthorizedPage() {
             await signOut({ redirectTo: "/login" });
           }}
         >
-          <button type="submit">Cerrar sesión</button>
+          <button type="submit" className="btn">Cerrar sesión</button>
         </form>
       )}
     </main>

@@ -13,10 +13,23 @@ import { useFormStatus } from "react-dom";
  * mientras la pestaña "Subir archivo", sin campo funcional que enviar,
  * está activa). Se combina con `pending`, nunca lo sustituye.
  */
-export function SubmitButton({ children, disabled }: { children: ReactNode; disabled?: boolean }) {
+/**
+ * TAL-61 — `variant` elige la clase opt-in de `globals.css`: "primary"
+ * (por defecto: "Guardar cambios", "Invitar ahora", "Guardar día") o
+ * "secondary".
+ */
+export function SubmitButton({
+  children,
+  disabled,
+  variant = "primary",
+}: {
+  children: ReactNode;
+  disabled?: boolean;
+  variant?: "primary" | "secondary";
+}) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending || disabled}>
+    <button type="submit" disabled={pending || disabled} className={variant === "primary" ? "btn btn-primary" : "btn"}>
       {pending ? "…" : children}
     </button>
   );

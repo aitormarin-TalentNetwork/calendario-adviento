@@ -24,10 +24,10 @@ type CoverIconPickerProps = {
  * (redundante: dos disparadores para la misma acción). El icono ya era un
  * `<div>` con las medidas/fondo del "swatch"; ahora es directamente el
  * `<button>` que abre el diálogo (`.cover-icon-trigger`, `globals.css` —
- * hover/focus con borde `--gold`, mismo criterio ya establecido para el
+ * hover/focus con borde `--primary` (TAL-61), mismo criterio ya establecido para el
  * resto de elementos clicables del sistema, p. ej. `.skin-swatch` TAL-37).
- * Fondo del icono ahora transparente (antes `--paper-2`/`--pine-2`
- * relleno) — sin la casilla rellena, solo el borde `--gold` en hover/foco
+ * Fondo del icono ahora transparente (antes relleno de superficie hundida
+ * ) — sin la casilla rellena, solo el borde de acento en hover/foco
  * indica que es clicable. Etiqueta del campo acortada dos veces seguidas
  * ("Icono de portada" → "Selecciona un icono" → simplemente "Icono",
  * `edit-calendar-form.tsx`) — se replica el texto final en `aria-label`/
@@ -210,10 +210,10 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                         style={{
                           aspectRatio: "1",
                           borderRadius: "9px",
-                          border: `1px solid ${selected ? "var(--gold)" : "transparent"}`,
-                          // TAL-60 — token con tema (`--paper-2` es fijo y en
-                          // oscuro dejaba un icono claro sobre fondo claro: el
-                          // emoji traía su propio color, un icono de línea no).
+                          border: `1px solid ${selected ? "var(--primary)" : "transparent"}`,
+                          // TAL-60 — token con tema: un icono de línea no trae
+                          // color propio como el emoji, así que necesita el
+                          // del tema para verse en claro y en oscuro.
                           background: "var(--surface-2)",
                           color: "var(--ink)",
                           boxShadow: selected ? "0 0 0 2px rgba(201,154,61,0.25)" : "none",

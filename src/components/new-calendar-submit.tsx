@@ -96,7 +96,7 @@ function NewCalendarFields({ name, setName }: NewCalendarFieldsProps) {
 function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending || disabled}>
+    <button type="submit" disabled={pending || disabled} className="btn btn-primary">
       {pending ? "…" : "+ Nuevo calendario"}
     </button>
   );

@@ -229,7 +229,7 @@ export function CalendarPreview({
                 top: "12px",
                 right: "12px",
                 background: "rgba(0,0,0,0.35)",
-                color: "var(--paper)",
+                color: "#ffffff",
                 border: "none",
                 width: "30px",
                 height: "30px",
