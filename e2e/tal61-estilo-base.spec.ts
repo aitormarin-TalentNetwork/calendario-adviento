@@ -569,65 +569,116 @@ for (const [vp, viewport] of [
   });
 }
 
-// --- Barrido de colores de TEXTO en el código (NO-GO loops 1 y 2) ---
-// Recorre TODAS las declaraciones `color:` de src/ (.tsx y .css). Solo pasa
-// sin más una declaración cuyo valor es exactamente un token de texto AA
-// (comprobado en el caso 4). Cualquier otra cosa — literal (hex o nombre),
-// `inherit`, expresión dinámica (ternario, variable), `--accent`/`--primary`
-// /`--coral` o tokens de icono — falla, salvo que esté en EXCEPTIONS con su
-// fichero:línea exacto y el motivo. Sin exclusiones de ficheros enteros.
-// Las líneas son a propósito frágiles: si el código se mueve, el test obliga
-// a volver a revisar la excepción.
+// --- Barrido de colores de TEXTO en el código (NO-GO loops 1, 2 y 3) ---
+// Recorre TODAS las declaraciones de color de src/ (.ts, .tsx y .css), en
+// las formas `color:`, `"color":`, `'color':`, `["color"]:` y `['color']:`,
+// varias por línea, tras quitar los comentarios /* … */ (aunque estén en la
+// misma línea que el código) y, en .ts/.tsx, las líneas `// …`.
+// Solo pasa sin más un valor que es EXACTAMENTE un token de texto AA
+// (contraste en el caso 4). Cualquier otro valor — literal hex o nombre,
+// `inherit`, expresión dinámica, `--accent`/`--primary`/`--coral`, tokens de
+// icono — falla, salvo que EXCEPTIONS dispense ESE valor exacto en ESE
+// fichero:línea, con su motivo. Una excepción solo dispensa una vez el
+// valor declarado: otro valor no-AA, o un segundo color no-AA en la misma
+// línea, falla. Si el valor exacto ya no está en esa línea, la excepción
+// queda huérfana y también falla (obliga a revisar la lista).
+//
+// LÍMITES CONOCIDOS (decisión de la Directora, loop 4): no es un parser de
+// TypeScript/CSS. No ve una declaración partida en varias líneas
+// (`color:` en una y el valor en la siguiente) ni colores que llegan por un
+// spread (`...obj`). Es una red estática complementaria; la garantía de
+// contraste son los valores computados en el DOM (caso 3) y los pares de
+// tokens (caso 4).
 const SRC = path.resolve(__dirname, "..", "src");
 const AA_TEXT_TOKENS = new Set(["ink", "ink-dim", "primary-ink", "coral-ink", "on-sun"]);
-const SKIN = "superficie del calendario: el skin sobrescribe --accent/el color (TAL-62 cubre su contraste)";
-const EXCEPTIONS: Record<string, string> = {
+const SKIN = "superficie del calendario: el color lo pone el skin (--accent o su tratamiento de texto); su contraste lo cubre TAL-62";
+const TYPE = "anotación de tipo de TypeScript, no un valor de color";
+type ColorException = { value: string; reason: string };
+const EXCEPTIONS: Record<string, ColorException> = {
   // globals.css
-  "app/globals.css:189": "blanco sobre --primary-btn (.btn-primary): 5,06 claro / 4,66 oscuro (caso 4)",
-  "app/globals.css:211": "blanco sobre --coral-btn (.btn-danger-solid): 4,94 (caso 4)",
-  "app/globals.css:258": "body: --foreground = --ink (alias legacy de Next)",
-  "app/globals.css:272": "a { color: inherit }: el enlace hereda un color AA del contenedor; los enlaces visibles fijan --primary-ink",
-  "app/globals.css:337": "inicial del avatar: blanco sobre --primary-btn (5,06 / 4,66)",
-  "app/globals.css:693": ".toast: burbuja invertida, texto --bg sobre fondo --ink (15,2 / 16,3)",
-  "app/globals.css:881": ".superadmin-calendar-card: hereda --ink de la página (la tarjeta es un <a>)",
-  "app/globals.css:916": ".cover-icon-box: solo envuelve un <svg> de <CoverIcon>, nunca texto (icono ≥ 3:1, caso 4; lo comprueba el caso 1 en el DOM)",
-  "app/globals.css:921": ".cover-icon-box (oscuro): ídem, solo <svg>",
-  "app/globals.css:926": ".cover-icon-box (data-theme=dark): ídem, solo <svg>",
-  "app/globals.css:1011": "opción marcada del segmentado de TAL-65: blanco sobre --primary-btn (5,06 / 4,66)",
+  "app/globals.css:189": { value: "#ffffff", reason: "blanco sobre --primary-btn (.btn-primary): 5,06 claro / 4,66 oscuro (caso 4)" },
+  "app/globals.css:211": { value: "#ffffff", reason: "blanco sobre --coral-btn (.btn-danger-solid): 4,94 (caso 4)" },
+  "app/globals.css:258": { value: "var(--foreground)", reason: "body: --foreground = --ink (alias legacy de Next)" },
+  "app/globals.css:272": { value: "inherit", reason: "a { color: inherit }: el enlace hereda un color AA del contenedor; los enlaces visibles fijan --primary-ink" },
+  "app/globals.css:337": { value: "#ffffff", reason: "inicial del avatar: blanco sobre --primary-btn (5,06 / 4,66)" },
+  "app/globals.css:693": { value: "var(--bg)", reason: ".toast: burbuja invertida, texto --bg sobre fondo --ink (15,2 / 16,3)" },
+  "app/globals.css:881": { value: "inherit", reason: ".superadmin-calendar-card: hereda --ink de la página (la tarjeta es un <a>)" },
+  "app/globals.css:916": { value: "var(--icon-tile-fg-light, var(--icon-tile-fg))", reason: ".cover-icon-box: solo envuelve un <svg> de <CoverIcon>, nunca texto (icono ≥ 3:1, caso 4; el caso 1 lo comprueba en el DOM)" },
+  "app/globals.css:921": { value: "var(--icon-tile-fg-dark, var(--icon-tile-fg))", reason: ".cover-icon-box (oscuro): ídem, solo <svg>" },
+  "app/globals.css:926": { value: "var(--icon-tile-fg-dark, var(--icon-tile-fg))", reason: ".cover-icon-box (data-theme=dark): ídem, solo <svg>" },
+  "app/globals.css:1011": { value: "#ffffff", reason: "opción marcada del segmentado de TAL-65: blanco sobre --primary-btn (5,06 / 4,66)" },
   // Editor (fuera del calendario)
-  "app/admin/[calendarId]/days-grid-editor.tsx:512": "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)",
-  "app/admin/[calendarId]/calendar-preview.tsx:232": "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin",
-  // Superficie del calendario (skin): grid del editor dentro de la sección de días (days-section.tsx fija --accent con el del skin) y /c/[id]
-  "app/admin/[calendarId]/days-grid-editor.tsx:48": "casilla del grid: hereda; " + SKIN,
-  "app/admin/[calendarId]/days-grid-editor.tsx:103": "número sobre miniatura de vídeo (blanco) o de hoy (--accent del skin); " + SKIN,
-  "app/admin/[calendarId]/days-grid-editor.tsx:113": "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN,
-  "app/admin/[calendarId]/days-grid-editor.tsx:266": "inicial S/D en --coral-ink, resto heredado; " + SKIN,
-  "app/c/[calendarId]/door-grid.tsx:29": "puerta: hereda; " + SKIN,
-  "app/c/[calendarId]/door-grid.tsx:121": "número sobre miniatura (blanco) o de hoy (--accent del skin); " + SKIN,
-  "app/c/[calendarId]/door-grid.tsx:129": "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN,
-  "app/c/[calendarId]/door-grid.tsx:697": "inicial S/D en --coral-ink, resto heredado; " + SKIN,
-  "app/c/[calendarId]/door-grid.tsx:808": "burbuja de paciencia invertida: --bg sobre --ink (15,2 / 16,3)",
-  "app/c/[calendarId]/door-grid-loader.tsx:59": "«Cargando calendario…» en --accent del skin; " + SKIN,
-  "app/c/[calendarId]/door-grid-loader.tsx:63": "aviso de carga en --accent del skin; " + SKIN,
-  "app/c/[calendarId]/page.tsx:299": "aviso de rango demasiado largo en --accent del skin; " + SKIN,
-  "components/cover-text.tsx:37": "texto de portada: el color lo da el tratamiento del skin (resolveCoverTextTreatment, TAL-47); " + SKIN,
-  "components/cover-text.tsx:51": "ídem (variante píldora); " + SKIN,
+  "app/admin/[calendarId]/days-grid-editor.tsx:512": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
+  "app/admin/[calendarId]/calendar-preview.tsx:232": { value: '"#ffffff"', reason: "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin" },
+  // Superficie del calendario: grid del editor dentro de la sección de días (days-section.tsx fija --accent con el del skin) y /c/[id]
+  "app/admin/[calendarId]/days-grid-editor.tsx:48": { value: '"inherit"', reason: "casilla del grid: hereda; " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:103": { value: 'isToday ? "var(--accent)" : "#ffffff"', reason: "número sobre miniatura de vídeo (blanco) o de hoy (--accent del skin); " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:113": { value: 'isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:266": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
+  "app/c/[calendarId]/door-grid.tsx:29": { value: '"inherit"', reason: "puerta: hereda; " + SKIN },
+  "app/c/[calendarId]/door-grid.tsx:121": { value: 'door.isToday ? "var(--accent)" : "#ffffff"', reason: "número sobre miniatura (blanco) o de hoy (--accent del skin); " + SKIN },
+  "app/c/[calendarId]/door-grid.tsx:129": { value: 'door.isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
+  "app/c/[calendarId]/door-grid.tsx:697": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
+  "app/c/[calendarId]/door-grid.tsx:808": { value: '"var(--bg)"', reason: "burbuja de paciencia invertida: --bg sobre --ink (15,2 / 16,3)" },
+  "app/c/[calendarId]/door-grid-loader.tsx:59": { value: '"var(--accent)"', reason: "«Cargando calendario…» en --accent del skin; " + SKIN },
+  "app/c/[calendarId]/door-grid-loader.tsx:63": { value: '"var(--accent)"', reason: "aviso de carga en --accent del skin; " + SKIN },
+  "app/c/[calendarId]/page.tsx:299": { value: '"var(--accent)"', reason: "aviso de rango demasiado largo en --accent del skin; " + SKIN },
+  "components/cover-text.tsx:37": { value: "treatment.color", reason: "texto de portada: el color lo da el tratamiento del skin (resolveCoverTextTreatment, TAL-47); " + SKIN },
+  "components/cover-text.tsx:51": { value: "treatment.color", reason: "ídem (variante píldora); " + SKIN },
+  // .ts (desde el loop 4)
+  "lib/skin-appearance.ts:186": { value: "string", reason: TYPE },
+  "lib/skin-appearance.ts:187": { value: "string", reason: TYPE },
+  "lib/skin-appearance.ts:188": { value: "string", reason: TYPE },
+  "lib/skin-appearance.ts:221": { value: '"#fff"', reason: "tratamiento «photo»: texto blanco con sombra sobre la foto/imagen de fondo de la portada; " + SKIN },
+  "lib/skin-appearance.ts:224": { value: "appearance.textColor", reason: "tratamiento «pill»: textColor del skin sobre píldora oscura; " + SKIN },
+  "lib/skin-appearance.ts:226": { value: "appearance.textColor", reason: "tratamiento «flat»: textColor del skin sobre su fondo (verificado en TAL-47, scripts/verify-tal47-textcolor-wcag.mjs); " + SKIN },
+  "lib/confetti-canvas.ts:26": { value: "string", reason: TYPE },
+  "lib/confetti-canvas.ts:88": { value: "CONFETTI_COLORS[(Math.random() * CONFETTI_COLORS.length) | 0]", reason: "partícula de confeti pintada en <canvas>, decorativa, no texto" },
 };
 
 function* walk(dir: string): Generator<string> {
   for (const entry of readdirSync(dir)) {
     const full = path.join(dir, entry);
     if (statSync(full).isDirectory()) yield* walk(full);
-    else if (/\.(tsx|css)$/.test(entry)) yield full;
+    else if (/\.(ts|tsx|css)$/.test(entry)) yield full;
   }
 }
 
-/** Valor de cada `color:` de la línea (TSX: hasta `,`/`}`; CSS: hasta `;`). */
+/** Quita los comentarios /* … *\/ (con estado entre líneas) y, en .ts/.tsx, las líneas `// …`. */
+function stripComments(lines: string[], isCss: boolean): string[] {
+  let inComment = false;
+  return lines.map((line) => {
+    let out = "";
+    let i = 0;
+    while (i < line.length) {
+      if (inComment) {
+        const end = line.indexOf("*/", i);
+        if (end < 0) return out;
+        inComment = false;
+        i = end + 2;
+      } else {
+        const start = line.indexOf("/*", i);
+        if (start < 0) {
+          out += line.slice(i);
+          break;
+        }
+        out += line.slice(i, start);
+        inComment = true;
+        i = start + 2;
+      }
+    }
+    return !isCss && out.trim().startsWith("//") ? "" : out;
+  });
+}
+
+const COLOR_PROP = /(?<![A-Za-z0-9_$-])(?:color|"color"|'color'|\["color"\]|\['color'\])\s*:\s*/g;
+
+/** Valor de cada declaración de color de la línea (CSS: hasta `;`; TS/TSX: hasta `,`/`;`/`}` fuera de paréntesis). */
 function colorValues(line: string, isCss: boolean): string[] {
   const out: string[] = [];
-  for (const m of line.matchAll(/(?<![A-Za-z-])color:\s*/g)) {
+  for (const m of line.matchAll(COLOR_PROP)) {
     const rest = line.slice(m.index! + m[0].length);
-    out.push((isCss ? rest.split(";")[0] : rest.split(/,(?![^(]*\))|\s\}/)[0]).trim());
+    out.push((isCss ? rest.split(";")[0] : rest.split(/[,;](?![^(]*\))|\s\}|\}$/)[0]).trim());
   }
   return out;
 }
@@ -637,30 +688,28 @@ function isAaValue(value: string, isCss: boolean): boolean {
   return !!m && AA_TEXT_TOKENS.has(m[1]);
 }
 
-test("10 · ningún color de texto fuera de la lista blanca AA sin excepción justificada (barrido de todo src/)", () => {
+test("10 · ningún color de texto fuera de la lista blanca AA sin excepción atada a su valor exacto (barrido de todo src/)", () => {
   const offenders: string[] = [];
   const usedExceptions = new Set<string>();
   for (const file of walk(SRC)) {
     const rel = path.relative(SRC, file);
     const isCss = file.endsWith(".css");
-    readFileSync(file, "utf8").split("\n").forEach((line, i) => {
-      const trimmed = line.trim();
-      if (trimmed.startsWith("//") || trimmed.startsWith("*") || trimmed.startsWith("/*")) return;
+    stripComments(readFileSync(file, "utf8").split("\n"), isCss).forEach((line, i) => {
+      const key = `${rel}:${i + 1}`;
       for (const value of colorValues(line, isCss)) {
         if (isAaValue(value, isCss)) continue;
-        const key = `${rel}:${i + 1}`;
-        if (EXCEPTIONS[key]) {
+        const exception = EXCEPTIONS[key];
+        if (exception && exception.value === value && !usedExceptions.has(key)) {
           usedExceptions.add(key);
           continue;
         }
-        offenders.push(`${key} → color: ${value}`);
+        offenders.push(`${key} → color: ${value}${exception ? `  (la excepción de esta línea solo dispensa, una vez, el valor exacto ${exception.value})` : ""}`);
       }
     });
   }
   expect(offenders, offenders.join("\n")).toEqual([]);
-  // Ninguna excepción huérfana: si el código cambia, se revisa la lista.
   const stale = Object.keys(EXCEPTIONS).filter((k) => !usedExceptions.has(k));
-  expect(stale, `excepciones que ya no corresponden a ninguna línea: ${stale.join(", ")}`).toEqual([]);
+  expect(stale, `excepciones huérfanas (su valor exacto ya no está en esa línea): ${stale.join(", ")}`).toEqual([]);
 
   // El estado del NO-GO del loop 1 (people === null) usa --coral-ink.
   const guests = readFileSync(path.join(SRC, "app/admin/[calendarId]/guests-section.tsx"), "utf8");
