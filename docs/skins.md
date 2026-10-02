@@ -456,6 +456,25 @@ El backup se toma DESPUÉS de sembrar (fase d), así `skinStyles` sigue coherent
   es decorativo y el contenido del bloque deja libre su esquina; el número del "visto" va
   sobre una píldora `rgba(15,24,18,0.6)`; "Cuenta atrás" y "para …" sin opacidad y como
   texto grande (1.2rem/700). Puerta: `scripts/verify-tal62-skin-contrast.mjs`.
+- **Puerta de contraste — criterios** (tras el NO-GO del loop2):
+  - el umbral de cada texto del bloque sale de su tamaño y peso
+    (`scripts/tal62-hero-text-sizes.json`): texto grande (3:1) solo si ≥ 24px, o
+    ≥ 18,66px con peso ≥ 700; cualquier otro, 4,5:1. El E2E comprueba que los valores
+    computados reales no bajan de esa tabla;
+  - **miniatura de la vista previa** (decisión del PM): sin texto, tres barras
+    decorativas (`aria-hidden`) con `--skin-hero-ink`/`--skin-hero-num`; el diálogo a
+    tamaño completo sí lleva los textos;
+  - **avisos del invitado** (cargando, error, rango demasiado largo): dentro de
+    `.skin-notice`, tarjeta opaca `--skin-card` con texto `--skin-ink`, haya o no imagen
+    de fondo debajo;
+  - **"visto" con miniatura de vídeo:** número blanco sobre la píldora
+    `rgba(15,24,18,0.6)`, verificado también sobre el peor caso de foto (blanco puro
+    debajo: 4,74:1);
+  - **editor, número sobre miniatura de vídeo:** píldora opaca `--bg` sobre `--ink`
+    (tokens del tema, 15,2:1 / 16,3:1), sea o no "hoy";
+  - en el barrido de colores de TAL-61, los tokens de texto del skin **no** cuentan
+    como AA en general: cada uso lleva su excepción de valor exacto con el fondo real
+    y el par de la puerta.
 - **Selector:** cuadrados con las muestras (`swatches`) en franjas iguales, en el orden
   del catálogo; el nombre va en `title`/`aria-label` (el Design System no lo muestra). Si
   el calendario apunta a un skin fuera del catálogo, el formulario parte de Alegre.

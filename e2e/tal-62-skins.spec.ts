@@ -7,6 +7,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import type { SkinPalette } from "../convex/skinCatalog2026";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import HERO_TEXT from "../scripts/tal62-hero-text-sizes.json";
 
 /**
  * TAL-62 (parte visual) — los 8 skins en la pantalla del invitado como en el
@@ -64,6 +65,23 @@ const WEEKEND = [1, 2, 3, 4, 5, 6].map((n) => addDays(TODAY, -n)).find((d) => [0
 
 async function css(page: Page, selector: string, prop: string): Promise<string> {
   return await page.locator(selector).first().evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), prop);
+}
+
+/**
+ * Los textos del bloque no bajan del tamaño/peso con el que la puerta de
+ * contraste decide su umbral (scripts/tal62-hero-text-sizes.json).
+ */
+async function expectHeroTextSizes(page: Page, where: string) {
+  for (const [key, usage] of Object.entries(HERO_TEXT)) {
+    if (key.startsWith("_")) continue;
+    const { selector, px, weight } = usage as { selector: string; px: number; weight: number };
+    const computed = await page.locator(`[data-skin-hero] ${selector}`).first().evaluate((el) => {
+      const cs = getComputedStyle(el);
+      return { px: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10) };
+    });
+    expect(computed.px, `${where} ${key} tamaño`).toBeGreaterThanOrEqual(px - 0.01);
+    expect(computed.weight, `${where} ${key} peso`).toBeGreaterThanOrEqual(weight);
+  }
 }
 
 async function guestPage(browser: Browser, opts: { colorScheme?: "light" | "dark"; viewport?: { width: number; height: number } } = {}) {
@@ -253,7 +271,26 @@ test("6 · editor: el selector ofrece exactamente los 8 en orden; la vista previ
   const noche = catalog.find((c) => c.key === "noche")!;
   await page.locator(`[data-skin-option="${noche._id}"]`).click();
   await expect(preview).toHaveAttribute("data-skin-style", "noche");
-  await expect(preview.locator("[data-skin-hero]")).toBeVisible();
+  // NO-GO M1 (loop2): la miniatura compacta NO tiene texto — barras
+  // decorativas con los colores del skin, fuera del árbol accesible.
+  const mini = preview.locator("[data-skin-hero]");
+  await expect(mini).toBeVisible();
+  await expect(mini).toHaveAttribute("aria-hidden", "true");
+  expect((await mini.textContent())?.trim()).toBe("");
+  expect(await mini.locator(".skin-hero-bar-label").evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(rgb(noche.palette.heroInk));
+  expect(await mini.locator(".skin-hero-bar-num").evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(rgb(noche.palette.heroNum));
+  // El diálogo a tamaño completo sí lleva los textos, a tamaño de texto grande.
+  await preview.click();
+  const dialogHero = page.getByRole("dialog").locator("[data-skin-hero]");
+  await expect(dialogHero.locator(".skin-hero-label")).toHaveText("Cuenta atrás");
+  for (const [key, usage] of Object.entries(HERO_TEXT)) {
+    if (key.startsWith("_")) continue;
+    const { selector, px, weight } = usage as { selector: string; px: number; weight: number };
+    const computed = await dialogHero.locator(selector).first().evaluate((el) => ({ px: parseFloat(getComputedStyle(el).fontSize), weight: parseInt(getComputedStyle(el).fontWeight, 10) }));
+    expect(computed.px, `diálogo ${key}`).toBeGreaterThanOrEqual(px - 0.01);
+    expect(computed.weight, `diálogo ${key}`).toBeGreaterThanOrEqual(weight);
+  }
+  await page.getByRole("dialog").getByRole("button", { name: "Cerrar" }).click();
   await page.screenshot({ path: path.join(EVIDENCE_DIR, "6-editor-selector-preview.png"), fullPage: true });
   await page.getByRole("button", { name: "Guardar cambios" }).click();
   await expect
@@ -293,6 +330,58 @@ test("6b · \"Tus calendarios\" (/c): cada tarjeta con los colores de su skin; e
   }
 });
 
+test("6d · editor: el número sobre la miniatura de vídeo va en píldora OPACA --bg sobre --ink, sea o no «hoy»", async ({ browser }) => {
+  const id = calendarBySkin.minimal;
+  await convex.mutation(api.days.upsertDayPublic, { serverSecret: serverSecret(), calendarId: id, date: TODAY, videoUrl: "https://example.com/video-hoy" });
+  for (const [colorScheme, ink, bg] of [["light", "#1d2320", "#fff8ee"], ["dark", "#f2f1ec", "#111513"]] as const) {
+    const page = await (await browser.newContext({ colorScheme })).newPage();
+    await loginAs(page, ACTOR_EMAIL);
+    await page.goto(`/admin/${id}`);
+    for (const d of [TODAY, SEEN]) {
+      const num = page.locator(`button[aria-label="${label(d)} — vídeo asignado"] span`).first();
+      await expect(num, `${colorScheme} ${d}`).toBeVisible();
+      expect(await num.evaluate((el) => getComputedStyle(el).backgroundColor), `${colorScheme} ${d} fondo`).toBe(rgb(ink));
+      expect(await num.evaluate((el) => getComputedStyle(el).color), `${colorScheme} ${d} texto`).toBe(rgb(bg));
+    }
+    await page.context().close();
+  }
+});
+
+test("6c · avisos del invitado (rango demasiado largo) sobre tarjeta opaca --skin-card, también con imagen de fondo", async ({ browser }) => {
+  const noche = catalog.find((c) => c.key === "noche")!;
+  const longId = await convex.mutation(api.calendars.createCalendarPublic, {
+    serverSecret: serverSecret(),
+    userId: actorId,
+    name: `Rango largo ${runId}`,
+    coverTitle: "Rango largo",
+    startDate: "2026-01-01",
+    endDate: "2027-12-31",
+    creationKey: `tal62v-long-${runId}`,
+    skinId: noche._id as Id<"skins">,
+    backgroundImageUrl: "https://example.com/tal62-fondo.jpg",
+  });
+  createdIds.add(longId);
+  await convex.mutation(api.invitations.inviteGuestPublic, { serverSecret: serverSecret(), calendarId: longId, email: GUEST_EMAIL });
+
+  const page = await guestPage(browser, { viewport: { width: 375, height: 900 } });
+  await page.context().clearCookies({ name: "tz" });
+  const notice = page.locator("p.skin-notice", { hasText: "rango de fechas demasiado largo" });
+  // 1ª visita sin cookie `tz` → cargador de cliente (door-grid-loader); al recargar, ya con la cookie → servidor (page.tsx).
+  for (const path_ of ["cargador", "servidor"]) {
+    if (path_ === "servidor") {
+      expect((await page.context().cookies()).some((c) => c.name === "tz"), "cookie tz tras la 1ª visita").toBe(true);
+      await page.reload();
+    } else {
+      await page.goto(`/c/${longId}`);
+    }
+    await expect(notice, path_).toBeVisible();
+    expect(await css(page, "main[data-skin-style]", "background-image"), `${path_}: imagen de fondo debajo`).toContain("tal62-fondo.jpg");
+    expect(await notice.evaluate((el) => getComputedStyle(el).backgroundColor), `${path_}: tarjeta opaca`).toBe(rgb(noche.palette.card));
+    expect(await notice.evaluate((el) => getComputedStyle(el).color), `${path_}: texto`).toBe(rgb(noche.palette.ink));
+  }
+  await page.context().close();
+});
+
 test("7 · capturas de los 8 skins: 375px y escritorio, claro y oscuro (los colores del skin no dependen del tema)", async ({ browser }) => {
   for (const colorScheme of ["light", "dark"] as const) {
     for (const viewport of [{ width: 375, height: 900 }, { width: 1280, height: 1000 }]) {
@@ -303,6 +392,7 @@ test("7 · capturas de los 8 skins: 375px y escritorio, claro y oscuro (los colo
         expect(await css(page, "main[data-skin-style]", "background-color"), `${skin.key} ${colorScheme}`).toBe(rgb(skin.palette.bg));
         const { scrollWidth, clientWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));
         expect(scrollWidth, `${skin.key} sin scroll horizontal`).toBeLessThanOrEqual(clientWidth);
+        await expectHeroTextSizes(page, `${skin.key} ${viewport.width}px`);
         await page.screenshot({ path: path.join(EVIDENCE_DIR, `7-${skin.key}-${colorScheme}-${viewport.width}.png`), fullPage: viewport.width === 375 });
       }
       await page.context().close();

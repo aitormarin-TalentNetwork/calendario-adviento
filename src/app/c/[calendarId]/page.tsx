@@ -272,7 +272,7 @@ async function ServerResolvedDoors({
 
   if (!result.ok) {
     return (
-      <p style={{ color: "var(--skin-ink)" }}>
+      <p className="skin-notice">
         Este calendario tiene un rango de fechas demasiado largo ({result.span} días) para mostrarlo aquí —
         contacta con quien lo administra.
       </p>

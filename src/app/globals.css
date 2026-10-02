@@ -1155,8 +1155,10 @@ a {
 .skin-hero-num {
   color: var(--skin-hero-num);
 }
-/* Vista previa del editor (miniatura): misma pieza a escala. Es una
-   miniatura decorativa del Admin; el tamaño real se verifica en la portada. */
+/* Vista previa del editor (miniatura): misma pieza a escala, SIN texto
+   (NO-GO M1 del loop2, decisión del PM): barras decorativas con los colores
+   del skin en el sitio de cada línea. Selectores con `.skin-hero.skin-hero-compact`
+   para imponerse a la píldora blanca de Rojiblanco (`.skin-stripes-pill .skin-hero > *`). */
 .skin-hero-compact {
   align-self: stretch;
   border-radius: 10px;
@@ -1173,13 +1175,26 @@ a {
 .skin-hero-compact > * {
   max-width: calc(100% - 30px);
 }
-.skin-hero-compact .skin-hero-label,
-.skin-hero-compact .skin-hero-for {
-  font-size: 0.42rem;
+.skin-hero.skin-hero-compact {
+  gap: 3px;
 }
-.skin-hero-compact .skin-hero-big {
-  font-size: 0.8rem;
-  margin: 1px 0;
+.skin-hero.skin-hero-compact > .skin-hero-bar {
+  display: block;
+  height: 4px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--skin-hero-ink);
+}
+.skin-hero.skin-hero-compact > .skin-hero-bar-label {
+  width: 38%;
+}
+.skin-hero.skin-hero-compact > .skin-hero-bar-num {
+  width: 26%;
+  height: 8px;
+  background: var(--skin-hero-num);
+}
+.skin-hero.skin-hero-compact > .skin-hero-bar-for {
+  width: 50%;
 }
 
 /* Tarjeta del mes y casillas (los colores, inline en door-grid.tsx desde las
@@ -1189,6 +1204,16 @@ a {
   color: var(--skin-ink);
   border-radius: 22px;
   padding: 12px;
+}
+
+/* Avisos de la pantalla del invitado (cargando, error, rango demasiado
+   largo): tarjeta opaca del skin (NO-GO M2 del loop2) — su contraste es el
+   par ink/card que verifica la puerta, haya o no imagen de fondo debajo. */
+.skin-notice {
+  background: var(--skin-card);
+  color: var(--skin-ink);
+  border-radius: 14px;
+  padding: 10px 14px;
 }
 
 /* Tira Cómica: contorno negro 2.5px + sombra dura 3px 3px 0 en el bloque de

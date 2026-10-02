@@ -14,11 +14,16 @@
 // rgba(15,24,18,0.6); "Cuenta atrás" y "para …" van SIN opacidad y como
 // TEXTO GRANDE (1.2rem/700 ≥ 18.66px en negrita), igual que el número.
 // Umbrales WCAG: 4.5:1 texto normal, 3:1 texto grande y elementos gráficos
-// (icono).
+// (icono). Loop3 (NO-GO M1): el umbral de cada texto del bloque se DERIVA de
+// su tamaño y peso (scripts/tal62-hero-text-sizes.json, que el E2E ata a los
+// valores computados reales) — texto grande solo si >= 24px, o >= 18.66px con
+// peso >= 700; cualquier otro, 4.5:1. La miniatura compacta de la vista
+// previa ya no tiene texto (barras decorativas), así que no se evalúa.
 //
 // Lee la paleta del catálogo SEMBRADO en el deployment de desarrollo
 // (`skins.listCatalogPublic`), la misma que pinta la app.
 //   set -a && source .env.local && source .env && set +a && node --no-warnings scripts/verify-tal62-skin-contrast.mjs
+import { readFileSync } from "node:fs";
 import { ConvexHttpClient } from "convex/browser";
 import { api } from "../convex/_generated/api.js";
 
@@ -28,6 +33,11 @@ if (!url || !secret) {
   console.error("Faltan NEXT_PUBLIC_CONVEX_URL y/o CONVEX_APP_SERVER_SECRET en el entorno.");
   process.exit(1);
 }
+
+const HERO_TEXT = JSON.parse(readFileSync(new URL("./tal62-hero-text-sizes.json", import.meta.url), "utf8"));
+const isLargeText = ({ px, weight }) => px >= 24 || (px >= 18.66 && weight >= 700);
+const thresholdFor = (usage) => (isLargeText(usage) ? 3 : 4.5);
+const describe = (key, u) => `${key} ${u.px}px/${u.weight} (${isLargeText(u) ? "grande" : "normal"})`;
 
 // --- color -----------------------------------------------------------------------------------
 function parseColor(c) {
@@ -51,7 +61,6 @@ const over = (top, bottom) => ({
   b: top.b * top.a + bottom.b * (1 - top.a),
   a: 1,
 });
-const withAlpha = (c, a) => ({ ...c, a });
 function luminance({ r, g, b }) {
   const ch = (v) => {
     const s = v / 255;
@@ -160,24 +169,23 @@ for (const skin of catalog) {
   // "Visto": número blanco sobre su píldora oscura, compuesta sobre cada muestra de seenA → seenB.
   const seen = samples(`linear-gradient(140deg,${p.seenA},${p.seenB})`);
   check(name, "blanco sobre píldora del visto (seenA→seenB)", parseColor("#ffffff"), seen.map((s) => ({ at: s.at, color: over(parseColor("rgba(15,24,18,0.6)"), s.color) })), 4.5);
+  // Con miniatura de vídeo, la casilla "visto" lleva la foto debajo: peor
+  // caso para el blanco = foto blanca pura (cualquier otra es más oscura).
+  check(name, "blanco sobre píldora del visto sobre CUALQUIER foto (peor: #fff)", parseColor("#ffffff"), [{ at: "foto #fff", color: over(parseColor("rgba(15,24,18,0.6)"), parseColor("#ffffff")) }], 4.5);
 
-  // Bloque de la cuenta atrás.
-  if (skin.treatment === "stripes-pill") {
-    const pill = flat("#ffffff");
-    check(name, "heroInk sobre píldora blanca", parseColor(p.heroInk), pill, 4.5);
-    void withAlpha;
-    check(name, "heroNum (grande) sobre píldora blanca", parseColor(p.heroNum), pill, 3);
-  } else {
-    const heroSamples = samples(p.hero);
-    check(name, "heroInk (grande: 'Cuenta atrás', 'para …') sobre bloque", parseColor(p.heroInk), heroSamples, 3);
-    check(name, "heroNum (grande) sobre bloque", parseColor(p.heroNum), heroSamples, 3);
+  // Bloque de la cuenta atrás: umbral según tamaño/peso de cada texto.
+  const heroBackgrounds = skin.treatment === "stripes-pill" ? flat("#ffffff") : samples(p.hero);
+  const where = skin.treatment === "stripes-pill" ? "píldora blanca" : "bloque";
+  for (const [key, usage] of Object.entries(HERO_TEXT)) {
+    if (key.startsWith("_")) continue;
+    check(name, `${usage.fg} ${describe(key, usage)} sobre ${where}`, parseColor(p[usage.fg]), heroBackgrounds, thresholdFor(usage));
   }
 }
 
 console.log("Umbrales: 4.5:1 texto normal · 3:1 texto grande e icono. Peor caso por par.\n");
-console.log("skin".padEnd(13) + "par".padEnd(44) + "mín  peor    texto    fondo    dónde");
+console.log("skin".padEnd(13) + "par".padEnd(70) + "mín  peor    texto    fondo    dónde");
 for (const r of rows) {
-  console.log(`${r.skin.padEnd(13)}${r.what.padEnd(44)}${String(r.min).padEnd(5)}${r.r.toFixed(2).padStart(5)}:1 ${r.fg} ${r.bg} ${r.at.padEnd(10)} ${r.ok ? "✓" : "✗"} ${r.fix}`);
+  console.log(`${r.skin.padEnd(13)}${r.what.padEnd(70)}${String(r.min).padEnd(5)}${r.r.toFixed(2).padStart(5)}:1 ${r.fg} ${r.bg} ${r.at.padEnd(10)} ${r.ok ? "✓" : "✗"} ${r.fix}`);
 }
 console.log(failures === 0 ? `\nOK — los ${rows.length} pares cumplen.` : `\n✗ ${failures} de ${rows.length} pares NO cumplen. Puerta de contraste CERRADA: informe al PM antes de publicar la parte visual.`);
 process.exit(failures === 0 ? 0 : 1);
