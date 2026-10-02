@@ -352,9 +352,10 @@ se despliega durante el build con el Next antiguo sirviendo. Solo tablas e índi
 `listAllPublic` y los datos no cambian: el Next antiguo sigue igual. Antes de sembrar, la
 barrera y el default se comportan como siempre.
 
-**(b) Verificar que sirve el Next nuevo** — `data-skin-style` en la portada de un
-calendario de prueba del Super Admin (con sesión), 3 veces. *(Marcador de la parte
-visual de TAL-62.)*
+**(b) Verificar que sirve el Next nuevo** — `data-skin-style` en el `<main>` de la
+portada de un calendario de prueba del Super Admin (con sesión), 3 veces. Antes de
+sembrar vale `"fallback"` (todo se pinta con el respaldo Alegre y el selector ofrece las
+filas antiguas — modo degradado `not-seeded`); tras la fase (c), la key del skin.
 
 **(c) Sembrar y smoke.**
 ```
@@ -362,7 +363,8 @@ npx convex run --prod skins:seedSkinCatalog2026 '{}'
 npx convex run --prod skins:listCatalogPublic '{"serverSecret":"<secreto>"}'   # 8, en orden
 ```
 Seguro también con el Next antiguo (filas nuevas con campos antiguos; conservadas
-intactas). Desde aquí, la barrera de escritura está activa. Smoke: los 8 en el selector,
+intactas). Desde aquí, la barrera de escritura está activa y el Next sale del modo
+degradado `not-seeded` (`data-skin-style` deja de ser `"fallback"`). Smoke: los 8 en el selector,
 un calendario nuevo nace con Alegre, Tira Cómica / Rojiblanco / Nieve con su versión nueva.
 
 **(d) Backup, auditoría y migración.**
@@ -425,6 +427,41 @@ El backup se toma DESPUÉS de sembrar (fase d), así `skinStyles` sigue coherent
   la ausencia de `listCatalogPublic` (modo degradado — parte visual).
 - **Next** anterior a TAL-62: posible — los skins nuevos llevan campos antiguos y los
   calendarios migrados se pintan con los de Alegre (estilo antiguo, nada roto).
+
+### Parte visual (Next)
+- **Carga:** `src/lib/skin-catalog.ts` → `loadSkinCatalog()`, única vía del front.
+  `full` con el catálogo; `degraded` (`reason: "old-convex"` si Convex responde que
+  `listCatalogPublic` no existe, `"not-seeded"` si devuelve `[]`): todo con el respaldo
+  Alegre y el selector con las filas antiguas (`listAllPublic`). Cualquier otro error se
+  propaga.
+- **Estilo:** `src/lib/skin-style.ts` (puro). `resolveSkinStyle(skinId, catalog)` → la
+  paleta del skin o `ALEGRE_FALLBACK_STYLE` (key `"fallback"`: skin antiguo sin migrar,
+  retirado, inexistente o modo degradado). `skinStyleVars()` lo lleva a variables CSS
+  `--skin-*` en el contenedor, y además `--icon-tile-bg`/`--icon-tile-fg` (recuadro del
+  icono, par `tile`/`tileInk`) y `--accent`. Un skin **nunca** cambia la fuente.
+- **`--skin-seen-bg`** = `linear-gradient(140deg, seenA, seenB)`: contrato con TAL-67.
+  Se define en el `<main>` del invitado y en la sección "Días del calendario" del editor;
+  TAL-67 lo consume como capa inferior (`var(--skin-seen-bg, var(--primary))`).
+- **Dónde se aplica:** `<main data-skin-style>` del invitado (`c/[calendarId]/page.tsx`),
+  portadas de las tarjetas de `/c`,
+  miniatura y diálogo de la vista previa del editor (`calendar-preview.tsx`, también con
+  `data-skin-style`), sección de días del editor (solo las variables).
+- **Tratamientos** (`globals.css`, bloque "TAL-62 — skins"): `.skin-comic` (contorno
+  negro 2.5px + sombra dura `3px 3px 0` en bloque, tarjeta del mes, icono y casillas no
+  bloqueadas) y `.skin-stripes-pill` (Rojiblanco: rayas solo en el bloque de la cuenta
+  atrás, cada texto sobre píldora blanca).
+- **Reglas de contraste aprobadas por el PM** (normativas, igual que el mockup): el halo
+  es decorativo y el contenido del bloque deja libre su esquina; el número del "visto" va
+  sobre una píldora `rgba(15,24,18,0.6)`; "Cuenta atrás" y "para …" sin opacidad y como
+  texto grande (1.2rem/700). Puerta: `scripts/verify-tal62-skin-contrast.mjs`.
+- **Selector:** cuadrados con las muestras (`swatches`) en franjas iguales, en el orden
+  del catálogo; el nombre va en `title`/`aria-label` (el Design System no lo muestra). Si
+  el calendario apunta a un skin fuera del catálogo, el formulario parte de Alegre.
+- **"Tus calendarios" (`/c`)** (decisión del PM, dentro de TAL-62): la portada de cada
+  tarjeta (`.calendar-card-cover[data-skin-style]`) lleva el fondo del skin (o la imagen
+  de fondo) y el recuadro del icono con su par `tile`/`tileInk`, igual que la pantalla
+  del invitado; respaldo Alegre y modo degradado igual que en el resto. La tarjeta solo
+  lleva el `skinId` (`src/lib/user-mode-calendars.ts`); ya no usa los campos antiguos.
 
 ### Evidencia
 `scripts/verify-tal62-skin-migration.mjs` ensaya todo lo anterior contra el deployment de

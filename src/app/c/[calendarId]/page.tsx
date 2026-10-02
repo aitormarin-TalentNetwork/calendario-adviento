@@ -3,20 +3,21 @@ import { notFound, redirect } from "next/navigation";
 import { fetchQuery } from "convex/nextjs";
 import { api } from "../../../../convex/_generated/api";
 import type { Id } from "../../../../convex/_generated/dataModel";
-import { CountdownMarkerLoader } from "@/app/c/[calendarId]/countdown-marker-loader";
 import { DoorGrid } from "@/app/c/[calendarId]/door-grid";
 import { DoorGridLoader } from "@/app/c/[calendarId]/door-grid-loader";
 import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly, todayInTimeZone } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
-import { DEFAULT_COUNTDOWN_LABEL, daysUntil, formatCountdownMessage } from "@/lib/countdown";
+import { DEFAULT_COUNTDOWN_LABEL, daysUntil } from "@/lib/countdown";
 import { CoverIcon } from "@/components/cover-icon";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { resolveCalendarAccess } from "@/lib/roles";
-import { resolveSkinAppearance, skinBackgroundStyle, type SkinAppearance } from "@/lib/skin-appearance";
-import { CoverText } from "@/components/cover-text";
+import { skinBackgroundStyle } from "@/lib/skin-appearance";
+import { loadSkinCatalog } from "@/lib/skin-catalog";
+import { resolveSkinStyle, skinStyleVars, skinTreatmentClass, type SkinStyle } from "@/lib/skin-style";
 import { CalendarCoverHeader } from "@/components/calendar-cover-header";
+import { CountdownHero } from "@/components/countdown-hero";
 
 /**
  * TAL-14 — reconectada contra Convex (`calendars.getPublic`, TAL-12, ya
@@ -41,13 +42,16 @@ async function getCalendarForGuestPage(
   coverIcon: string | null;
   endDate: Date;
   countdownLabel: string;
-  appearance: SkinAppearance;
+  skinStyle: SkinStyle;
   backgroundImageUrl: string | null;
 } | null> {
   const serverSecret = convexAppServerSecret();
-  const [calendar, skins] = await Promise.all([
+  // TAL-62 — catálogo 2026 (`loadSkinCatalog`, con modo degradado si el
+  // Convex desplegado es anterior a TAL-62): el estilo del skin del
+  // calendario, o el respaldo Alegre si su skin no está en el catálogo.
+  const [calendar, skinCatalog] = await Promise.all([
     fetchQuery(api.calendars.getPublic, { serverSecret, calendarId: calendarId as Id<"calendars"> }),
-    fetchQuery(api.skins.listAllPublic, { serverSecret }),
+    loadSkinCatalog(),
   ]);
   if (!calendar) return null;
   return {
@@ -59,7 +63,7 @@ async function getCalendarForGuestPage(
     // Respaldo para calendarios creados antes de TAL-27 — ver
     // convex/schema.ts § countdownLabel.
     countdownLabel: calendar.countdownLabel ?? DEFAULT_COUNTDOWN_LABEL,
-    appearance: resolveSkinAppearance(calendar.skinId, skins),
+    skinStyle: resolveSkinStyle(calendar.skinId, skinCatalog.catalog),
     // TAL-39 — deliberadamente NO llega a /login (página sin autenticar,
     // restricción de seguridad de TAL-25 que esta tarea no ensancha); esta
     // página SÍ está autenticada, mismo criterio ya establecido para
@@ -82,7 +86,7 @@ export default async function GuestCalendarPage({
   // tenga acceso a él.
   const calendar = await getCalendarForGuestPage(calendarId);
   if (!calendar) notFound();
-  const { appearance, endDate, countdownLabel, backgroundImageUrl } = calendar;
+  const { skinStyle, endDate, countdownLabel, backgroundImageUrl } = calendar;
 
   // Cualquier rol (Guest, Admin o Super Admin) puede ver el calendario; para
   // un Guest sin membership todavía, resolveCalendarAccess la crea aquí
@@ -111,16 +115,14 @@ export default async function GuestCalendarPage({
   // TAL-27, parte 2 — mismo criterio de zona horaria que las puertas justo
   // arriba: si ya hay cookie `tz`, "hoy" se resuelve aquí mismo en el
   // servidor (`todayInTimeZone`, mismo helper que ya usa
-  // `ServerResolvedDoors` más abajo); si no, el marcador se difiere a
-  // `CountdownMarkerLoader` (cliente, resuelve con `Intl` del navegador tras
-  // montar) — nunca un valor por defecto tipo UTC calculado aquí. A
+  // `ServerResolvedDoors` más abajo); si no, el número se difiere al
+  // propio `CountdownHero` (TAL-62; cliente, resuelve con `Intl` del
+  // navegador tras montar) — nunca un valor por defecto tipo UTC. A
   // diferencia de las puertas, un desfase de un día en este número no
   // filtra contenido de ningún día (no es un hallazgo de seguridad como el
   // de TAL-8 ronda 2), pero el brief pide explícitamente reutilizar el
   // mismo patrón ya establecido, sin reinventarlo.
-  const countdownMessage = tz
-    ? formatCountdownMessage(daysUntil(todayInTimeZone(new Date(), tz), endDate), countdownLabel)
-    : null;
+  const daysRemaining = tz ? daysUntil(todayInTimeZone(new Date(), tz), endDate) : null;
 
   // TAL-47 — resuelto en una variable propia (tipada como
   // `React.CSSProperties`, no con un `as` inline) antes de mezclarla con
@@ -132,11 +134,12 @@ export default async function GuestCalendarPage({
   // `skinBackgroundStyle`, no `coverBackgroundStyle` — la primera ya no
   // antepone la capa oscura cuando no hay foto (el contraste lo garantiza
   // `textColor` ahora), ver `skin-appearance.ts`.
-  const mainBackgroundStyle: React.CSSProperties = skinBackgroundStyle(appearance.background, backgroundImageUrl);
+  const mainBackgroundStyle: React.CSSProperties = skinBackgroundStyle(skinStyle.palette.bg, backgroundImageUrl);
 
   return (
     <main
-      className="session-page-main"
+      className={["session-page-main", skinTreatmentClass(skinStyle)].filter(Boolean).join(" ")}
+      data-skin-style={skinStyle.key}
       style={
         {
           flex: 1,
@@ -187,14 +190,12 @@ export default async function GuestCalendarPage({
           // semanas anteriores del mismo mes se ven por detrás durante el
           // scroll. Ver el comentario completo en `door-grid.tsx`.
           ...mainBackgroundStyle,
-          // Se sobreescribe `--accent` a nivel de página para que TODO lo
-          // que ya usa `var(--accent)` más abajo (incluida `DoorGrid`,
-          // componente cliente — las custom properties CSS heredan por el
-          // árbol del DOM sin importar límites de componente/Server-Client)
-          // refleje el acento del skin sin tocar `door-grid.tsx` más de lo
-          // necesario. Sin cambios en esta tarea — el acento no cambia de
-          // alcance (brief de TAL-47), solo el fondo.
-          "--accent": appearance.accent,
+          // TAL-62 — colores del skin como variables (`skinStyleVars`): los
+          // consumen la cabecera, el bloque de la cuenta atrás, el grid, el
+          // modal y el recuadro del icono (también sobrescribe `--accent`).
+          // `--skin-seen-bg` es el contrato con TAL-67 (casilla "visto").
+          ...skinStyleVars(skinStyle),
+          color: "var(--skin-ink)",
         } as React.CSSProperties
       }
     >
@@ -223,52 +224,35 @@ export default async function GuestCalendarPage({
           es la ÚNICA capa de fondo real de toda la pantalla — esta
           tarjeta queda transparente y la deja pasar. */}
       <CalendarCoverHeader
-        background={appearance.background}
+        background={skinStyle.palette.bg}
         backgroundImageUrl={backgroundImageUrl}
-        textColor={appearance.textColor}
-        textPill={appearance.textPill}
+        textColor={skinStyle.palette.ink}
+        textPill={false}
         titleTag="h1"
         paintBackground={false}
-        containerStyle={{ marginBottom: "1.5rem", borderRadius: "0.75rem", padding: "1.25rem 1.5rem" }}
+        containerStyle={{ marginBottom: "1rem", borderRadius: "0.75rem", padding: "1.25rem 0 0" }}
         title={calendar.coverTitle}
-        countdown={(treatment) =>
-          countdownMessage ? (
-            <p style={{ marginTop: "0.5rem" }}>
-              <CoverText treatment={treatment} style={{ fontSize: "1.5rem", fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
-                {countdownMessage}
-              </CoverText>
-            </p>
-          ) : (
-            <CountdownMarkerLoader endDate={endDate.toISOString().slice(0, 10)} label={countdownLabel} treatment={treatment} />
-          )
-        }
+        countdown={() => (
+          // TAL-62 — bloque de la cuenta atrás del Estilo 2026 (colores del
+          // skin, textos grandes, halo decorativo fuera del texto).
+          <div style={{ marginTop: "1rem" }}>
+            <CountdownHero daysRemaining={daysRemaining} endDate={endDate.toISOString().slice(0, 10)} label={countdownLabel} />
+          </div>
+        )}
       >
-        {/* TAL-60 — icono Lucide en su recuadro pastel, encima del título
-            (antes, emoji en línea con el h1), coloreado con el accent del
-            skin si da contraste ≥ 3:1 (`resolveCoverIconColors`). */}
+        {/* TAL-60 — icono Lucide en su recuadro; TAL-62 — con el par
+            `tile`/`tileInk` del skin (`--icon-tile-bg`/`--icon-tile-fg`,
+            puestos por `skinStyleVars` en `<main>`), diseñado y verificado
+            por skin, así que ya no se pasa `accent`. */}
         <div style={{ marginBottom: "0.75rem" }}>
-          <CoverIcon value={calendar.coverIcon} size={26} box={52} accent={appearance.accent} />
+          <CoverIcon value={calendar.coverIcon} size={26} box={52} />
         </div>
       </CalendarCoverHeader>
 
       {tz ? (
-        <ServerResolvedDoors
-          calendarId={calendarId}
-          userId={user.id}
-          timeZone={tz}
-          background={appearance.background}
-          backgroundImageUrl={backgroundImageUrl}
-          textColor={appearance.textColor}
-          textPill={appearance.textPill}
-        />
+        <ServerResolvedDoors calendarId={calendarId} userId={user.id} timeZone={tz} />
       ) : (
-        <DoorGridLoader
-          calendarId={calendarId}
-          background={appearance.background}
-          backgroundImageUrl={backgroundImageUrl}
-          textColor={appearance.textColor}
-          textPill={appearance.textPill}
-        />
+        <DoorGridLoader calendarId={calendarId} />
       )}
     </main>
   );
@@ -278,38 +262,23 @@ async function ServerResolvedDoors({
   calendarId,
   userId,
   timeZone,
-  background,
-  backgroundImageUrl,
-  textColor,
-  textPill,
 }: {
   calendarId: string;
   userId: string;
   timeZone: string;
-  background: string;
-  backgroundImageUrl: string | null;
-  textColor: string;
-  textPill: boolean;
 }) {
   const today = todayInTimeZone(new Date(), timeZone);
   const result = await resolveDoors(calendarId, userId, today);
 
   if (!result.ok) {
     return (
-      <p style={{ color: "var(--accent)" }}>
+      <p style={{ color: "var(--skin-ink)" }}>
         Este calendario tiene un rango de fechas demasiado largo ({result.span} días) para mostrarlo aquí —
         contacta con quien lo administra.
       </p>
     );
   }
   return (
-    <DoorGrid
-      calendarId={calendarId}
-      doors={result.doors}
-      background={background}
-      backgroundImageUrl={backgroundImageUrl}
-      textColor={textColor}
-      textPill={textPill}
-    />
+    <DoorGrid calendarId={calendarId} doors={result.doors} />
   );
 }

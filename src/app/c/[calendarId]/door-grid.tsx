@@ -9,50 +9,50 @@ import { daysUntil } from "@/lib/countdown";
 import { playRewardSound } from "@/lib/reward-sound";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
 import type { DoorInfo } from "@/lib/guest-calendar";
-import { resolveCoverTextTreatment, skinBackgroundStyle, type CoverTextTreatment } from "@/lib/skin-appearance";
+import type { CoverTextTreatment } from "@/lib/skin-appearance";
 import { CoverText } from "@/components/cover-text";
 
 const WEEKDAY_INITIALS = ["L", "M", "X", "J", "V", "S", "D"];
 
 function cellStyle(door: DoorInfo): React.CSSProperties {
+  // TAL-62 — forma y colores del skin (design/propuesta-skins-modernos.html):
+  // esquinas redondeadas, casilla `--skin-cell`, "hoy" `--skin-today` con su
+  // sombra, bloqueado con borde discontinuo `--skin-line` (sigue siendo
+  // pulsable: TAL-41), "visto" con `--skin-seen-bg` (lo pone el render;
+  // contrato con TAL-67, que pinta su imagen encima). Las variables las
+  // pone `page.tsx` en `<main>` (`skinStyleVars`).
   const base: React.CSSProperties = {
     aspectRatio: "1",
-    background: "var(--bg)",
+    background: "var(--skin-cell)",
     position: "relative",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
     border: "none",
+    borderRadius: "10px",
     padding: 0,
     fontFamily: "inherit",
-    color: "inherit",
+    color: "var(--skin-ink)",
+    cursor: "pointer",
   };
-  if (door.isToday) {
-    // Ajuste 2026-08-17 (design-system.md § "Grid de días"): "hoy" tiene
-    // que notarse claramente de un vistazo, no solo al fijarse — borde
-    // más grueso (2px, antes 1.5px) + fondo sutil en --sun al 10% de
-    // opacidad (token fijo, no --accent: "hoy" es una marca universal,
-    // no depende del skin elegido). `boxShadow` inset con spread grande
-    // en vez de `background`/`backgroundImage`: esta celda puede
-    // combinar "hoy" con cualquier otro estado (abierto, bloqueado,
-    // visto-con-miniatura) que ya ocupa esas dos propiedades más abajo —
-    // el box-shadow se pinta como una capa aparte encima, sin pisarlas.
-    base.border = "2px dashed var(--accent)";
-    base.boxShadow = "inset 0 0 0 999px color-mix(in srgb, var(--sun) 10%, transparent)";
-  }
   if (door.state === "locked") {
-    // TAL-41 — antes `cursor: "default"` (día bloqueado = no interactivo);
-    // ahora el clic SÍ tiene reacción (pulso + letrero de "impaciencia",
-    // ver `triggerImpatienceEffect`), aunque el vídeo en sí siga sin
-    // desbloquearse — `cursor: "pointer"` para que se note que responde.
-    return { ...base, opacity: 0.4, cursor: "pointer" };
+    return { ...base, background: "transparent", border: "1.5px dashed var(--skin-line)", color: "var(--skin-dim)" };
   }
   if (door.state === "watched") {
-    return { ...base, cursor: "pointer" };
+    return door.isToday ? { ...base, outline: "2px solid var(--skin-today)", outlineOffset: "1px" } : base;
   }
-  // unseen ("abierto, sin ver")
-  return { ...base, cursor: "pointer", background: "var(--surface-2)" };
+  if (door.isToday) {
+    return {
+      ...base,
+      background: "var(--skin-today)",
+      color: "var(--skin-today-ink)",
+      transform: "scale(1.06)",
+      boxShadow: "0 5px 12px var(--skin-today-shadow)",
+      zIndex: 1,
+    };
+  }
+  return base;
 }
 
 /**
@@ -76,23 +76,22 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
  */
 const outOfRangeCellStyle: React.CSSProperties = {
   aspectRatio: "1",
-  background: "var(--surface)",
+  background: "transparent",
+  borderRadius: "10px",
   position: "relative",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
 };
 
+// TAL-62 — como el mockup (`.d.out`): `--skin-dim` al 30 %. Decorativo: la
+// casilla es `aria-hidden` y el tachado ya dice que no pertenece al
+// calendario (exento de 1.4.3; un test comprueba el `aria-hidden`).
 const outOfRangeNumStyle: React.CSSProperties = {
   fontVariantNumeric: "tabular-nums",
-  fontWeight: 800,
-  color: "var(--ink)",
-  // Ajustado a 0.15 para encajar con el borrador en vivo de
-  // design-system.md § "Responsive / Mobile" (opacity baja, ejemplo
-  // explícito 0.15) confirmado por la Directora — no venía de ningún
-  // documento commiteado en el momento en que se escribió este valor,
-  // así que se corrige aquí en cuanto se conoció el número exacto.
-  opacity: 0.15,
+  fontWeight: 600,
+  color: "var(--skin-dim)",
+  opacity: 0.3,
 };
 
 /**
@@ -107,18 +106,15 @@ const outOfRangeNumStyle: React.CSSProperties = {
  */
 function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
   if (door.state === "watched") {
+    // TAL-62 — número sobre píldora oscura en los 8 skins (contraste aprobado
+    // por el PM: el blanco no llega sobre los "visto" claros sin ella).
     return {
       position: "absolute",
       bottom: "5px",
       right: "8px",
       fontWeight: 600,
       background: "rgba(15,24,18,0.6)",
-      // Hallazgo de auditoría, ronda 1: el color de "hoy" (--accent) tiene
-      // que aplicarse SIEMPRE, se combine con el estado que se combine —
-      // antes esta rama ignoraba `isToday` por completo, así que abrir el
-      // vídeo de hoy mismo (unseen → watched, cambio optimista) apagaba el
-      // número de acento a blanco en el propio clic.
-      color: door.isToday ? "var(--accent)" : "#ffffff",
+      color: "#ffffff",
       borderRadius: "999px",
       fontVariantNumeric: "tabular-nums",
     };
@@ -126,7 +122,14 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
   return {
     fontVariantNumeric: "tabular-nums",
     fontWeight: 800,
-    color: door.isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)",
+    color:
+      door.state === "locked"
+        ? "var(--skin-dim)"
+        : door.isToday
+          ? "var(--skin-today-ink)"
+          : isWeekend
+            ? "var(--skin-weekend)"
+            : "var(--skin-ink)",
   };
 }
 
@@ -162,22 +165,12 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
  * modal de vídeo (antes con un fondo fijo `var(--background)`, sin
  * relación con el skin) — ver `coverBackgroundStyle`, `skin-appearance.ts`.
  */
-export function DoorGrid({
-  calendarId,
-  doors: initialDoors,
-  background,
-  backgroundImageUrl,
-  textColor,
-  textPill,
-}: {
-  calendarId: string;
-  doors: DoorInfo[];
-  background: string;
-  backgroundImageUrl: string | null;
-  textColor: string;
-  textPill: boolean;
-}) {
-  const textTreatment = resolveCoverTextTreatment({ textColor, textPill }, !!backgroundImageUrl);
+export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: string; doors: DoorInfo[] }) {
+  // TAL-62 — la cabecera del mes y el modal van sobre la tarjeta opaca del
+  // skin (`--skin-card`), así que su texto es siempre `--skin-ink` (contraste
+  // verificado en scripts/verify-tal62-skin-contrast.mjs), con o sin imagen
+  // de fondo del calendario.
+  const textTreatment: CoverTextTreatment = { kind: "flat", color: "var(--skin-ink)" };
   const [doors, setDoors] = useState(initialDoors);
   const [openDate, setOpenDate] = useState<string | null>(null);
   const [markError, setMarkError] = useState(false);
@@ -629,15 +622,10 @@ export function DoorGrid({
           `page.tsx`). Segura de dejar transparente porque no es
           `position: sticky` — nada se desplaza "por debajo" de ella en un
           sentido que pueda filtrarse. */}
-      <div
-        style={{
-          border: "1px solid var(--line)",
-          borderRadius: "16px",
-          boxShadow: "var(--shadow)",
-          overflow: "hidden",
-        }}
-      >
-        <div style={{ maxHeight: "70vh", overflowY: "auto" }}>
+      {/* TAL-62 — tarjeta del mes del skin (`.skin-month-card`: `--skin-card`,
+          radio 22px; contorno de cómic en Tira Cómica). */}
+      <div className="skin-month-card" style={{ overflow: "hidden" }}>
+        <div className="dg-scroll" style={{ maxHeight: "70vh", overflowY: "auto" }}>
           {months.map((month) => (
             <div key={month.key}>
               <div
@@ -668,7 +656,8 @@ export function DoorGrid({
                   // lugar) — preferible una costura pequeña y estática a
                   // un glitch real de contenido superpuesto durante el
                   // scroll. Ver `src/lib/skin-appearance.ts`.
-                  ...skinBackgroundStyle(background, backgroundImageUrl),
+                  background: "var(--skin-card)",
+                  color: "var(--skin-ink)",
                   fontWeight: 800,
                 }}
               >
@@ -679,22 +668,20 @@ export function DoorGrid({
                 style={{
                   display: "grid",
                   gridTemplateColumns: "repeat(7, 1fr)",
-                  gap: "1px",
-                  background: "var(--line)",
+                  gap: "5px",
                   fontVariantNumeric: "tabular-nums",
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
-                  color: "var(--ink-dim)",
+                  color: "var(--skin-dim)",
                 }}
               >
                 {WEEKDAY_INITIALS.map((initial, i) => (
                   <span
                     key={initial}
                     style={{
-                      background: "var(--surface)",
                       textAlign: "center",
                       padding: "6px 0",
-                      color: i >= 5 ? "var(--coral-ink)" : undefined,
+                      color: i >= 5 ? "var(--skin-weekend)" : undefined,
                       fontWeight: i >= 5 ? 700 : undefined,
                     }}
                   >
@@ -708,13 +695,13 @@ export function DoorGrid({
                   style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(7, 1fr)",
-                    gap: "1px",
-                    background: "var(--line)",
+                    gap: "5px",
+                    marginTop: "5px",
                   }}
                 >
                   {week.map((cell, dayIdx) => {
                     if (cell.kind === "padding") {
-                      return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--surface)" }} />;
+                      return <div key={dayIdx} style={{ aspectRatio: "1" }} />;
                     }
                     if (cell.kind === "out-of-range") {
                       return (
@@ -753,7 +740,9 @@ export function DoorGrid({
                         type="button"
                         aria-label={`${door.label}${door.state === "locked" ? " — bloqueado, todavía no puedes abrirlo" : door.state === "watched" ? " — ya visto" : ""}`}
                         onClick={(event) => handleOpen(door, event.currentTarget)}
-                        className={burstingDate === door.dateStr ? "dg-bursting" : undefined}
+                        className={["dg-door", door.state === "locked" ? "dg-door-locked" : null, burstingDate === door.dateStr ? "dg-bursting" : null]
+                          .filter(Boolean)
+                          .join(" ")}
                         style={style}
                       >
                         <span className={numClassName} style={numStyle(door, isWeekend)}>
@@ -763,7 +752,8 @@ export function DoorGrid({
                           <span
                             aria-hidden="true"
                             className="dg-lock-icon"
-                            style={{ position: "absolute", bottom: "6px", right: "8px", display: "flex" }}
+                            // TAL-62 — arriba a la derecha: abajo tapaba los números de dos cifras en móvil.
+                            style={{ position: "absolute", top: "5px", right: "6px", display: "flex" }}
                           >
                             {/* TAL-60 — candado Lucide (antes 🔒); tamaño
                                 relativo al font-size de `.dg-lock-icon`. */}
@@ -856,7 +846,7 @@ export function DoorGrid({
               // sí no se toca)". `--accent` ya está heredado desde
               // `page.tsx`, así que no hace falta pasar el skin explícito
               // aquí también.
-              border: "2px solid var(--accent)",
+              border: "2px solid var(--skin-line)",
               // TAL-47 — `skinBackgroundStyle` en vez del antiguo
               // `coverBackgroundStyle`.
               //
@@ -872,7 +862,8 @@ export function DoorGrid({
               // propio fondo dejaría el modal sin fondo legible en
               // absoluto, no "continuo con la página". Mismo criterio ya
               // adelantado en el brief de TAL-50.
-              ...skinBackgroundStyle(background, backgroundImageUrl),
+              background: "var(--skin-card)",
+              color: "var(--skin-ink)",
               borderRadius: "1rem",
               maxWidth: "480px",
               width: "100%",

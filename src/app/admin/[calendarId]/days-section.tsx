@@ -103,6 +103,7 @@ export async function DaysSection({
   backgroundImageUrl,
   skinTextColor,
   skinTextPill,
+  skinVars,
 }: {
   calendarId: string;
   skinAccent: string;
@@ -110,6 +111,8 @@ export async function DaysSection({
   backgroundImageUrl: string | null;
   skinTextColor: string;
   skinTextPill: boolean;
+  /** TAL-62 — variables `--skin-*` del skin (incluida `--skin-seen-bg`, contrato con TAL-67) para el grid del editor. */
+  skinVars?: React.CSSProperties;
 }) {
   // Solo se atrapa el fallo de la propia llamada (Convex no disponible,
   // secreto mal configurado, red caída) — un mensaje de "no disponible"
@@ -174,7 +177,7 @@ export async function DaysSection({
   });
 
   return (
-    <section style={{ marginTop: "2rem", "--accent": skinAccent } as React.CSSProperties}>
+    <section style={{ marginTop: "2rem", ...skinVars, "--accent": skinAccent } as React.CSSProperties}>
       <h2 style={{ fontSize: "1.1rem", marginBottom: "0.25rem" }}>Días del calendario</h2>
       {/* TAL-34 (design/design-system.md § "Editor de calendario",
           design/propuesta-editor-calendario.html) — texto explicativo fijo

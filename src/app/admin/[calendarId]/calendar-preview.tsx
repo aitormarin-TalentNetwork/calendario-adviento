@@ -4,26 +4,24 @@ import { useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { CalendarCoverHeader } from "@/components/calendar-cover-header";
 import { CoverIcon } from "@/components/cover-icon";
-import { CoverText } from "@/components/cover-text";
-import { parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
-import { daysUntil, formatCountdownMessage } from "@/lib/countdown";
+import { CountdownHero } from "@/components/countdown-hero";
+import { skinStyleVars, skinTreatmentClass, type SkinStyle } from "@/lib/skin-style";
 
 export type CalendarPreviewProps = {
   coverIcon: string;
   coverTitle: string;
   countdownLabel: string;
   // "YYYY-MM-DD" — puede llegar vacío/inválido mientras el Admin edita el
-  // campo de fecha de fin (ver `useCountdownText` más abajo).
+  // campo de fecha de fin (el bloque de la cuenta atrás muestra "…").
   endDate: string;
-  // Ya resuelto por quien llama (`resolveSkinAppearance(skinId, skins)`)
-  // — este componente no conoce Convex ni el catálogo de skins.
-  background: string;
   backgroundImageUrl: string | null;
-  textColor: string;
-  textPill: boolean;
-  // TAL-60 — accent del skin seleccionado en vivo, para el color del icono
-  // (`resolveCoverIconColors`); `null` → color por defecto del recuadro.
-  accent: string | null;
+  /**
+   * TAL-62 — estilo del skin seleccionado EN VIVO (catálogo 2026, o el
+   * respaldo Alegre): la vista previa se pinta con las mismas variables
+   * `--skin-*`, el mismo bloque de la cuenta atrás y el mismo tratamiento
+   * que la portada real.
+   */
+  skinStyle: SkinStyle;
 };
 
 /**
@@ -37,17 +35,6 @@ export type CalendarPreviewProps = {
  * el texto suelto que este componente sustituye (TAL-27, ronda 1: NaN
  * tratado igual que "todavía no se sabe").
  */
-function useCountdownText(endDate: string, countdownLabel: string): string {
-  const [todayStr, setTodayStr] = useState<string | null>(null);
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- excepción deliberada: el valor depende de la zona horaria real del navegador, exclusivamente de cliente — mismo criterio que countdown-marker-loader.tsx/edit-calendar-form.tsx.
-    setTodayStr(todayDateStrInTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone));
-  }, []);
-  if (todayStr === null) return "…";
-  const daysRemaining = daysUntil(parseDateOnlyUTC(todayStr), parseDateOnlyUTC(endDate));
-  if (Number.isNaN(daysRemaining)) return "…";
-  return formatCountdownMessage(daysRemaining, countdownLabel);
-}
 
 /**
  * Vista previa en vivo del calendario en el editor de Admin (TAL-29,
@@ -86,16 +73,17 @@ export function CalendarPreview({
   coverTitle,
   countdownLabel,
   endDate,
-  background,
   backgroundImageUrl,
-  textColor,
-  textPill,
-  accent,
+  skinStyle,
 }: CalendarPreviewProps) {
+  const background = skinStyle.palette.bg;
+  const textColor = skinStyle.palette.ink;
+  const textPill = false;
+  const skinWrapperStyle = skinStyleVars(skinStyle);
+  const treatmentClass = skinTreatmentClass(skinStyle);
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const countdownText = useCountdownText(endDate, countdownLabel);
 
   function closeDialog() {
     setOpen(false);
@@ -119,7 +107,10 @@ export function CalendarPreview({
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Ver vista previa a tamaño completo"
+        className={treatmentClass}
+        data-skin-style={skinStyle.key}
         style={{
+          ...skinWrapperStyle,
           display: "block",
           width: "100%",
           flex: 1,
@@ -156,18 +147,11 @@ export function CalendarPreview({
           }}
           titleStyle={{ fontWeight: 800, fontSize: "0.58rem", lineHeight: 1.15, textWrap: "balance" }}
           title={coverTitle}
-          countdown={(treatment) => (
-            <CoverText
-              treatment={treatment}
-              style={{ fontVariantNumeric: "tabular-nums", fontSize: "0.46rem", letterSpacing: "0.02em", whiteSpace: "nowrap" }}
-            >
-              {countdownText}
-            </CoverText>
-          )}
+          countdown={() => <CountdownHero compact daysRemaining={null} endDate={endDate} label={countdownLabel} />}
         >
           {/* TAL-60 — antes emoji con sombra; ahora icono Lucide en su
               recuadro, a la escala "apretada" de la miniatura. */}
-          <CoverIcon value={coverIcon} size={14} box={26} accent={accent} />
+          <CoverIcon value={coverIcon} size={14} box={26} />
         </CalendarCoverHeader>
       </button>
 
@@ -188,7 +172,12 @@ export function CalendarPreview({
             zIndex: 50,
           }}
         >
-          <div onClick={(event) => event.stopPropagation()} style={{ maxWidth: "420px", width: "100%", position: "relative" }}>
+          <div
+            onClick={(event) => event.stopPropagation()}
+            className={treatmentClass}
+            data-skin-style={skinStyle.key}
+            style={{ ...skinWrapperStyle, maxWidth: "420px", width: "100%", position: "relative" }}
+          >
             <CalendarCoverHeader
               background={background}
               backgroundImageUrl={backgroundImageUrl}
@@ -208,16 +197,16 @@ export function CalendarPreview({
               }}
               titleStyle={{ fontWeight: 800, fontSize: "1.9rem", lineHeight: 1.25, textWrap: "balance" }}
               title={coverTitle}
-              countdown={(treatment) => (
-                <CoverText treatment={treatment} style={{ fontVariantNumeric: "tabular-nums", fontSize: "1rem", letterSpacing: "0.03em" }}>
-                  {countdownText}
-                </CoverText>
+              countdown={() => (
+                <div style={{ width: "100%", textAlign: "left" }}>
+                  <CountdownHero daysRemaining={null} endDate={endDate} label={countdownLabel} />
+                </div>
               )}
             >
               {/* TAL-60 — el círculo translúcido con el emoji pasa a ser el
                   recuadro pastel con el icono Lucide (mismo componente que
                   la portada real, a mayor tamaño). */}
-              <CoverIcon value={coverIcon} size={40} box={84} accent={accent} />
+              <CoverIcon value={coverIcon} size={40} box={84} />
             </CalendarCoverHeader>
             <button
               ref={closeButtonRef}

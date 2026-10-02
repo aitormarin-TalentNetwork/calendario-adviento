@@ -33,3 +33,25 @@ export function formatCountdownMessage(daysRemaining: number, label: string): st
   if (daysRemaining === 1) return `Falta 1 día para ${resolvedLabel}`;
   return `Faltan ${daysRemaining} días para ${resolvedLabel}`;
 }
+
+/**
+ * TAL-62 — el mismo mensaje que `formatCountdownMessage`, en piezas, para el
+ * bloque de la cuenta atrás del Estilo 2026 (etiqueta "Cuenta atrás",
+ * número destacado y "para …"). El texto que se lee completo es idéntico
+ * al de `formatCountdownMessage` (lo comprueba un test).
+ */
+export type CountdownParts =
+  | { kind: "today"; text: string }
+  | { kind: "days"; prefix: string; number: number; unit: string; forLabel: string };
+
+export function countdownParts(daysRemaining: number, label: string): CountdownParts {
+  const resolvedLabel = label.trim() || DEFAULT_COUNTDOWN_LABEL;
+  if (daysRemaining <= 0) return { kind: "today", text: `¡Hoy es ${resolvedLabel}!` };
+  return {
+    kind: "days",
+    prefix: daysRemaining === 1 ? "Falta" : "Faltan",
+    number: daysRemaining,
+    unit: daysRemaining === 1 ? "día" : "días",
+    forLabel: `para ${resolvedLabel}`,
+  };
+}

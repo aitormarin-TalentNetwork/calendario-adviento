@@ -79,13 +79,18 @@ const TOKENS = {
 // cambia 1-14px solo por las métricas de la nueva familia. Tras los
 // cambios de color y forma, todo debe seguir igual que la medida
 // post-tipografía (± 1px).
+// TAL-62: la rejilla de puertas del invitado pasa a `gap: 5px` (mockup
+// normativo design/propuesta-skins-modernos.html, `.days`), así que en
+// escritorio la puerta mide 112px en vez de 118px, y en móvil 38px en vez
+// de 43px; además lleva radio 10px (`.d` del mockup). Cambio deliberado de
+// TAL-62, no de TAL-61.
 const PRE_TAL61 = {
-  desktop: { door: [118, 118], cell: [118, 118], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
-  mobile: { door: [43, 43], cell: [64, 64], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
+  desktop: { door: [112, 112], cell: [118, 118], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
+  mobile: { door: [38, 38], cell: [64, 64], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
 } as const;
 const REFERENCE: Record<"desktop" | "mobile", Geometry> = {
   desktop: {
-    door: { w: 118, h: 118, padding: "0px", radius: "0px" },
+    door: { w: 112, h: 112, padding: "0px", radius: "10px" },
     doorColumns: 7,
     doorModalClose: { w: 20, h: 20, padding: "0px", radius: "0px" },
     cell: { w: 118, h: 118, padding: "0px", radius: "0px" },
@@ -99,7 +104,7 @@ const REFERENCE: Record<"desktop" | "mobile", Geometry> = {
     skinSwatch: { w: 34, h: 34, padding: "3px", radius: "8px" },
   },
   mobile: {
-    door: { w: 43, h: 43, padding: "0px", radius: "0px" },
+    door: { w: 38, h: 38, padding: "0px", radius: "10px" },
     doorColumns: 7,
     doorModalClose: { w: 20, h: 20, padding: "0px", radius: "0px" },
     cell: { w: 64, h: 64, padding: "0px", radius: "0px" },

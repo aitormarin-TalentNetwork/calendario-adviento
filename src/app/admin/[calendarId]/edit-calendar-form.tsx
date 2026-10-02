@@ -13,7 +13,7 @@ import { SkinPicker, type SkinOption } from "@/app/admin/[calendarId]/skin-picke
 import { SubmitButton } from "@/components/submit-button";
 import { DEFAULT_COUNTDOWN_LABEL, MAX_COUNTDOWN_LABEL_LENGTH } from "@/lib/countdown";
 import { normalizeCoverIcon } from "@/lib/cover-icons";
-import { DEFAULT_SKIN_APPEARANCE } from "@/lib/skin-appearance";
+import { ALEGRE_FALLBACK_STYLE } from "@/lib/skin-style";
 
 type EditCalendarFormProps = {
   calendar: {
@@ -124,9 +124,9 @@ type EditCalendarFieldsProps = {
 function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();
   const selectedSkin = skins.find((skin) => skin.id === fieldValues.skinId);
-  const previewBackground = selectedSkin?.background ?? DEFAULT_SKIN_APPEARANCE.background;
-  const previewTextColor = selectedSkin?.textColor ?? DEFAULT_SKIN_APPEARANCE.textColor;
-  const previewTextPill = selectedSkin?.textPill ?? DEFAULT_SKIN_APPEARANCE.textPill;
+  // TAL-62 — estilo del skin seleccionado en vivo (catálogo 2026); sin él
+  // (modo degradado o skin fuera del catálogo), el respaldo Alegre.
+  const previewSkinStyle = selectedSkin?.skinStyle ?? ALEGRE_FALLBACK_STYLE;
 
   return (
     <div className="editor-columns">
@@ -177,11 +177,8 @@ function EditCalendarFields({ fieldValues, setField, skins }: EditCalendarFields
             coverTitle={fieldValues.coverTitle}
             countdownLabel={fieldValues.countdownLabel}
             endDate={fieldValues.endDate}
-            background={previewBackground}
             backgroundImageUrl={fieldValues.backgroundImageUrl || null}
-            textColor={previewTextColor}
-            textPill={previewTextPill}
-            accent={selectedSkin?.accent ?? null}
+            skinStyle={previewSkinStyle}
           />
         </div>
         <div className="editor-field">
