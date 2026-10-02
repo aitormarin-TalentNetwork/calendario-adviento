@@ -146,18 +146,66 @@ export const getByIdPublic = query({
  */
 async function setPreferredModeHandler(
   ctx: MutationCtx,
-  args: { userId: Id<"users">; mode: "user" | "admin" }
+  args: { userId: Id<"users">; mode: "user" | "admin" | "superadmin" }
 ): Promise<void> {
   const user = await ctx.db.get(args.userId);
   if (!user) throw new Error("El usuario indicado no existe.");
+  // TAL-68 — "superadmin" solo para quien lo es, leído en fresco en esta
+  // misma transacción (mismo criterio que `requireSuperAdmin`), no solo en
+  // la Server Action. Y nunca con la congelación de rollback activa.
+  if (args.mode === "superadmin" && (user.isSuperAdmin !== true || preferredModeSuperadminFrozen())) {
+    throw new Error("No autorizado.");
+  }
   await ctx.db.patch(args.userId, { preferredMode: args.mode });
 }
+
+/**
+ * TAL-68 — congelación para el rollback (docs/menu-cuenta.md § "Rollback"):
+ * con `PREFERRED_MODE_SUPERADMIN_FROZEN=1` en el deployment de Convex,
+ * `setPreferredModeHandler` (la única función que escribe `preferredMode`)
+ * rechaza "superadmin", para que nada vuelva a escribirlo entre la limpieza
+ * y el deploy del schema anterior. Mismo patrón que
+ * `calendarPeople.ts::invitationRolesFrozen` (TAL-65).
+ */
+function preferredModeSuperadminFrozen(): boolean {
+  return process.env.PREFERRED_MODE_SUPERADMIN_FROZEN === "1";
+}
+
+const rollbackPageArgs = { cursor: v.optional(v.union(v.string(), v.null())), batchSize: v.optional(v.number()) };
+
+/**
+ * TAL-68 — rollback, paso 1: pasa `preferredMode: "superadmin"` a "admin",
+ * por lotes (repetir con `continueCursor` hasta `isDone`). Idempotente.
+ */
+export const downgradeSuperadminPreferredMode = internalMutation({
+  args: rollbackPageArgs,
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query("users").paginate({ cursor: args.cursor ?? null, numItems: args.batchSize ?? 200 });
+    let downgraded = 0;
+    for (const user of page.page) {
+      if (user.preferredMode !== "superadmin") continue;
+      await ctx.db.patch(user._id, { preferredMode: "admin" });
+      downgraded += 1;
+    }
+    return { processed: page.page.length, downgraded, isDone: page.isDone, continueCursor: page.continueCursor };
+  },
+});
+
+/** TAL-68 — rollback, paso 2: cuenta usuarios con "superadmin", por lotes (la suma tiene que ser 0). */
+export const countSuperadminPreferredMode = internalQuery({
+  args: rollbackPageArgs,
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query("users").paginate({ cursor: args.cursor ?? null, numItems: args.batchSize ?? 1000 });
+    const withSuperadmin = page.page.filter((user) => user.preferredMode === "superadmin").length;
+    return { processed: page.page.length, withSuperadmin, isDone: page.isDone, continueCursor: page.continueCursor };
+  },
+});
 
 export const setPreferredModePublic = mutation({
   args: {
     serverSecret: v.string(),
     userId: v.id("users"),
-    mode: v.union(v.literal("user"), v.literal("admin")),
+    mode: v.union(v.literal("user"), v.literal("admin"), v.literal("superadmin")),
   },
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);

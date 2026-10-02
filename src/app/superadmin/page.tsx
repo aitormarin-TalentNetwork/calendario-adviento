@@ -136,7 +136,7 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
       className="session-page-main"
       style={{ flex: 1, paddingLeft: "2rem", paddingRight: "2rem", paddingBottom: "2rem", display: "flex", flexDirection: "column", gap: "2rem" }}
     >
-      <SessionIndicator user={user} mode="admin" />
+      <SessionIndicator user={user} mode="superadmin" />
       <div>
         <h1>Todos los calendarios</h1>
         <p style={{ color: "var(--ink-dim)" }}>Visión global, cualquier calendario de cualquier Admin.</p>

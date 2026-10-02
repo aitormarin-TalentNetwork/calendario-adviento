@@ -344,8 +344,12 @@ test("7 · invitado puro: sin sección Modo; lista solo con >1; siempre modo Usu
   });
   const headers = response.headers();
   const target = (response.status() === 303 ? headers["location"] : headers["x-action-redirect"])?.split(";")[0];
-  expect(target, `respuesta inesperada: ${response.status()} ${JSON.stringify(headers)}`).toBe("/c");
+  // TAL-68 — un modo no permitido ya no va directo a /c: redirige a /start,
+  // que aterriza en el modo válido (para un invitado puro, /c). Nada se guarda.
+  expect(target, `respuesta inesperada: ${response.status()} ${JSON.stringify(headers)}`).toBe("/start");
   expect(await preferredModeOf(guestManyId)).toBeNull();
+  await page.goto("/start");
+  await page.waitForURL(/\/c$/);
   await context.close();
 
   // Con un solo calendario no hay lista (y /c lleva directo a ese calendario).
@@ -366,7 +370,9 @@ test("8 · Super Admin sin memberships: ve «Modo»; en modo Admin, «Administra
   await loginAs(page, SUPER_EMPTY_EMAIL);
   await page.goto("/admin");
   await openMenu(page);
-  await expect(menu(page).getByRole("menuitemradio", { name: "Admin" })).toHaveAttribute("aria-checked", "true");
+  // TAL-68 — el Super Admin ve también «Super Admin» (nombre exacto: «Admin» es subcadena).
+  await expect(menu(page).getByRole("menuitemradio")).toHaveText(["Usuario", "Admin", "Super Admin"]);
+  await expect(menu(page).getByRole("menuitemradio", { name: "Admin", exact: true })).toHaveAttribute("aria-checked", "true");
   await expect(menu(page).getByText("Administrar")).toBeVisible();
   for (const key of ["A", "B", "C", "D", "E"] as const) {
     await expect(menu(page).getByRole("menuitem", { name: NAME[key] })).toHaveAttribute("href", `/admin/${cal[key]}`);

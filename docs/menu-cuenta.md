@@ -92,3 +92,59 @@ modo Admin, y 375px (avatar ≥ 44×44, menú dentro de pantalla, filas ≥ 44px
   vistas. Si algún día hay cientos de calendarios: paginar con `.paginate()`
   e índice por creación, y en el menú mostrar los más recientes más un
   "Ver todos" hacia `/admin`.
+
+## TAL-68 — modo «Super Admin»
+
+- Quien es Super Admin ve una tercera opción en «Modo»: **Usuario | Admin |
+  Super Admin**. «Super Admin» lleva a `/superadmin`, que pasa `mode="superadmin"`
+  al indicador (la opción queda marcada). En ese modo el menú no lista
+  calendarios: `/superadmin` ya los muestra todos.
+- **Una sola regla**, pura, en `src/lib/account-modes.ts`:
+  `allowedModes(user, administeredCount)` (menú), `isAllowedMode` (Server
+  Action) y `landingPath` (`/start`). `canUseAdminMode` vive ahí y `roles.ts`
+  la reexporta.
+- **Recordar el modo**: `users.preferredMode` admite `"superadmin"`.
+  - `switchModeAction` lo valida con `isAllowedMode` (con `isSuperAdmin` en
+    fresco); un modo no permitido no guarda nada y redirige a `/start`.
+  - **Convex lo vuelve a exigir** en `setPreferredModeHandler`, en la misma
+    transacción que la escritura: «No autorizado.» si `isSuperAdmin !== true`
+    (o con la congelación activa). La Server Action traduce ese rechazo a `/start`.
+  - **Valor que ya no es válido**: si le quitan el rol a alguien que guardó
+    `"superadmin"`, `landingPath` lo manda a `/admin` (si administra algo) o a
+    `/c`, nunca a `/superadmin` ni a `/unauthorized`. Probado con
+    `scripts/verify-tal68-stale-superadmin-mode.mjs` (patrón `_scratch_*`, solo
+    en desarrollo; no hay ninguna vía desplegada para quitar el rol).
+
+### Orden de despliegue
+
+**Convex primero, Next después.** Next antiguo + Convex nuevo funciona (el
+schema solo se amplía y el `/start` antiguo trata cualquier valor distinto de
+`"user"` como `/admin`). Next nuevo + Convex antiguo no: guardar
+`"superadmin"` fallaría en el validador.
+
+### Rollback
+
+La política es arreglar hacia delante. Revertir falla en `convex deploy` si
+algún usuario tiene `preferredMode: "superadmin"` (el schema anterior no lo
+acepta): es un fallo seguro, producción sigue como estaba. Si de verdad hay que
+revertir, **lo ejecuta quien publica** (Integrador/CEO), nunca una terminal de
+trabajo:
+
+0. **Congelar**: `npx convex env set PREFERRED_MODE_SUPERADMIN_FROZEN 1 --prod`.
+   `setPreferredModeHandler`, la única función que escribe `preferredMode`,
+   rechaza entonces `"superadmin"` (incluso para un Super Admin): el Next
+   nuevo no puede volver a escribirlo mientras se limpia.
+1. **Limpiar por lotes** (pasa `"superadmin"` a `"admin"`), hasta `isDone: true`:
+   ```sh
+   cursor=null; while :; do
+     out=$(npx convex run --prod users:downgradeSuperadminPreferredMode "{\"cursor\": $cursor}"); echo "$out"
+     [ "$(echo "$out" | jq -r .isDone)" = true ] && break
+     cursor=$(echo "$out" | jq .continueCursor)
+   done
+   ```
+2. **Verificar** con el mismo bucle sobre `users:countSuperadminPreferredMode`:
+   la suma de `withSuperadmin` de todas las páginas tiene que ser **0**. Si no,
+   volver al paso 1.
+3. **Desplegar el código anterior** (redeploy del commit previo en Railway).
+   Ahora `convex deploy` acepta el schema viejo.
+4. Quitar la congelación: `npx convex env remove PREFERRED_MODE_SUPERADMIN_FROZEN --prod`.
