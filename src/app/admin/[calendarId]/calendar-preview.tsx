@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { CalendarCoverHeader } from "@/components/calendar-cover-header";
+import { CoverIcon } from "@/components/cover-icon";
 import { CoverText } from "@/components/cover-text";
 import { parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { daysUntil, formatCountdownMessage } from "@/lib/countdown";
@@ -19,6 +21,9 @@ export type CalendarPreviewProps = {
   backgroundImageUrl: string | null;
   textColor: string;
   textPill: boolean;
+  // TAL-60 — accent del skin seleccionado en vivo, para el color del icono
+  // (`resolveCoverIconColors`); `null` → color por defecto del recuadro.
+  accent: string | null;
 };
 
 /**
@@ -85,6 +90,7 @@ export function CalendarPreview({
   backgroundImageUrl,
   textColor,
   textPill,
+  accent,
 }: CalendarPreviewProps) {
   const [open, setOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -159,9 +165,9 @@ export function CalendarPreview({
             </CoverText>
           )}
         >
-          <span aria-hidden="true" style={{ fontSize: "1.1rem", filter: "drop-shadow(0 2px 6px rgba(0,0,0,0.35))" }}>
-            {coverIcon}
-          </span>
+          {/* TAL-60 — antes emoji con sombra; ahora icono Lucide en su
+              recuadro, a la escala "apretada" de la miniatura. */}
+          <CoverIcon value={coverIcon} size={14} box={26} accent={accent} />
         </CalendarCoverHeader>
       </button>
 
@@ -208,22 +214,10 @@ export function CalendarPreview({
                 </CoverText>
               )}
             >
-              <div
-                aria-hidden="true"
-                style={{
-                  width: "84px",
-                  height: "84px",
-                  borderRadius: "999px",
-                  background: "rgba(246,241,228,0.16)",
-                  border: "1px solid rgba(246,241,228,0.4)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: "2.4rem",
-                }}
-              >
-                {coverIcon}
-              </div>
+              {/* TAL-60 — el círculo translúcido con el emoji pasa a ser el
+                  recuadro pastel con el icono Lucide (mismo componente que
+                  la portada real, a mayor tamaño). */}
+              <CoverIcon value={coverIcon} size={40} box={84} accent={accent} />
             </CalendarCoverHeader>
             <button
               ref={closeButtonRef}
@@ -241,10 +235,14 @@ export function CalendarPreview({
                 height: "30px",
                 borderRadius: "999px",
                 cursor: "pointer",
-                fontSize: "1rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
               }}
             >
-              ✕
+              {/* TAL-60 — `X` de Lucide (antes ✕). */}
+              <X size={18} strokeWidth={2} aria-hidden="true" />
             </button>
           </div>
         </div>

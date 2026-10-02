@@ -12,8 +12,10 @@ import { api, convex, serverSecret } from "./helpers/convex";
  *
  * Datos (sembrados por un Super Admin "actor", el único que puede crear
  * calendarios desde TAL-57):
- * - ADMIN (no Super Admin): administra A (⛄), B (🎁) y C (sin coverIcon →
- *   DEFAULT_COVER_ICON), e invitado a D.
+ * - ADMIN (no Super Admin): administra A (☃️), B (🎁) y C (sin coverIcon →
+ *   DEFAULT_COVER_ICON), e invitado a D. TAL-60: A y B son emojis del
+ *   catálogo antiguo (los acepta la escritura tolerante) y el menú los pinta
+ *   como su icono Lucide equivalente.
  * - GUEST_MANY: invitado puro a A y D. GUEST_ONE: invitado puro solo a D.
  * - ADMIN_ONE: administra solo E. SUPER_EMPTY: Super Admin sin memberships.
  */
@@ -107,7 +109,7 @@ test.beforeAll(async () => {
   guestManyId = await seedUser({ email: GUEST_MANY_EMAIL });
   await seedUser({ email: SUPER_EMPTY_EMAIL, superAdmin: true });
 
-  await createCalendar("A", "⛄");
+  await createCalendar("A", "☃️");
   await createCalendar("B", "🎁");
   await createCalendar("C"); // sin coverIcon → respaldo DEFAULT_COVER_ICON
   await createCalendar("D", "🦌");
@@ -160,14 +162,17 @@ test("1 · Admin en /admin: solo la foto; menú con email, Modo Admin, lista «A
 
   const rows = m.getByRole("menuitem").filter({ hasNotText: "Cerrar sesión" });
   await expect(rows).toHaveCount(3);
+  // TAL-60 — el icono de cada fila es Lucide (`<CoverIcon>`), normalizado:
+  // ☃️ → snowflake, 🎁 → gift, sin coverIcon → DEFAULT_COVER_ICON (tree-pine).
   for (const [key, icon] of [
-    ["A", "⛄"],
-    ["B", "🎁"],
+    ["A", "snowflake"],
+    ["B", "gift"],
     ["C", DEFAULT_COVER_ICON],
   ] as const) {
     const row = m.getByRole("menuitem", { name: NAME[key] });
     await expect(row).toHaveAttribute("href", `/admin/${cal[key]}`);
-    await expect(row.locator(".account-menu-calendar-icon")).toHaveText(icon);
+    await expect(row.locator(".account-menu-calendar-icon")).toHaveAttribute("data-cover-icon", icon);
+    await expect(row.locator(".account-menu-calendar-icon svg.lucide")).toHaveAttribute("stroke", "currentColor");
   }
   // El invitado D no es de modo Admin.
   await expect(m.getByRole("menuitem", { name: NAME.D })).toHaveCount(0);

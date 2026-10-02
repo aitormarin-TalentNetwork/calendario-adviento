@@ -1,4 +1,4 @@
-import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
+import { normalizeCoverIcon, type CoverIconName } from "../../convex/coverIconCatalog";
 import { DEFAULT_SKIN_APPEARANCE, resolveSkinAppearance, type SkinAppearance, type SkinLike } from "@/lib/skin-appearance";
 
 /**
@@ -75,7 +75,7 @@ export type UserModeCardInput = {
 export type UserModeCard = {
   id: string;
   title: string;
-  icon: string;
+  icon: CoverIconName;
   appearance: SkinAppearance;
   backgroundImageUrl: string | null;
   subtitle: string;
@@ -86,7 +86,9 @@ export function toUserModeCard(row: UserModeCardInput): UserModeCard {
   return {
     id: row.id,
     title: cardTitle(row.coverTitle, row.name),
-    icon: row.coverIcon ?? DEFAULT_COVER_ICON,
+    // TAL-60 — nombre Lucide normalizado (emoji antiguo sin migrar → su
+    // equivalente; ausente → árbol por defecto).
+    icon: normalizeCoverIcon(row.coverIcon),
     appearance: normalizeCardAppearance(row.skin),
     backgroundImageUrl: row.backgroundImageUrl ?? null,
     subtitle: cardSubtitle(row.isAdmin, row.startDate, row.endDate),

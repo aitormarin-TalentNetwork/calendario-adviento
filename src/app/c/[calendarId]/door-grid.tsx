@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { Lock, X } from "lucide-react";
 import { markDayViewedAction } from "@/app/c/[calendarId]/actions";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { createConfettiEngine, type ConfettiEngine } from "@/lib/confetti-canvas";
@@ -758,9 +759,11 @@ export function DoorGrid({
                           <span
                             aria-hidden="true"
                             className="dg-lock-icon"
-                            style={{ position: "absolute", bottom: "6px", right: "8px" }}
+                            style={{ position: "absolute", bottom: "6px", right: "8px", display: "flex" }}
                           >
-                            🔒
+                            {/* TAL-60 — candado Lucide (antes 🔒); tamaño
+                                relativo al font-size de `.dg-lock-icon`. */}
+                            <Lock size="1.2em" strokeWidth={2} aria-hidden="true" />
                           </span>
                         )}
                       </button>
@@ -876,8 +879,11 @@ export function DoorGrid({
               <h3 style={{ margin: 0 }}>
                 <CoverText treatment={textTreatment}>{openDoor.label}</CoverText>
               </h3>
-              <button ref={closeButtonRef} type="button" onClick={closeModal} aria-label="Cerrar" style={{ background: "none", border: "none", padding: 0, cursor: "pointer" }}>
-                <CoverText treatment={textTreatment}>✕</CoverText>
+              <button ref={closeButtonRef} type="button" onClick={closeModal} aria-label="Cerrar" style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "flex" }}>
+                {/* TAL-60 — `X` de Lucide (antes ✕), mismo tratamiento de color del skin. */}
+                <CoverText treatment={textTreatment} style={{ display: "inline-flex" }}>
+                  <X size={20} strokeWidth={2} aria-hidden="true" />
+                </CoverText>
               </button>
             </div>
             {openDoor.videoUrl ? (

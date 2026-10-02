@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { deleteDayAction, saveDayAction, type SaveDayState } from "@/app/admin/[calendarId]/days-actions";
 import { SubmitButton } from "@/components/submit-button";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
@@ -366,8 +367,8 @@ export function DaysGridEditor({
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
               <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem" }}>{openDay.label}</h4>
-              <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--text-dim)", fontSize: "1.1rem", cursor: "pointer" }}>
-                ✕
+              <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: "0.25rem" }}>
+                <X size={20} strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
             {/* key: al cambiar de día, se desmonta y vuelve a montar en vez de

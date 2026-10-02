@@ -12,7 +12,6 @@ import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COUNTDOWN_LABEL } from "@/lib/countdown";
-import { DEFAULT_COVER_ICON } from "@/lib/cover-icons";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
 import { resolveSkinAppearance } from "@/lib/skin-appearance";
@@ -21,7 +20,7 @@ type AdminCalendar = {
   id: string;
   name: string;
   coverTitle: string;
-  coverIcon: string;
+  coverIcon: string | null;
   countdownLabel: string;
   startDate: Date;
   endDate: Date;
@@ -61,9 +60,9 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
       id: calendar._id,
       name: calendar.name,
       coverTitle: calendar.coverTitle,
-      // Respaldo para calendarios creados antes de TAL-23 — ver
-      // convex/schema.ts § coverIcon.
-      coverIcon: calendar.coverIcon ?? DEFAULT_COVER_ICON,
+      // TAL-60 — valor crudo; el formulario lo normaliza al nombre Lucide
+      // (`normalizeCoverIcon`, edit-calendar-form.tsx).
+      coverIcon: calendar.coverIcon ?? null,
       // Respaldo para calendarios creados antes de TAL-27 — ver
       // convex/schema.ts § countdownLabel.
       countdownLabel: calendar.countdownLabel ?? DEFAULT_COUNTDOWN_LABEL,

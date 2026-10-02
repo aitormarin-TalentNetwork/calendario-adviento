@@ -219,4 +219,21 @@ export default defineSchema({
     // visual de TAL-47).
     textPill: v.optional(v.boolean()),
   }).index("by_key", ["key"]),
+
+  // TAL-60 — registro duradero de la migración de `coverIcon` (emoji →
+  // nombre Lucide), ver `convex/coverIconMigration.ts` y docs/iconos.md.
+  // Cada fila se escribe en la MISMA transacción que el `patch` del
+  // calendario: si el lote falla no queda ni el cambio ni su registro; si
+  // se escribe, el `from → to` queda guardado aunque falle lo que venga
+  // después (es lo que permite restaurar). Tabla nueva: añadirla no obliga
+  // a validar ningún documento existente.
+  coverIconMigrationLog: defineTable({
+    migrationId: v.string(),
+    calendarId: v.id("calendars"),
+    from: v.string(),
+    to: v.string(),
+    restored: v.boolean(),
+  })
+    .index("by_migration", ["migrationId"])
+    .index("by_migration_and_calendar", ["migrationId", "calendarId"]),
 });
