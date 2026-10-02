@@ -369,6 +369,13 @@ de Vimeo y Drive se quedan con el fondo de color. A partir de ahora, la casilla 
    responde con una imagen real; si no, se pasa al siguiente).
 3. **Fondo de color del skin** (como hoy). Nunca una casilla rota o vacía.
 
+**La miniatura automática se guarda como copia propia** (ajuste del 2026-10-01): al guardar
+el día, el servidor descarga **una sola vez** la miniatura del proveedor (una imagen
+pequeña, nunca el vídeo) y guarda una copia en el almacenamiento de archivos de Convex.
+La casilla muestra siempre esa copia, sin depender del proveedor en cada visita. Si no
+se pudo obtener (por ejemplo, un Drive sin miniatura), el editor avisa al Admin al
+guardar: *"No hemos podido sacar una imagen de este vídeo. Puedes subir una tú."*
+
 **Campo nuevo en el diálogo de editar día:** "Imagen del día (opcional)", con el mismo
 patrón de formulario que el resto de campos (etiqueta a la izquierda en desktop). Botón
 para subir una imagen (JPG, PNG o WebP, máx. 5 MB) con vista previa en miniatura (radio
