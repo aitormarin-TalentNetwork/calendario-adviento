@@ -490,7 +490,9 @@ del avatar y pasa dentro de este menú.
   2. **Modo** (etiqueta de sección en mayúsculas pequeñas): "Usuario" y "Admin",
      **solo texto, sin iconos**. El activo en negrita con un punto `--gold` a la
      derecha. **Solo para** quien es Admin de al menos un calendario o Super Admin;
-     un invitado puro no ve esta parte.
+     un invitado puro no ve esta parte. **Super Admin (añadido el 2026-10-02, pedido por
+     Aitor):** quien es Super Admin ve una tercera opción, **"Super Admin"**, que lleva a
+     `/superadmin`; cuenta como un modo más para "recordar el último modo". Nadie más la ve.
   3. **Lista de calendarios para saltar rápido** — **solo si tiene más de uno** en el
      modo actual. Cada fila: mini portada (icono del calendario) + nombre. El calendario
      en el que se está, marcado (negrita + fondo `--bg-sunken`).
