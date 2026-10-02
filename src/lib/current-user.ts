@@ -4,7 +4,7 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { auth } from "@/lib/auth";
 import { convexAppServerSecret } from "@/lib/convex-server";
 
-export type PreferredMode = "user" | "admin";
+export type PreferredMode = "user" | "admin" | "superadmin";
 
 export type AuthorizedUser = {
   id: string;

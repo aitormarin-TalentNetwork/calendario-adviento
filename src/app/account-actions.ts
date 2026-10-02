@@ -7,8 +7,9 @@ import type { Id } from "../../convex/_generated/dataModel";
 import { signOut } from "@/lib/auth";
 import { listAdminCalendars } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
-import { getAuthorizedUser, type PreferredMode } from "@/lib/current-user";
-import { canUseAdminMode } from "@/lib/roles";
+import { isAllowedMode, MODE_PATH, type AccountMode } from "@/lib/account-modes";
+import { extractConvexErrorMessage } from "@/lib/convex-error";
+import { getAuthorizedUser } from "@/lib/current-user";
 
 /**
  * TAL-59 — acciones del menú de la cuenta (`src/components/account-menu.tsx`).
@@ -31,20 +32,28 @@ export async function switchModeAction(formData: FormData): Promise<void> {
   if (!user) redirect("/login");
 
   const raw = formData.get("mode");
-  const mode: PreferredMode | null = raw === "user" || raw === "admin" ? raw : null;
+  const mode: AccountMode | null = raw === "user" || raw === "admin" || raw === "superadmin" ? raw : null;
   if (!mode) redirect("/start");
 
-  if (mode === "admin") {
-    const administered = await listAdminCalendars(user.id);
-    if (!canUseAdminMode(user, administered.length)) redirect("/c");
-  }
+  // TAL-68 — una sola regla de modos permitidos (`account-modes.ts`): un
+  // modo no permitido (p. ej. "superadmin" forzado por quien no lo es) no
+  // guarda nada y aterriza en su modo válido.
+  const administered = mode === "user" ? 0 : (await listAdminCalendars(user.id)).length;
+  if (mode !== "user" && !isAllowedMode(mode, user, administered)) redirect("/start");
 
-  await fetchMutation(api.users.setPreferredModePublic, {
-    serverSecret: convexAppServerSecret(),
-    userId: user.id as Id<"users">,
-    mode,
-  });
-  redirect(mode === "admin" ? "/admin" : "/c");
+  try {
+    await fetchMutation(api.users.setPreferredModePublic, {
+      serverSecret: convexAppServerSecret(),
+      userId: user.id as Id<"users">,
+      mode,
+    });
+  } catch (err) {
+    // Convex vuelve a exigir el rol (y la congelación de rollback) al
+    // guardar "superadmin": si lo rechaza, no se guardó nada.
+    if (extractConvexErrorMessage(err) === "No autorizado.") redirect("/start");
+    throw err;
+  }
+  redirect(MODE_PATH[mode]);
 }
 
 /** Cerrar sesión desde el menú — misma llamada que tenía `SessionIndicator` (TAL-28). */

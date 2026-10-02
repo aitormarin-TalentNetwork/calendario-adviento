@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
 import { signOutAction, switchModeAction } from "@/app/account-actions";
+import type { AccountMode } from "@/lib/account-modes";
 import { CoverIcon } from "@/components/cover-icon";
 
 const AVATAR_SIZE = 40;
@@ -13,8 +14,13 @@ export type AccountMenuCalendar = { id: string; label: string; icon: string; hre
 type AccountMenuProps = {
   email: string;
   image: string | null;
-  mode: "user" | "admin";
-  showModeSection: boolean;
+  mode: AccountMode;
+  /**
+   * TAL-68 — modos que puede usar (`allowedModes`, calculado en servidor
+   * con `isSuperAdmin` en fresco): la sección "Modo" solo se pinta si hay
+   * más de uno; "Super Admin" solo aparece para el Super Admin.
+   */
+  modes: AccountMode[];
   /** Ya filtrada por el servidor: vacía si en el modo actual hay 0 o 1 calendarios. */
   calendars: AccountMenuCalendar[];
   currentCalendarId?: string;
@@ -38,7 +44,7 @@ const ITEM_SELECTOR = '[role="menuitem"], [role="menuitemradio"]';
  * El cambio de modo y el logout son Server Actions (`account-actions.ts`)
  * en `<form>`s normales: funcionan igual con teclado que con ratón.
  */
-export function AccountMenu({ email, image, mode, showModeSection, calendars, currentCalendarId }: AccountMenuProps) {
+export function AccountMenu({ email, image, mode, modes, calendars, currentCalendarId }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -172,15 +178,16 @@ export function AccountMenu({ email, image, mode, showModeSection, calendars, cu
             {email}
           </div>
 
-          {showModeSection && (
+          {modes.length > 1 && (
             <>
               <div role="separator" className="account-menu-divider" />
               <div role="group" aria-labelledby={`${menuId}-mode`}>
                 <div id={`${menuId}-mode`} role="presentation" className="account-menu-label">
                   Modo
                 </div>
-                <ModeItem value="user" label="Usuario" active={mode === "user"} onActive={() => close(true)} />
-                <ModeItem value="admin" label="Admin" active={mode === "admin"} onActive={() => close(true)} />
+                {modes.map((value) => (
+                  <ModeItem key={value} value={value} label={MODE_LABEL[value]} active={mode === value} onActive={() => close(true)} />
+                ))}
               </div>
             </>
           )}
@@ -244,13 +251,15 @@ export function AccountMenu({ email, image, mode, showModeSection, calendars, cu
  * Una opción de "Modo". La activa no envía nada (ya se está en ese modo):
  * solo cierra el menú. La otra es un `<form>` con la Server Action.
  */
+const MODE_LABEL: Record<AccountMode, string> = { user: "Usuario", admin: "Admin", superadmin: "Super Admin" };
+
 function ModeItem({
   value,
   label,
   active,
   onActive,
 }: {
-  value: "user" | "admin";
+  value: AccountMode;
   label: string;
   active: boolean;
   onActive: () => void;

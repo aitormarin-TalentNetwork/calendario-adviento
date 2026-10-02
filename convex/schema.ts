@@ -31,7 +31,9 @@ export default defineSchema({
     // puede usar ese modo (el comportamiento de antes de TAL-59), sin
     // migración. Solo lo escribe `users.setPreferredModePublic`, desde la
     // elección explícita en el menú (ver docs/menu-cuenta.md).
-    preferredMode: v.optional(v.union(v.literal("user"), v.literal("admin"))),
+    // TAL-68 — "superadmin": tercer modo, solo para el Super Admin (Convex
+    // lo rechaza para cualquier otro). Rollback: docs/menu-cuenta.md.
+    preferredMode: v.optional(v.union(v.literal("user"), v.literal("admin"), v.literal("superadmin"))),
     // Sin `createdAt` propio — el campo de sistema `_creationTime` (todo
     // documento de Convex lo tiene) cubre exactamente el mismo dato.
   }).index("by_email", ["email"]),
