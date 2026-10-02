@@ -735,9 +735,13 @@ export function DoorGrid({
                         : null;
                     const style = cellStyle(door);
                     if (door.state === "watched") {
+                      // TAL-61 — respaldo del "visto" sin miniatura: el fondo
+                      // "visto" del skin (`--skin-seen-bg`, lo define TAL-62;
+                      // TAL-67 pinta su imagen encima) y, mientras no exista,
+                      // `--primary` (antes `--pine`, que desaparece).
                       style.backgroundImage = thumbnailUrl
                         ? `linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), url("${thumbnailUrl}")`
-                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--primary)";
+                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--skin-seen-bg, var(--primary))";
                       style.backgroundSize = "cover";
                       style.backgroundPosition = "center";
                     }

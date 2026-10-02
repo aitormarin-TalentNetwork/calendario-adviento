@@ -82,7 +82,11 @@ idempotente. Al rebasar otra rama sobre TAL-61, pasarlo sobre sus ficheros
   `countdown-marker-loader.tsx`, `c/[calendarId]/page.tsx`,
   `calendar-cover-header.tsx`, `calendar-preview.tsx` y
   `DEFAULT_SKIN_APPEARANCE` (ahora el skin "Alegre": `--bg`/`--primary`/`--ink`).
-  Sin tocar ninguna geometría.
+  Sin tocar ninguna geometría. El respaldo de la puerta "vista" sin miniatura
+  es `var(--skin-seen-bg, var(--primary))`: `--skin-seen-bg` es el fondo
+  "visto" de cada skin, lo define TAL-62 y TAL-67 pinta su imagen encima
+  (nombre decidido por la Directora; orden de publicación TAL-61 → TAL-62 →
+  TAL-67).
 - **TAL-62:** catálogo de 8 skins, cómo pinta cada skin la portada, la cuenta
   atrás y el grid (valores inline de la tabla `skins`: `background`,
   `--accent`, `textColor`, `textPill`), radios/forma de las casillas del
