@@ -36,6 +36,10 @@ export default defineConfig({
     command: `npx next dev -p ${port}`,
     url: `${baseURL}/login`,
     reuseExistingServer: true,
+    // TAL-69 — stub determinista del comprobador de URLs de imagen (sin red
+    // en la suite). SOLO se define aquí; el código lo ignora en producción
+    // (`selectImageChecker`, src/lib/image-checker.ts).
+    env: { E2E_IMAGE_CHECK_STUB: "1" },
     timeout: 180_000,
   },
 });
