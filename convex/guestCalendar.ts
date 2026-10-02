@@ -27,7 +27,16 @@ async function resolveCalendarDaysForGuestHandler(
 ): Promise<{
   startDate: string;
   endDate: string;
-  days: { date: string; dayId: Id<"days">; videoUrl: string; message?: string; watched: boolean }[];
+  days: {
+    date: string;
+    dayId: Id<"days">;
+    videoUrl: string;
+    message?: string;
+    watched: boolean;
+    // TAL-67 — imagen de la casilla "Visto" (subida > copia propia). Next la
+    // descarta para los días bloqueados, igual que `videoUrl`/`message`.
+    imageUrl: string | null;
+  }[];
 } | null> {
   const calendar = await ctx.db.get(args.calendarId);
   if (!calendar) return null;
@@ -43,7 +52,9 @@ async function resolveCalendarDaysForGuestHandler(
         .query("dayViews")
         .withIndex("by_day_and_user", (q) => q.eq("dayId", day._id).eq("userId", args.userId))
         .unique();
-      return { date: day.date, dayId: day._id, videoUrl: day.videoUrl, message: day.message, watched: view !== null };
+      const storageId = day.imageStorageId ?? day.thumbnailStorageId;
+      const imageUrl = storageId ? await ctx.storage.getUrl(storageId) : null;
+      return { date: day.date, dayId: day._id, videoUrl: day.videoUrl, message: day.message, watched: view !== null, imageUrl };
     })
   );
 

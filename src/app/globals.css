@@ -1259,3 +1259,21 @@ a {
     border-radius: 18px;
   }
 }
+
+/* TAL-67 — campo "Imagen del día (opcional)" del diálogo de editar día
+   (design/design-system.md § "Imagen de la casilla Visto"). Reutiliza
+   `.editor-field` y `.btn .btn-danger` (TAL-61); aquí solo la vista previa
+   y el texto de ayuda. */
+.day-image-preview {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+}
+
+.day-image-field-help {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--ink-dim);
+}

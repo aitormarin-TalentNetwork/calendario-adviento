@@ -1,6 +1,6 @@
 "use server";
 
-import { fetchMutation } from "convex/nextjs";
+import { fetchAction, fetchMutation } from "convex/nextjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { api } from "../../../../convex/_generated/api";
@@ -15,6 +15,12 @@ import { extractConvexErrorMessage } from "@/lib/convex-error";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
 import { NON_EMBEDDABLE_VIDEO_WARNING, parseEmbeddableVideo } from "@/lib/video-embed";
+import { MAX_UPLOAD_BYTES, detectImageType } from "../../../../convex/dayFileGuards";
+
+/** TAL-67 — texto literal del PM cuando no se pudo sacar la miniatura del vídeo. */
+const THUMBNAIL_FAILED_WARNING = "No hemos podido sacar una imagen de este vídeo. Puedes subir una tú.";
+const THUMBNAIL_FROZEN_WARNING =
+  "El día se ha guardado, pero la imagen automática está en mantenimiento; se añadirá más adelante.";
 
 /**
  * Misma comprobación que `requireCalendarAdmin` en
@@ -98,7 +104,7 @@ export async function saveDayAction(
   _prevState: SaveDayState,
   formData: FormData
 ): Promise<SaveDayState> {
-  await requireCalendarAdmin(calendarId);
+  const user = await requireCalendarAdmin(calendarId);
 
   // `dateStr` no viene de un campo editable por el Admin (se ata con
   // `.bind`, generado por el propio servidor a partir de la lista de días
@@ -143,14 +149,13 @@ export async function saveDayAction(
   // (`convex/calendarErrorMessages.ts`), cualquier otra cosa es un fallo
   // no reconocido con mensaje genérico, nunca el texto crudo de una
   // excepción no reconocida.
+  // TAL-67 — el guardado pasa por la action `days.saveDayPublic`: el mismo
+  // upsert (ahora con el rol del actor releído en Convex) + la copia propia
+  // de la miniatura del vídeo, obtenida en el servidor de Convex. Las reglas
+  // de negocio del upsert siguen llegando como su mensaje exacto.
+  let saved: Awaited<ReturnType<typeof saveDay>>;
   try {
-    await fetchMutation(api.days.upsertDayPublic, {
-      serverSecret: convexAppServerSecret(),
-      calendarId: calendarId as Id<"calendars">,
-      date: dateStr,
-      videoUrl,
-      message,
-    });
+    saved = await saveDay(user.id, calendarId, dateStr, videoUrl, message);
   } catch (err) {
     const cleaned = extractConvexErrorMessage(err);
     if (cleaned === DAY_OUTSIDE_CALENDAR_RANGE_ERROR_MESSAGE || cleaned === CALENDAR_NO_LONGER_EXISTS_ERROR_MESSAGE) {
@@ -159,12 +164,31 @@ export async function saveDayAction(
     console.error("saveDayAction: fallo inesperado al guardar el día", err);
     return { status: "error", error: GENERIC_SAVE_DAY_ERROR_MESSAGE };
   }
+  if (!saved.ok) redirect("/unauthorized");
 
   revalidatePath(`/admin/${calendarId}`);
   if (parseEmbeddableVideo(videoUrl) === null) {
     return { status: "success", error: null, warning: NON_EMBEDDABLE_VIDEO_WARNING };
   }
+  // El aviso de la miniatura sobra si el día ya tiene una imagen subida.
+  if (saved.thumbnail === "failed" && !saved.hasUploadedImage) {
+    return { status: "success", error: null, warning: THUMBNAIL_FAILED_WARNING };
+  }
+  if (saved.thumbnail === "frozen" && !saved.hasUploadedImage) {
+    return { status: "success", error: null, warning: THUMBNAIL_FROZEN_WARNING };
+  }
   return { status: "success", error: null };
+}
+
+async function saveDay(actorUserId: string, calendarId: string, date: string, videoUrl: string, message: string | undefined) {
+  return await fetchAction(api.days.saveDayPublic, {
+    serverSecret: convexAppServerSecret(),
+    actorUserId: actorUserId as Id<"users">,
+    calendarId: calendarId as Id<"calendars">,
+    date,
+    videoUrl,
+    message,
+  });
 }
 
 export async function deleteDayAction(calendarId: string, dateStr: string) {
@@ -185,5 +209,85 @@ export async function deleteDayAction(calendarId: string, dateStr: string) {
     date: dateStr,
   });
 
+  revalidatePath(`/admin/${calendarId}`);
+}
+
+// --- TAL-67 — imagen del día (opcional) ---
+
+export type DayImageState = { status: "idle" | "error" | "success"; error: string | null };
+
+const DAY_IMAGE_ERROR_MESSAGES: Record<string, string> = {
+  "too-large": "La imagen no puede superar los 5 MB.",
+  "bad-type": "Formato no admitido: sube un JPG, PNG o WebP.",
+  "no-day": "Guarda primero el vídeo del día para poder añadirle una imagen.",
+  frozen: "La subida de imágenes está en mantenimiento, inténtalo más tarde.",
+};
+const GENERIC_DAY_IMAGE_ERROR = "No se pudo subir la imagen. Inténtalo de nuevo.";
+
+/**
+ * Sube la imagen del día. Primera capa de validación aquí (tamaño y tipo
+ * REAL por bytes mágicos; el tipo que declara el navegador se ignora) y
+ * envío de servidor a servidor al `httpAction` de Convex (`convex/http.ts`,
+ * `POST /tal67/day-image`), que vuelve a validar los bytes y hace todo el
+ * ciclo de vida del fichero (intención → store → registro → enlace) con el
+ * rol del actor releído allí. El navegador nunca habla con Convex.
+ */
+export async function uploadDayImageAction(
+  calendarId: string,
+  dateStr: string,
+  _prevState: DayImageState,
+  formData: FormData
+): Promise<DayImageState> {
+  const user = await requireCalendarAdmin(calendarId);
+  if (!parseUtcDateOnly(dateStr)) throw new Error("Fecha inválida.");
+
+  const file = formData.get("image");
+  if (!(file instanceof File) || file.size === 0) return { status: "error", error: "Elige una imagen." };
+  if (file.size > MAX_UPLOAD_BYTES) return { status: "error", error: DAY_IMAGE_ERROR_MESSAGES["too-large"] };
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const contentType = detectImageType(bytes);
+  if (!contentType) return { status: "error", error: DAY_IMAGE_ERROR_MESSAGES["bad-type"] };
+
+  const siteUrl = process.env.NEXT_PUBLIC_CONVEX_SITE_URL;
+  if (!siteUrl) {
+    console.error("uploadDayImageAction: falta NEXT_PUBLIC_CONVEX_SITE_URL");
+    return { status: "error", error: GENERIC_DAY_IMAGE_ERROR };
+  }
+  let result: { ok: boolean; error?: string };
+  try {
+    const response = await fetch(`${siteUrl}/tal67/day-image`, {
+      method: "POST",
+      headers: {
+        "content-type": contentType,
+        "x-server-secret": convexAppServerSecret(),
+        "x-actor-user-id": user.id,
+        "x-calendar-id": calendarId,
+        "x-day-date": dateStr,
+      },
+      body: bytes,
+    });
+    result = (await response.json()) as { ok: boolean; error?: string };
+  } catch (err) {
+    console.error("uploadDayImageAction: fallo al subir la imagen", err);
+    return { status: "error", error: GENERIC_DAY_IMAGE_ERROR };
+  }
+  if (!result.ok) {
+    if (result.error === "not-authorized") redirect("/unauthorized");
+    return { status: "error", error: DAY_IMAGE_ERROR_MESSAGES[result.error ?? ""] ?? GENERIC_DAY_IMAGE_ERROR };
+  }
+  revalidatePath(`/admin/${calendarId}`);
+  return { status: "success", error: null };
+}
+
+export async function removeDayImageAction(calendarId: string, dateStr: string) {
+  const user = await requireCalendarAdmin(calendarId);
+  if (!parseUtcDateOnly(dateStr)) throw new Error("Fecha inválida.");
+  const result = await fetchMutation(api.dayFiles.removeDayImagePublic, {
+    serverSecret: convexAppServerSecret(),
+    actorUserId: user.id as Id<"users">,
+    calendarId: calendarId as Id<"calendars">,
+    date: dateStr,
+  });
+  if (!result.ok && result.error === "not-authorized") redirect("/unauthorized");
   revalidatePath(`/admin/${calendarId}`);
 }

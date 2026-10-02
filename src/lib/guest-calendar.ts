@@ -52,6 +52,9 @@ export type DoorInfo = {
   dayId: string | null;
   videoUrl: string | null;
   message: string | null;
+  // TAL-67 — imagen de la casilla "Visto" (subida > copia propia). `null` en
+  // un día bloqueado, igual que `videoUrl`/`message`.
+  imageUrl: string | null;
 };
 
 export type DoorGridResult =
@@ -109,7 +112,7 @@ export async function resolveDoors(calendarId: string, userId: string, today: Da
     const locked = date > today;
 
     if (locked) {
-      return { dateStr, label: formatCalendarDate(date), isToday, state: "locked" as const, dayId: null, videoUrl: null, message: null };
+      return { dateStr, label: formatCalendarDate(date), isToday, state: "locked" as const, dayId: null, videoUrl: null, message: null, imageUrl: null };
     }
 
     const day = dayByDate.get(dateStr);
@@ -121,6 +124,7 @@ export async function resolveDoors(calendarId: string, userId: string, today: Da
       dayId: day?.dayId ?? null,
       videoUrl: day?.videoUrl ?? null,
       message: day?.message ?? null,
+      imageUrl: day?.imageUrl ?? null,
     };
   });
 

@@ -8,6 +8,7 @@ import { DEFAULT_COVER_ICON, coverIconForWrite } from "./coverIconCatalog";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
 import { getCatalogDefaultSkinId, getSkinStyle, isCatalog2026Seeded } from "./skins";
+import { deleteDayFilesForDay } from "./dayFiles";
 import { requireSuperAdmin } from "./superadmin";
 
 /**
@@ -461,6 +462,9 @@ async function deleteCalendarHandler(ctx: MutationCtx, args: { calendarId: Id<"c
       .withIndex("by_day_and_user", (q) => q.eq("dayId", day._id))
       .collect();
     for (const view of views) await ctx.db.delete(view._id);
+    // TAL-67 — ficheros del día y sus intenciones registradas (ver
+    // `dayFiles.ts::deleteDayFilesForDay`; las sin registrar quedan como tombstone).
+    await deleteDayFilesForDay(ctx, day);
     await ctx.db.delete(day._id);
   }
 

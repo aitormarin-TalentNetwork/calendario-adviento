@@ -1,10 +1,13 @@
 import { internal } from "./_generated/api";
-import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { CALENDAR_NO_LONGER_EXISTS_ERROR_MESSAGE, DAY_OUTSIDE_CALENDAR_RANGE_ERROR_MESSAGE } from "./calendarErrorMessages";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
+import { isCalendarAdminActor } from "./calendarPeople";
+import { deleteDayFilesForDay, obtainThumbnail, type ThumbnailOutcome } from "./dayFiles";
+import { thumbnailSourceForVideo } from "./dayFileGuards";
 
 // Mismo criterio que `coverImageUrl`/`parseVideoUrl` en la versión Next.js
 // (`src/app/admin/[calendarId]/days-actions.ts`, TAL-6 ronda 1): solo
@@ -85,7 +88,22 @@ async function upsertDayHandler(
     .withIndex("by_calendar_and_date", (q) => q.eq("calendarId", args.calendarId).eq("date", args.date))
     .unique();
   if (existing) {
-    await ctx.db.patch(existing._id, { videoUrl: args.videoUrl, message: args.message });
+    // TAL-67 — si cambia la URL del vídeo, la copia de la miniatura de la URL
+    // anterior se borra aquí mismo (sin huérfanos). Vive en el handler
+    // compartido, así que también aplica al guardar con el Next anterior
+    // (`upsertDayPublic`) durante la ventana del despliegue.
+    if (existing.videoUrl !== args.videoUrl) {
+      const previousThumbnail = existing.thumbnailStorageId;
+      await ctx.db.patch(existing._id, {
+        videoUrl: args.videoUrl,
+        message: args.message,
+        thumbnailStorageId: undefined,
+        thumbnailVideoUrl: undefined,
+      });
+      if (previousThumbnail && (await ctx.db.system.get(previousThumbnail))) await ctx.storage.delete(previousThumbnail);
+    } else {
+      await ctx.db.patch(existing._id, { videoUrl: args.videoUrl, message: args.message });
+    }
     return existing._id;
   }
   return await ctx.db.insert("days", args);
@@ -135,6 +153,9 @@ async function deleteDayHandler(
     .unique();
   if (!existing) return;
 
+  // TAL-67 — sus ficheros y sus intenciones registradas (las sin registrar
+  // quedan como tombstone, ver `dayFiles.ts::deleteDayFilesForDay`).
+  await deleteDayFilesForDay(ctx, existing);
   await ctx.db.delete(existing._id);
   await ctx.scheduler.runAfter(0, internal.dayViews.cleanupDayViewsBatch, { dayId: existing._id });
 }
@@ -158,7 +179,11 @@ export const deleteDay = internalMutation({
 async function getCalendarDaysHandler(
   ctx: QueryCtx,
   args: { calendarId: Id<"calendars"> }
-): Promise<{ startDate: string; endDate: string; days: { date: string; videoUrl: string; message?: string }[] }> {
+): Promise<{
+  startDate: string;
+  endDate: string;
+  days: { date: string; videoUrl: string; message?: string; imageUrl: string | null; uploadedImageUrl: string | null }[];
+}> {
   const calendar = await ctx.db.get(args.calendarId);
   if (!calendar) throw new Error("El calendario ya no existe.");
 
@@ -167,11 +192,22 @@ async function getCalendarDaysHandler(
     .withIndex("by_calendar_and_date", (q) => q.eq("calendarId", args.calendarId))
     .collect();
 
-  return {
-    startDate: calendar.startDate,
-    endDate: calendar.endDate,
-    days: days.map((day) => ({ date: day.date, videoUrl: day.videoUrl, message: day.message })),
-  };
+  // TAL-67 — `imageUrl`: lo que pinta la casilla (subida > copia propia);
+  // `uploadedImageUrl`: la vista previa del diálogo (solo la subida).
+  const withImages = await Promise.all(
+    days.map(async (day) => {
+      const uploadedImageUrl = day.imageStorageId ? await ctx.storage.getUrl(day.imageStorageId) : null;
+      const thumbnailUrl = day.thumbnailStorageId ? await ctx.storage.getUrl(day.thumbnailStorageId) : null;
+      return {
+        date: day.date,
+        videoUrl: day.videoUrl,
+        message: day.message,
+        imageUrl: uploadedImageUrl ?? thumbnailUrl,
+        uploadedImageUrl,
+      };
+    })
+  );
+  return { startDate: calendar.startDate, endDate: calendar.endDate, days: withImages };
 }
 
 export const getCalendarDays = internalQuery({
@@ -215,5 +251,101 @@ export const getCalendarDaysPublic = query({
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
     return await getCalendarDaysHandler(ctx, { calendarId: args.calendarId });
+  },
+});
+
+// --- TAL-67 — guardar el día con la copia propia de la miniatura ---
+
+export type UpsertAsActorResult =
+  | {
+      ok: true;
+      dayId: Id<"days">;
+      videoUrl: string;
+      observedThumbnailStorageId: Id<"_storage"> | undefined;
+      needsThumbnail: boolean;
+      hasUploadedImage: boolean;
+    }
+  | { ok: false; error: "not-authorized" };
+
+/**
+ * Upsert de siempre, con el rol del actor releído en la MISMA transacción
+ * (Super Admin o membership ADMIN, `calendarPeople.ts`). Devuelve lo que
+ * necesita `saveDayPublic` para el compare-and-set de la copia: el
+ * `thumbnailStorageId` observado ahora mismo y si hace falta una copia (hay
+ * proveedor reconocido y no hay copia válida para esta URL; un intento
+ * fallido para la misma URL se reintenta, porque guardar es una acción
+ * explícita del Admin).
+ */
+export const upsertDayAsActor = internalMutation({
+  args: {
+    actorUserId: v.id("users"),
+    calendarId: v.id("calendars"),
+    date: v.string(),
+    videoUrl: v.string(),
+    message: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<UpsertAsActorResult> => {
+    if (!(await isCalendarAdminActor(ctx, args.actorUserId, args.calendarId))) return { ok: false, error: "not-authorized" };
+    const dayId = await upsertDayHandler(ctx, {
+      calendarId: args.calendarId,
+      date: args.date,
+      videoUrl: args.videoUrl,
+      message: args.message,
+    });
+    const day = (await ctx.db.get(dayId))!;
+    const hasValidCopy = day.thumbnailStorageId !== undefined && day.thumbnailVideoUrl === day.videoUrl;
+    return {
+      ok: true,
+      dayId,
+      videoUrl: day.videoUrl,
+      observedThumbnailStorageId: day.thumbnailStorageId,
+      needsThumbnail: thumbnailSourceForVideo(day.videoUrl) !== null && !hasValidCopy,
+      hasUploadedImage: day.imageStorageId !== undefined,
+    };
+  },
+});
+
+export type SaveDayResult =
+  | { ok: true; thumbnail: ThumbnailOutcome | "unchanged"; hasUploadedImage: boolean }
+  | { ok: false; error: "not-authorized" };
+
+/**
+ * Frontera pública (action) del guardado del día desde el Next de TAL-67:
+ * secreto → upsert con el actor releído → copia propia de la miniatura si
+ * hace falta. Las reglas de negocio del upsert (rango, calendario borrado)
+ * siguen lanzando su mensaje exacto (`calendarErrorMessages.ts`), igual que
+ * `upsertDayPublic`, que se conserva para el Next anterior.
+ */
+export const saveDayPublic = action({
+  args: {
+    serverSecret: v.string(),
+    actorUserId: v.id("users"),
+    calendarId: v.id("calendars"),
+    date: v.string(),
+    videoUrl: v.string(),
+    message: v.optional(v.string()),
+  },
+  handler: async (ctx, args): Promise<SaveDayResult> => {
+    await requireServerSecret(args.serverSecret);
+    const upserted: UpsertAsActorResult = await ctx.runMutation(internal.days.upsertDayAsActor, {
+      actorUserId: args.actorUserId,
+      calendarId: args.calendarId,
+      date: args.date,
+      videoUrl: args.videoUrl,
+      message: args.message,
+    });
+    if (!upserted.ok) return upserted;
+    if (!upserted.needsThumbnail) {
+      const applicable = thumbnailSourceForVideo(upserted.videoUrl) !== null;
+      return { ok: true, thumbnail: applicable ? "unchanged" : "not-applicable", hasUploadedImage: upserted.hasUploadedImage };
+    }
+    const thumbnail = await obtainThumbnail(ctx, {
+      calendarId: args.calendarId,
+      dayId: upserted.dayId,
+      videoUrl: upserted.videoUrl,
+      expectedThumbnailStorageId: upserted.observedThumbnailStorageId,
+      actorUserId: args.actorUserId,
+    });
+    return { ok: true, thumbnail, hasUploadedImage: upserted.hasUploadedImage };
   },
 });

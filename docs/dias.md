@@ -985,3 +985,295 @@ devuelve `null` con razón, en todas las variantes de host). Causa raíz: la URL
 Arreglo: el aviso al Admin al guardar, para que cambie el enlace por el de un vídeo.
 Test de regresión con esa URL literal en `e2e/tal-66-video-embed.spec.ts` (unit) y
 `e2e/tal-66-videos.spec.ts` (síntoma del invitado + aviso del editor).
+
+## Imagen de la casilla "Visto" (TAL-67)
+
+Normativo: `design/design-system.md` § "Imagen de la casilla Visto — prioridad de
+fuentes". Código: `convex/dayFiles.ts`, `convex/dayFileGuards.ts`, `convex/http.ts`,
+`convex/dayThumbnails.ts`, `convex/crons.ts`, `src/lib/day-image.ts`,
+`src/app/admin/[calendarId]/days-actions.ts` / `days-grid-editor.tsx`.
+
+### Orden de fuentes (decisiones del PM)
+
+1. **Imagen subida por el Admin** (`days.imageStorageId`), JPG/PNG/WebP de hasta 5 MB.
+2. **Copia propia de la miniatura** (`days.thumbnailStorageId`): el servidor la descarga
+   una vez al guardar el día (YouTube, Vimeo por oEmbed y Drive por `thumbnail?id=`) y
+   la guarda en el storage de Convex. Solo se vuelve a obtener si cambia la URL, y la
+   copia anterior se borra. `thumbnailVideoUrl` dice para qué URL se intentó.
+3. **Miniatura directa de YouTube** (`img.youtube.com`), solo mientras ese día no tiene
+   copia: entre el despliegue y la migración, o si la copia falló.
+4. **Fondo "visto" del skin**: `var(--skin-seen-bg, var(--primary))`. `--skin-seen-bg`
+   lo define TAL-62; `--primary` viene de TAL-61.
+
+Vimeo y Drive nunca se piden directamente desde el navegador. La casilla pinta un único
+`background` en capas (`src/lib/day-image.ts`): la capa oscura de siempre, la imagen y,
+debajo, el fondo del skin. Si la imagen no carga, se ve el fondo: **nunca una casilla
+rota**.
+
+El número de un día con imagen nunca va directamente sobre la imagen. Las dos variantes
+vienen de TAL-62:
+- en el editor, una píldora opaca de par fijo, `--bg` sobre `--ink` (15,2:1 claro y
+  16,3:1 oscuro);
+- en el invitado, la píldora `rgba(15,24,18,0.6)`, ≥ 4,74:1 en el peor caso de foto en
+  los 8 skins.
+
+TAL-67 hereda las dos tal cual, para cualquier imagen (subida o copia). "Hoy" lo marca el
+borde de la casilla.
+
+### Seguridad de las descargas (SSRF)
+
+- **Nunca se hace `fetch` a una URL escrita por el usuario.** De la URL del vídeo solo se
+  saca un id con `parseEmbeddableVideo` (TAL-66), validado otra vez:
+  - YouTube: 11 caracteres;
+  - Vimeo: solo dígitos;
+  - Drive: entre 10 y 128 caracteres `[A-Za-z0-9_-]`.
+- **Las URLs las construye el servidor, con hosts fijos.** Redirecciones manuales con
+  lista exacta de destinos:
+  - YouTube: `img.youtube.com/vi/<id>/hqdefault.jpg`, sin redirecciones;
+  - Vimeo: oEmbed oficial (JSON ≤ 64 KB) → `thumbnail_url` solo si es `https` en
+    `i.vimeocdn.com`, sin redirecciones;
+  - Drive: `drive.google.com/thumbnail?id=<id>&sz=w640`, **exactamente un salto** y solo
+    a `lh3.googleusercontent.com`. Comprobado con un vídeo público real: 302 → 200
+    `image/jpeg`.
+- **Límites de cada descarga**:
+  - timeout de 5 s por petición y 8 s en total;
+  - tope de 2 MB leído en streaming (no se fía de `Content-Length`); si vence el tiempo
+    a mitad, se aborta y se cancela el `reader`;
+  - `Content-Type` de imagen **y** bytes mágicos coherentes;
+  - solo la miniatura, nunca el vídeo.
+- Las descargas corren en el runtime de Convex, no en Railway.
+- Pruebas sin red, con `fetch` inyectado: `e2e/tal67-guards.spec.ts`.
+
+### Subida de la imagen y autenticación
+
+Navegador → Server Action de Next `uploadDayImageAction` → **`httpAction` de Convex**
+`POST /tal67/day-image`, de servidor a servidor. El navegador nunca habla con Convex.
+
+- **Next** (primera capa):
+  - comprueba la sesión y la puerta rápida de Admin;
+  - rechaza más de 5 MB;
+  - deduce el tipo real por bytes mágicos e ignora el que declara el navegador.
+
+  Para eso `next.config.ts` sube `serverActions.bodySizeLimit` a 6 MB.
+- **`httpAction`**:
+  - comprueba el secreto (`x-server-secret`) **antes** de leer el cuerpo;
+  - lee el cuerpo en streaming con tope de 5 MB y vuelve a comprobar los bytes mágicos;
+  - la intención relee el rol del actor (Super Admin o Admin de ese calendario,
+    `calendarPeople.ts::isCalendarAdminActor`);
+  - el enlace vuelve a comprobar tamaño y tipo con los metadatos reales del fichero
+    guardado.
+- **Todas las funciones públicas nuevas exigen el secreto compartido**: `saveDayPublic`,
+  `removeDayImagePublic` y el `httpAction`. Releer el rol no autentica al llamante; el
+  secreto sí.
+
+### Copia propia de la miniatura (compare-and-set)
+
+`days.saveDayPublic` (action) hace dos cosas:
+
+1. **Upsert con el actor releído** (`upsertDayAsActor`). Si cambia la URL, borra la copia
+   anterior en la misma transacción; esto vive en el handler compartido, así que también
+   aplica con el Next anterior.
+2. **`obtainThumbnail`**: descarga con guardas → intención → `store` → registro →
+   `setThumbnail`.
+
+`setThumbnail` solo enlaza si se cumplen las tres condiciones:
+- el día sigue existiendo;
+- su `videoUrl` es la misma;
+- su `thumbnailStorageId` es el **observado al empezar**.
+
+El ganador borra la copia reemplazada; el perdedor borra su candidato. Probado: N
+guardados simultáneos de la misma URL dejan **un** fichero en `_storage`
+(`e2e/tal67-files-lifecycle.spec.ts`, test 7).
+
+Si la descarga falla, el editor muestra el aviso literal del PM: *"No hemos podido sacar
+una imagen de este vídeo. Puedes subir una tú."* (solo si el día no tiene imagen subida;
+no bloquea).
+
+### Ficheros de TAL-67: procedencia, ciclo de vida y garantía
+
+**Procedencia por `storageId`.** Todo fichero de TAL-67 se crea dentro de Convex con esta
+secuencia:
+
+1. Intención (`dayFileIntents`, `owner: "TAL-67"`).
+2. `ctx.storage.store`.
+3. `registerDayFile`, que escribe el `storageId` en la intención.
+4. Enlace, que consume la intención.
+
+El limpiador solo borra `storageId` registrados así. Nunca decide por contenido, hash,
+fecha o porque "nadie lo referencia".
+
+**Una intención solo desaparece cuando no queda fichero suyo por cerrar.** La borran
+tres sitios, y siempre borran antes su fichero:
+- el consumo (`attachDayImage` / `setThumbnail`);
+- el limpiador (solo expiradas);
+- borrar el día o el calendario (solo las ya registradas).
+
+Al borrar un día, una intención **sin** registrar queda como tombstone (`dayGone`):
+`registerDayFile` no depende del día, y `attach`/`setThumbnail` borran el fichero si el
+día ya no existe.
+
+**Garantía declarada:**
+- Todo fichero **registrado** por TAL-67 se enlaza a un día o **se borra
+  automáticamente** cuando expira su intención. No hay huérfanos permanentes de ficheros
+  registrados.
+- Una operación que muere **antes de registrar** (antes de `store`, o entre `store` y el
+  registro) no se borra sola. Al expirar deja una entrada **duradera**
+  `unresolved-window` en `dayFileUnresolvedWindows`, con:
+  - día o calendario (y `dayGone`);
+  - actor;
+  - ventana temporal.
+
+  La auditoría la lista **siempre** y solo se cierra a mano.
+- En ningún caso se borra automáticamente un fichero que TAL-67 no haya registrado.
+
+**¿Puede una intención expirada sin registrar pertenecer a una operación viva?** No. El TTL
+es 1 h. La documentación de Convex fija en **30 minutos** el máximo de una action del
+runtime de Convex (*"Convex runtime actions: 30 minutes"*, docs.convex.dev → Limits). Para
+los `httpAction` no documenta un máximo, pero el nuestro se acota solo: 30 s para leer el
+cuerpo y después tres mutations cortas.
+
+### Limpiador: drenaje, lease, watchdog y objetivo medido
+
+- **Cron** cada 15 min → `dayFiles:startReconcile`.
+- **Lease** (`dayFileReconcileLease`): token UUID y duración de 2 min.
+  - Si hay un drenaje vivo, el cron no hace nada.
+  - Cada lote valida el token y, si no es el suyo, **para** (continuación obsoleta).
+- **Lotes** de hasta 100 intenciones expiradas antes de un `cutoff` fijo. Cada lote borra
+  todas las que procesa y se re-programa hasta vaciar: el drenaje es **continuo**.
+  - 100 intenciones son unas 500 lecturas y 300 escrituras, muy por debajo de los límites
+    de Convex (32.000 documentos escaneados y 16.000 escritos por transacción).
+  - No usa cursor de paginación: la consulta cambiaría entre lotes. Fue un fallo real,
+    visto y corregido al probar.
+- **Watchdog**: si el lease caduca sin cerrar el drenaje, toma el relevo en el acto con
+  otro token, sin esperar al cron.
+- **Objetivo MEDIDO, no cota garantizada**: el pendiente registrado más viejo se resuelve
+  en **≤ 90 min**. Se reparte así: TTL 60 + hasta 15 hasta el siguiente cron + drenaje +
+  10 de margen.
+  - Condiciones: scheduler de Convex sano, backlog ≤ 10.000 y lotes de 100.
+  - Medida en dev (T3): lotes de 100 a ~0,9-1,7 s cada uno (incluye el sondeo del test).
+    10.000 pendientes ≈ 1,5-3 min, dentro del margen.
+  - Para vigilarlo, la auditoría expone `oldestPendingAgeMs` (> 90 min = el objetivo se
+    está incumpliendo) y `oldestUnresolvedWindowAgeMs`.
+- Las mutations programadas se ejecutan **exactamente una vez**, según la documentación
+  de tipos de Convex (`scheduler.d.ts`: *"Scheduled mutations are guaranteed to execute
+  exactly once"*). Aun así, cada lote es idempotente.
+
+### Runbook: auditoría y ventanas sin resolver
+
+La auditoría está **paginada**: ninguna consulta recorre una tabla entera, porque el
+registro duradero crece con el tiempo (corrección del NO-GO M2 del loop 1). Cada función
+devuelve una página con `isDone` y `continueCursor`, y se repite pasando el cursor hasta
+`isDone: true`:
+
+| Función (internal) | Página máx. | Qué devuelve |
+|---|---|---|
+| `dayFiles:auditIntentsPage` | 500 | Intenciones vivas, expiradas registradas y sin registrar, y `oldestRegisteredCreation` de la página |
+| `dayFiles:listUnresolvedWindowsPage` | 100 | Ventanas `unresolved-window` (con `includeResolved: true`, también las cerradas) |
+| `dayFiles:windowCandidatesPage` | 200 | Por ventana (`windowId`): ficheros de `_storage` creados en su ventana que no referencia ningún día ni registra ninguna intención (**solo ayuda**) |
+| `dayFiles:auditDayReferencesPage` | 500 | Referencias de días a ficheros que ya no existen (debe ser 0) |
+
+```sh
+# Recorre todas las páginas de una función de auditoría (requiere node para leer el JSON).
+pages() { fn=$1; extra=$2; cursor=null; while :; do
+  out=$(npx convex run --prod "$fn" "{${extra}\"cursor\":$cursor,\"numItems\":100}"); echo "$out"
+  [ "$(echo "$out" | node -pe 'JSON.parse(require("fs").readFileSync(0)).isDone')" = true ] && break
+  cursor=$(echo "$out" | node -pe 'JSON.stringify(JSON.parse(require("fs").readFileSync(0)).continueCursor)'); done; }
+pages dayFiles:auditIntentsPage ''                   # suma de recuentos; antigüedad del pendiente más viejo = ahora − mín(oldestRegisteredCreation)
+pages dayFiles:listUnresolvedWindowsPage ''          # todas las ventanas sin resolver
+pages dayFiles:windowCandidatesPage '"windowId":"<id>",'   # ayuda para revisar UNA ventana
+pages dayFiles:auditDayReferencesPage ''             # suma de dangling = 0
+```
+
+`oldestPendingAgeMs` = `now` − el mínimo de `oldestRegisteredCreation` de todas las
+páginas. Si pasa de 90 min, el objetivo medido se está incumpliendo: revisar el
+scheduler.
+
+Para cada ventana sin resolver:
+1. Revisar el día o calendario, el actor y la ventana.
+2. Mirar sus candidatos con `windowCandidatesPage`, **solo como ayuda**: pueden ser de
+   TAL-67 o de cualquier otra cosa, y estar ahí no prueba nada.
+3. Si una persona identifica un fichero huérfano concreto de TAL-67, lo borra **a mano
+   desde el dashboard de Convex**: Data → `_storage` → el fichero → Delete.
+4. Cerrar la entrada, anotando qué se hizo:
+
+   ```sh
+   npx convex run --prod dayFiles:closeUnresolvedWindow '{"id":"<id>","resolvedBy":"<persona>","resolution":"<nota>"}'
+   ```
+
+   **El cierre no borra nada de `_storage`.** Solo marca la entrada `resolved`, con
+   quién, cuándo y la nota, y se conserva.
+
+### Migración de miniaturas (TAL-67) — la ejecutan la Directora y el CEO
+
+Rellena la copia propia de los días existentes. Mismo rigor que TAL-60:
+- lotes de hasta 25 días;
+- descargas en serie, con 1 s de pausa entre lotes;
+- log en `dayThumbnailMigrationLog`;
+- la misma secuencia que un guardado normal (intención → store → registro →
+  compare-and-set), así que un guardado del Admin a la vez nunca deja dos ficheros.
+
+```sh
+npx convex run --prod dayThumbnails:auditThumbnails '{}'                      # pending > 0 (con cursor si hay más páginas)
+npx convex run --prod dayThumbnails:runThumbnailBackfill '{"migrationId":"tal67-prod-1","maxBatches":20}'
+#   repetir con el mismo migrationId (y el "continueCursor" devuelto) hasta "isDone": true
+npx convex run --prod dayThumbnails:auditThumbnails '{}'                      # pending: 0; los "failedForCurrentUrl" se revisan (Drive privado, vídeo borrado)
+```
+
+- **Idempotente**: con el mismo `migrationId` se saltan los días ya registrados en el log.
+  Con otro `migrationId`, se reintentan los fallidos.
+- **Revertir una migración**: `dayThumbnails:revertThumbnailBackfill
+  '{"migrationId":"tal67-prod-1"}'`, repitiendo con el cursor. Solo deshace copias de esa
+  migración y solo si el día sigue apuntando a esa misma copia.
+- Mientras no se ejecute, los días de YouTube siguen con la miniatura directa (decisión
+  del PM): no hay regresión.
+
+### URLs de storage (`ctx.storage.getUrl`): lo observado
+
+Comprobado en dev (T3), `e2e/tal67-day-image.spec.ts` test 14:
+- forma `https://<deployment>.convex.cloud/api/storage/<uuid>`;
+- se sirve **sin ninguna autenticación** (200, `image/jpeg`);
+- sigue respondiendo 200 un rato después (30 s en la prueba);
+- da **404** en cuanto se borra el fichero.
+
+Solo se entregan a quien ya tiene acceso al calendario y nunca para días bloqueados
+(`src/lib/guest-calendar.ts` las pone a `null`, igual que `videoUrl` y `message`). No
+afirmo nada más sobre ellas de lo observado.
+
+### Despliegue y compatibilidad
+
+Orden real: `npx convex deploy --cmd 'npm run build'` → **Convex sale primero**. La
+única combinación garantizada es **Next antiguo + Convex nuevo**:
+- `upsertDayPublic`, `deleteDayPublic`, `getCalendarDaysPublic` y
+  `resolveCalendarDaysForGuestPublic` conservan su firma y solo añaden campos de lectura;
+- cambiar la URL con el Next antiguo borra la copia vieja;
+- borrar con el Next antiguo borra los ficheros.
+
+Un Next nuevo con un Convex antiguo **no funciona**.
+
+### Runbook de rollback (TAL-67)
+
+La política es arreglar hacia delante. Comprobado en dev (evidencia del export de
+TAL-67):
+- el schema anterior **rechaza** el deploy si algún día tiene los campos nuevos
+  (`extra field thumbnailStorageId`);
+- **acepta** las tablas nuevas de TAL-67 aunque tengan datos: Convex solo borra sus
+  índices y las tablas quedan como datos sin uso.
+
+Si hay que revertir, lo ejecuta quien publica:
+
+1. **Congelar**: `npx convex env set DAY_IMAGES_FROZEN 1 --prod`. Subir una imagen y crear
+   copias dan `frozen`; el día se guarda igual, con aviso. Quitar y borrar siguen
+   funcionando, y el cron solo borra.
+2. **Esperar a que la auditoría marque 0 intenciones vivas.** Exportar y anotar las
+   entradas `unresolved-window` (`npx convex export --prod` o `listUnresolvedWindowsPage` página a página).
+3. `dayFiles:stripDayImagesForRollback` (repetir con el cursor hasta `isDone`) y
+   comprobar con `dayFiles:countDaysWithImageFields` que da 0.
+4. (Opcional, y solo ANTES del redeploy, porque después la función ya no existe.)
+   Vaciar las tablas de TAL-67 con `npx convex run --prod
+   dayFiles:clearTal67TablesForRollback '{"table":"<tabla>"}'` repetido hasta `isDone`:
+   `dayFileIntents`, `dayFileUnresolvedWindows` (exportada antes),
+   `dayFileReconcileLease` y `dayThumbnailMigrationLog`. **No hace falta para revertir**:
+   el schema anterior las acepta. Si se dejan, se reaprovechan al volver a desplegar
+   TAL-67.
+5. Redeploy del commit previo. Sin `crons.ts`, el cron desaparece con él. Después:
+   smoke-test y `npx convex env remove DAY_IMAGES_FROZEN --prod`.
