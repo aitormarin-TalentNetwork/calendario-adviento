@@ -136,6 +136,15 @@ export default defineSchema({
     // Normalizado a minúsculas al escribir, mismo motivo que users.email.
     email: v.string(),
     calendarId: v.id("calendars"),
+    // TAL-65 — rol con el que se invitó (Visitante | Administrador). Al
+    // entrar, `access.ts::resolveMemberAccessHandler` crea la membership
+    // con este rol. `v.optional()` y sin migración: las invitaciones de
+    // antes de esta tarea no lo tienen y significan exactamente lo que ya
+    // eran, Visitante — respaldo `role ?? "GUEST"` en cada sitio que lo
+    // lee. Aditivo, así que el push a un deployment con filas viejas no
+    // puede fallar. Rollback: ver docs/invitados.md § "Runbook de rollback
+    // (TAL-65)" — el schema anterior rechazaría filas con `role`.
+    role: v.optional(v.union(v.literal("ADMIN"), v.literal("GUEST"))),
   })
     .index("by_calendar_and_email", ["calendarId", "email"])
     // TAL-16 — `removeGuestEverywhere` borra TODAS las invitaciones de un

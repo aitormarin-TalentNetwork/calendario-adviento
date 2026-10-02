@@ -46,7 +46,8 @@ async function isCalendarGuestHandler(
     .query("invitations")
     .withIndex("by_calendar_and_email", (q) => q.eq("calendarId", args.calendarId).eq("email", email))
     .unique();
-  if (invitation) return true;
+  // TAL-65 — una invitación pendiente como ADMIN no es "invitado" (Visitante).
+  if (invitation && (invitation.role ?? "GUEST") === "GUEST") return true;
 
   const user = await ctx.db
     .query("users")
@@ -98,7 +99,12 @@ async function removeGuestFromCalendarHandler(
     .query("invitations")
     .withIndex("by_calendar_and_email", (q) => q.eq("calendarId", args.calendarId).eq("email", email))
     .unique();
-  if (invitation) await ctx.db.delete(invitation._id);
+  // TAL-65 — mismo contrato que con las memberships: esta función ("Quitar
+  // del calendario" del editor anterior a TAL-65) nunca toca nada de Admin.
+  // Una invitación pendiente como ADMIN solo la quita `calendarPeople.ts::
+  // removePersonFromCalendar` (con la comprobación de actor). Relevante si
+  // hubiera un rollback solo de Next tras usar TAL-65 (docs/invitados.md).
+  if (invitation && (invitation.role ?? "GUEST") === "GUEST") await ctx.db.delete(invitation._id);
 
   const user = await ctx.db
     .query("users")
@@ -195,7 +201,11 @@ async function removeGuestEverywhereHandler(
     .query("invitations")
     .withIndex("by_email", (q) => q.eq("email", email))
     .collect();
-  for (const invitation of invitations) await ctx.db.delete(invitation._id);
+  // TAL-65 — "Borrar por completo" nunca toca nada de Admin: tampoco las
+  // invitaciones pendientes como ADMIN de otros calendarios.
+  for (const invitation of invitations) {
+    if ((invitation.role ?? "GUEST") === "GUEST") await ctx.db.delete(invitation._id);
+  }
 
   const targetUser = await ctx.db
     .query("users")
@@ -256,6 +266,10 @@ async function listCalendarGuestsHandler(
   for (const invitation of invitations) {
     const key = invitation.email.toLowerCase();
     if (adminEmails.has(key)) continue;
+    // TAL-65 — una invitación pendiente como ADMIN no es un invitado: el
+    // editor anterior a TAL-65 (rollback solo de Next) no la pinta como
+    // Visitante. El editor nuevo usa `calendarPeople.ts::listCalendarPeople`.
+    if ((invitation.role ?? "GUEST") === "ADMIN") continue;
     byEmail.set(key, { email: invitation.email, accepted: false });
   }
   for (const membership of membershipsWithUser) {

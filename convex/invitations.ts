@@ -1,4 +1,4 @@
-import { internalMutation, mutation, type MutationCtx } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, type MutationCtx } from "./_generated/server";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireServerSecret } from "./serverAuth";
@@ -54,5 +54,53 @@ export const inviteGuestPublic = mutation({
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
     return await inviteGuestHandler(ctx, { calendarId: args.calendarId, email: args.email });
+  },
+});
+
+// --- TAL-65 — runbook de rollback (docs/invitados.md § "Runbook de rollback
+// (TAL-65)"). Solo por la CLI (`npx convex run`), nunca desde la app: son
+// `internal*`, sin frontera pública. El schema anterior a TAL-65 no acepta
+// `invitations.role`, así que Convex rechazaría el deploy del código viejo
+// mientras quede alguna fila con rol. Por lotes (`.paginate()`), para no
+// acercarse a los límites de una transacción aunque la tabla crezca.
+
+const rollbackPageArgs = {
+  cursor: v.optional(v.union(v.string(), v.null())),
+  batchSize: v.optional(v.number()),
+};
+
+/**
+ * Quita `role` de un lote de invitaciones. Repetir con `continueCursor`
+ * hasta `isDone: true`. Consecuencia aceptada: las invitaciones pendientes
+ * como Admin pasan a Visitante (las memberships ADMIN ya aceptadas no se
+ * tocan: `calendarMemberships.role` existe en los dos schemas). Antes,
+ * congelar escrituras con `INVITATION_ROLES_FROZEN=1` (ver
+ * `calendarPeople.ts::invitationRolesFrozen`).
+ */
+export const stripRolesForRollback = internalMutation({
+  args: rollbackPageArgs,
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("invitations")
+      .paginate({ cursor: args.cursor ?? null, numItems: args.batchSize ?? 200 });
+    let stripped = 0;
+    for (const invitation of page.page) {
+      if (invitation.role === undefined) continue;
+      await ctx.db.patch(invitation._id, { role: undefined });
+      stripped += 1;
+    }
+    return { processed: page.page.length, stripped, isDone: page.isDone, continueCursor: page.continueCursor };
+  },
+});
+
+/** Cuenta invitaciones que aún tienen `role`, por lotes (misma mecánica). */
+export const countInvitationsWithRole = internalQuery({
+  args: rollbackPageArgs,
+  handler: async (ctx, args) => {
+    const page = await ctx.db
+      .query("invitations")
+      .paginate({ cursor: args.cursor ?? null, numItems: args.batchSize ?? 1000 });
+    const withRole = page.page.filter((invitation) => invitation.role !== undefined).length;
+    return { processed: page.page.length, withRole, isDone: page.isDone, continueCursor: page.continueCursor };
   },
 });

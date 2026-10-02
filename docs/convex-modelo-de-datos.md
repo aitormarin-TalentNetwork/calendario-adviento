@@ -75,6 +75,8 @@ mismas relaciones. Diferencias de traducción, tabla por tabla:
   `DayView` nunca se actualiza tras crearse (el `upsert` de la versión Prisma
   tampoco tocaba nada en su rama `update`, ver `src/lib/guest-calendar.ts`).
 - **invitations** — `email`/`calendarId` igual.
+  TAL-65 añade `role` opcional (`ADMIN | GUEST`; sin rol = Visitante, sin
+  migración). Ver docs/invitados.md § "Invitar con rol (TAL-65)".
 - **skins** — `key`/`name`/`description` igual. **TAL-22** añade
   `background` (`v.optional(v.string())`, valor CSS completo de la
   propiedad `background` — color sólido o cualquier `*-gradient(...)`,

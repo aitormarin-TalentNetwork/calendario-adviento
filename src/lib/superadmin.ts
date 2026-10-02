@@ -136,8 +136,14 @@ export async function addAdmin(actorUserId: string, calendarId: string, rawEmail
  *
  * TAL-15 — reconectado contra Convex (`removeAdminEverywherePublic`).
  */
-export async function removeAdminEverywhere(actorUserId: string, userId: string): Promise<void> {
-  await fetchMutation(api.superadmin.removeAdminEverywherePublic, {
+export type RemoveAdminEverywhereResult = { ok: true } | { ok: false; error: "last-admin"; calendars: string[] };
+
+/**
+ * TAL-65 — devuelve `last-admin` (con los nombres de los calendarios) si la
+ * persona es el único Admin de alguno; en ese caso Convex no toca nada.
+ */
+export async function removeAdminEverywhere(actorUserId: string, userId: string): Promise<RemoveAdminEverywhereResult> {
+  return await fetchMutation(api.superadmin.removeAdminEverywherePublic, {
     serverSecret: convexAppServerSecret(),
     actorUserId: actorUserId as Id<"users">,
     userId: userId as Id<"users">,

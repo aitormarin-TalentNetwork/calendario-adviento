@@ -533,7 +533,8 @@ export const get = internalQuery({
  *   días ni vistas).
  * - Resto: los que administra por membership ADMIN, como antes.
  *
- * `isAdminMember` = tiene membership ADMIN en ese calendario (para el Super
+ * `isAdminMember` = tiene membership ADMIN (o, TAL-65, invitación pendiente
+ * como ADMIN) en ese calendario (para el Super
  * Admin, falso en los ajenos: "Mis calendarios" les pone la etiqueta "Super
  * Admin"). Se calcula con UNA consulta de sus memberships, sin N+1 extra.
  */
@@ -547,9 +548,24 @@ async function listCalendarsForUserHandler(
   const memberships = await ctx.db
     .query("calendarMemberships")
     .withIndex("by_user", (q) => q.eq("userId", args.userId))
-    .filter((q) => q.eq(q.field("role"), "ADMIN"))
     .collect();
-  const adminOf = new Set<Id<"calendars">>(memberships.map((m) => m.calendarId));
+  const adminOf = new Set<Id<"calendars">>(memberships.filter((m) => m.role === "ADMIN").map((m) => m.calendarId));
+
+  // TAL-65 — invitación pendiente como ADMIN (todavía sin membership): ya
+  // cuenta como calendario que administra, para que quien fue invitado como
+  // Administrador lo vea en "Mis calendarios" al entrar. Esta query no
+  // acepta nada: la membership ADMIN se crea al abrir `/admin/<id>`
+  // (`access.ts::resolveMemberAccessHandler`), mismo patrón que la rama de
+  // invitaciones pendientes de `listUserModeCalendarsHandler` (TAL-58). Si
+  // ya tiene membership (de cualquier rol), manda la membership.
+  const memberOf = new Set<Id<"calendars">>(memberships.map((m) => m.calendarId));
+  const invitations = await ctx.db
+    .query("invitations")
+    .withIndex("by_email", (q) => q.eq("email", user.email.trim().toLowerCase()))
+    .collect();
+  for (const invitation of invitations) {
+    if (invitation.role === "ADMIN" && !memberOf.has(invitation.calendarId)) adminOf.add(invitation.calendarId);
+  }
 
   const source: (Doc<"calendars"> | null)[] = user.isSuperAdmin
     ? await ctx.db.query("calendars").collect()
@@ -639,7 +655,10 @@ async function listUserModeCalendarsHandler(
     .withIndex("by_email", (q) => q.eq("email", email))
     .collect();
   for (const invitation of invitations) {
-    if (!isAdminByCalendar.has(invitation.calendarId)) isAdminByCalendar.set(invitation.calendarId, false);
+    // TAL-65 — una invitación pendiente como ADMIN sale con la etiqueta "Admin".
+    if (!isAdminByCalendar.has(invitation.calendarId)) {
+      isAdminByCalendar.set(invitation.calendarId, invitation.role === "ADMIN");
+    }
   }
 
   const rows = await Promise.all(

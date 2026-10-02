@@ -9,6 +9,7 @@ import {
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireServerSecret } from "./serverAuth";
+import { countCalendarAdmins } from "./calendarPeople";
 
 export type CalendarStatus = "upcoming" | "live" | "finished";
 
@@ -298,18 +299,42 @@ export const addAdmin = internalMutation({
  * acercara a los límites de una transacción, valdría la pena revisarlo
  * con el mismo criterio.
  */
+export type RemoveAdminEverywhereResult = { ok: true } | { ok: false; error: "last-admin"; calendars: string[] };
+
+/*
+ * TAL-65 — último Admin protegido también aquí (decisión del PM): si la
+ * persona es el ÚNICO Admin de algún calendario, no se toca nada (todo o
+ * nada, en esta misma mutation) y se devuelven los nombres de esos
+ * calendarios para que el panel los nombre. Cuenta los Admins con
+ * `countCalendarAdmins` (mismo rango de índice que `calendarPeople.ts`),
+ * así que un "Quitar" de aquí y una baja desde el editor del calendario a
+ * la vez quedan serializados por el OCC de Convex. Antes de TAL-65
+ * devolvía `void`; el Next anterior ignora el valor devuelto, así que en la
+ * ventana del despliegue un rechazo se ve como "no ha pasado nada".
+ */
 async function removeAdminEverywhereHandler(
   ctx: MutationCtx,
   args: { actorUserId: Id<"users">; userId: Id<"users"> }
-): Promise<void> {
+): Promise<RemoveAdminEverywhereResult> {
   await requireSuperAdmin(ctx, args.actorUserId);
 
   const user = await ctx.db.get(args.userId);
-  if (!user) return; // idempotente — usuario ya no existe, nada que quitar
+  if (!user) return { ok: true }; // idempotente — usuario ya no existe, nada que quitar
 
   const adminMemberships = (
     await ctx.db.query("calendarMemberships").withIndex("by_user", (q) => q.eq("userId", args.userId)).collect()
   ).filter((m) => m.role === "ADMIN");
+
+  const blocking: string[] = [];
+  for (const membership of adminMemberships) {
+    if ((await countCalendarAdmins(ctx, membership.calendarId)) <= 1) {
+      const calendar = await ctx.db.get(membership.calendarId);
+      if (calendar) blocking.push(calendar.name);
+    }
+  }
+  if (blocking.length > 0) {
+    return { ok: false, error: "last-admin", calendars: blocking.sort((a, b) => a.localeCompare(b)) };
+  }
 
   for (const membership of adminMemberships) {
     const invitation = await ctx.db
@@ -318,10 +343,13 @@ async function removeAdminEverywhereHandler(
       .unique();
     if (invitation) {
       await ctx.db.patch(membership._id, { role: "GUEST" });
+      // TAL-65 — la invitación queda coherente con el nuevo rol.
+      if (invitation.role !== undefined && invitation.role !== "GUEST") await ctx.db.patch(invitation._id, { role: "GUEST" });
     } else {
       await ctx.db.delete(membership._id);
     }
   }
+  return { ok: true };
 }
 
 export const removeAdminEverywhere = internalMutation({
@@ -375,6 +403,6 @@ export const removeAdminEverywherePublic = mutation({
   args: { serverSecret: v.string(), actorUserId: v.id("users"), userId: v.id("users") },
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
-    await removeAdminEverywhereHandler(ctx, { actorUserId: args.actorUserId, userId: args.userId });
+    return await removeAdminEverywhereHandler(ctx, { actorUserId: args.actorUserId, userId: args.userId });
   },
 });

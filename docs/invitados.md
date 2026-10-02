@@ -560,3 +560,122 @@ resultado de esta tarea (el schema/funciones son idénticos salvo por el
 código que no toca cada terminal), pero si quien retome trabajo en TAL-16
 más adelante encuentra `CONVEX_DEPLOYMENT` apuntando a un proyecto
 distinto del compartido, es la razón.
+
+## Invitar con rol (TAL-65)
+
+Normativo: `design/design-system.md` § "Personas del calendario — invitar como
+Visitante o Administrador" (mockup `design/propuesta-invitar-con-rol.html`).
+Código: `convex/calendarPeople.ts`, `src/lib/calendar-people.ts`,
+`src/app/admin/[calendarId]/guests-section.tsx` / `guests-actions.ts`.
+
+### Modelo
+
+- `invitations.role` (opcional, `ADMIN | GUEST`). **Sin rol = Visitante**
+  (`role ?? "GUEST"` en cada lectura), así que las invitaciones de antes de
+  TAL-65 significan lo mismo que antes y no hay migración.
+- Al entrar, `access.ts::resolveMemberAccessHandler` crea la membership con el
+  rol de la invitación. Es el único punto que acepta invitaciones.
+- **El link no da acceso ni rol por sí mismo** (decisión del PM, 2026-10-01):
+  solo entra quien está invitado por email, y cada persona entra con el rol de
+  su invitación. Ningún parámetro de la URL se lee para decidir el rol. Texto
+  bajo el link: *"Cada persona entra con el rol con el que la invitaste
+  (Visitante por defecto)."*
+- Una invitación pendiente como Admin ya aparece en "Mis calendarios"
+  (`calendars.ts::listCalendarsForUserHandler`) y con la etiqueta "Admin" en
+  "Tus calendarios". Ninguna de las dos queries acepta nada; la membership
+  ADMIN se crea al abrir el calendario.
+
+### Quién y qué
+
+- Cualquier Admin del calendario y el Super Admin pueden invitar como Visitante
+  o Administrador, cambiar el rol de cualquiera y quitar a cualquiera (Admins
+  incluidos). Cada función de `calendarPeople.ts` recibe `actorUserId` y
+  **relee el rol del actor dentro de la misma transacción** (Super Admin en
+  fresco o membership ADMIN de ese calendario), el mismo criterio que
+  `removeGuestEverywhere` (TAL-16) y `requireSuperAdmin`.
+- Invitar a alguien que **ya entró** no cambia su rol. Eso va por el
+  desplegable, que es lo que aplica la protección del último Admin.
+- "Quitar" borra invitación y membership de cualquier rol en ese calendario
+  (las dos filas, por el mismo motivo que TAL-7). "Borrar por completo" se
+  mantiene solo para Visitantes y nunca toca nada de Admin, tampoco las
+  invitaciones pendientes como Admin de otros calendarios.
+
+### Último Admin protegido
+
+- Solo cuentan los **Admins efectivos** (memberships ADMIN), no las
+  invitaciones pendientes como Admin: un invitado que nunca entra no sostiene
+  el calendario.
+- Bajar a Visitante o quitar al último Admin se rechaza en el servidor
+  (`last-admin`). En la UI, su desplegable y su "Quitar" salen deshabilitados
+  con el aviso del DS.
+- `/superadmin` → "Quitar" (`superadmin.ts::removeAdminEverywhere`): si la
+  persona es el único Admin de algún calendario, no se toca nada (todo o
+  nada) y el panel nombra esos calendarios.
+- **Carreras.** Contar Admins y degradar o quitar pasan por el mismo rango del
+  índice `calendarMemberships.by_calendar_and_user` (prefijo `calendarId`). Dos
+  operaciones a la vez entran en conflicto en el OCC serializable de Convex y
+  la segunda vuelve a contar. Probado con concurrencia real, N=10 por caso
+  (`e2e/tal65-invite-with-role.spec.ts`, test 6):
+  - degradar || degradar;
+  - degradar || quitar;
+  - "Quitar" de `/superadmin` || quitar desde el calendario;
+  - cambiar el rol de una invitación pendiente || aceptarla. Esta comparte la
+    fila de la invitación y la de la membership: el resultado es siempre el
+    rol nuevo.
+
+### Despliegue: orden real y compatibilidad
+
+El build de Railway es `npx convex deploy --cmd 'npm run build'` (ver
+`docs/stack.md`): **Convex sale primero**, y mientras se construye el Next nuevo
+sigue sirviendo el anterior. La única combinación garantizada es **Next antiguo +
+Convex nuevo** (la ventana del despliegue, o un rollback solo de Next). Un Next
+nuevo contra un Convex antiguo **no funciona**.
+
+Con Next antiguo + Convex nuevo:
+- Ninguna función pública que use el Next antiguo desaparece ni cambia de
+  argumentos (`inviteGuestPublic`, `listCalendarGuestsPublic`,
+  `removeGuestFromCalendarPublic`, `removeGuestEverywherePublic`).
+  `removeAdminEverywherePublic` pasa a devolver un resultado: el Next antiguo
+  lo ignora y, ante un rechazo `last-admin`, simplemente no cambia nada.
+- Las funciones antiguas no ven ni tocan las invitaciones pendientes como Admin:
+  `listCalendarGuests` las excluye (no se pintan como Visitante),
+  `removeGuestFromCalendar` y "Borrar por completo" no las borran, e
+  `inviteGuestPublic` no les cambia el rol.
+- Verificado arrancando el Next de 1339e52 contra el Convex nuevo (export de
+  TAL-65, sección "Frontend antiguo").
+
+### Runbook de rollback (TAL-65)
+
+La política es **arreglar hacia delante**. Revertir el commit falla en
+`convex deploy` si alguna invitación tiene `role`, porque el schema anterior no
+lo acepta. Es un fallo seguro: el deploy se aborta y producción sigue como
+estaba. Si de verdad hay que revertir, **lo ejecuta quien publica**
+(Integrador/CEO), nunca una terminal de trabajo:
+
+0. **Congelar** escrituras con rol: `npx convex env set
+   INVITATION_ROLES_FROZEN 1 --prod`. Invitar y cambiar rol responden `frozen`
+   ("La gestión de roles está en mantenimiento…"). Las funciones antiguas no
+   escriben `role`, y aceptar una invitación solo lo lee.
+1. **Limpiar por lotes**, repitiendo con el `continueCursor` devuelto hasta
+   `isDone: true`:
+   ```sh
+   cursor=null; while :; do
+     out=$(npx convex run --prod invitations:stripRolesForRollback "{\"cursor\": $cursor}"); echo "$out"
+     [ "$(echo "$out" | jq -r .isDone)" = true ] && break
+     cursor=$(echo "$out" | jq .continueCursor)
+   done
+   ```
+2. **Verificar** con el mismo bucle sobre `invitations:countInvitationsWithRole`:
+   la suma de `withRole` tiene que ser 0. Si no, volver al paso 1.
+3. **Desplegar el código anterior** (redeploy del commit previo en Railway, que
+   ejecuta `npx convex deploy` con el schema viejo). Ahora lo acepta.
+4. **Comprobar**: `npx convex run --prod invitations:countInvitationsWithRole`
+   tiene que fallar (la función ya no existe, así que está desplegado el código
+   viejo). Hacer smoke-test de `/login` y del editor de un calendario, y
+   después `npx convex env remove INVITATION_ROLES_FROZEN --prod`.
+
+Consecuencia aceptada: las invitaciones pendientes como Admin pasan a
+Visitante. Las memberships ADMIN ya aceptadas no se tocan, porque
+`calendarMemberships.role` existe en los dos schemas. El runbook completo está
+probado contra el Convex de **dev** de T3 (export de TAL-65), nunca contra
+producción.

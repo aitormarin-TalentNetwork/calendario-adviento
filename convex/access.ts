@@ -9,7 +9,8 @@ import { requireServerSecret } from "./serverAuth";
  * de `resolveCalendarAccess` en Prisma (`src/lib/roles.ts`, versión TAL-7):
  * - Si ya hay `calendarMemberships` (ADMIN o GUEST), esa es la fuente de verdad.
  * - Si no la hay pero existe una `invitations` para su email en ese
- *   calendario, se "acepta" aquí mismo: se crea la membership como GUEST.
+ *   calendario, se "acepta" aquí mismo: se crea la membership con el rol
+ *   de la invitación (TAL-65; GUEST si no lo tiene).
  * - Si no hay ni membership ni invitación, no tiene acceso (`null`) — igual
  *   que si el propio calendario no existe (referencia inválida/borrada):
  *   ninguno de los dos casos es un error, los dos son "sin acceso".
@@ -74,8 +75,14 @@ async function resolveMemberAccessHandler(
     .unique();
   if (!invitation) return null;
 
-  await ctx.db.insert("calendarMemberships", { calendarId: args.calendarId, userId: args.userId, role: "GUEST" });
-  return { role: "GUEST" as const };
+  // TAL-65 — la membership nace con el rol de la invitación (Visitante por
+  // defecto: las invitaciones de antes de TAL-65 no tienen `role`). Este es
+  // el único punto que "acepta" una invitación; el link de invitación no
+  // aporta ningún rol por sí mismo (decisión del PM, design-system.md §
+  // "Personas del calendario").
+  const role = invitation.role ?? "GUEST";
+  await ctx.db.insert("calendarMemberships", { calendarId: args.calendarId, userId: args.userId, role });
+  return { role };
 }
 
 export const resolveMemberAccess = internalMutation({

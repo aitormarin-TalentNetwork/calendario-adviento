@@ -27,6 +27,15 @@ const ERROR_MESSAGE: Record<string, string> = {
   unavailable: "Esta acción no está disponible ahora mismo.",
 };
 
+// TAL-65 — "Quitar" no puede dejar ningún calendario sin Admin (decisión
+// del PM). Los nombres llegan por la URL y se pintan como texto de React
+// (escapado), nunca como HTML.
+function lastAdminMessage(calendars: string | string[] | undefined): string {
+  const names = (Array.isArray(calendars) ? calendars : calendars ? [calendars] : []).map((name) => `«${name}»`);
+  const list = names.length > 0 ? names.join(", ") : "algún calendario";
+  return `No se puede quitar: es el único Admin de ${list}. Nombra antes a otro Admin.`;
+}
+
 function formatDate(date: Date) {
   return date.toLocaleDateString("es-ES", { day: "2-digit", month: "short", year: "numeric" });
 }
@@ -86,9 +95,16 @@ async function removeAdminAction(formData: FormData) {
   if (!user?.isSuperAdmin) redirect("/unauthorized");
 
   const userId = String(formData.get("userId") ?? "");
-  if (userId) await removeAdminEverywhere(user.id, userId);
+  const result = userId ? await removeAdminEverywhere(user.id, userId) : ({ ok: true } as const);
 
   revalidatePath("/superadmin");
+  // TAL-65 — último Admin protegido: no se ha tocado nada; el aviso nombra
+  // los calendarios para que antes se nombre a otro Admin.
+  if (!result.ok) {
+    const params = new URLSearchParams({ error: "last-admin" });
+    for (const name of result.calendars) params.append("calendar", name);
+    redirect(`/superadmin?${params.toString()}`);
+  }
   redirect("/superadmin");
 }
 
@@ -97,8 +113,13 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
   if (!user) redirect("/login?callbackUrl=/superadmin");
   if (!user.isSuperAdmin) redirect("/unauthorized");
 
-  const { error } = await searchParams;
-  const errorMessage = typeof error === "string" ? ERROR_MESSAGE[error] : undefined;
+  const { error, calendar: blockedCalendars } = await searchParams;
+  const errorMessage =
+    error === "last-admin"
+      ? lastAdminMessage(blockedCalendars)
+      : typeof error === "string"
+        ? ERROR_MESSAGE[error]
+        : undefined;
 
   // TAL-15 — reconectado contra Convex. Cada resultado se distingue
   // explícitamente de su lista vacía real más abajo (`null` = "no se
