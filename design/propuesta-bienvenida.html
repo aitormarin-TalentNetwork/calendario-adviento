@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bienvenida al calendario</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#fff8ee; --surface:#ffffff; --surface-2:#f6f1ff; --ink:#1d2320; --ink-dim:#6b726e; --line:#ebe8e1;
+  --primary:#7b61ff; --primary-btn:#6b52f5; --sun:#ffd23f; --weekend:#cc3338;
+  --shadow:0 2px 6px rgba(29,35,32,0.04), 0 12px 32px rgba(29,35,32,0.08);
+  --font:"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg:#111513; --surface:#1a201d; --surface-2:#212825; --ink:#f2f1ec; --ink-dim:#a3aba6; --line:#2a322e; }
+}
+:root[data-theme="dark"] { --bg:#111513; --surface:#1a201d; --surface-2:#212825; --ink:#f2f1ec; --ink-dim:#a3aba6; --line:#2a322e; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); -webkit-font-smoothing:antialiased; }
+header { max-width:1240px; margin:0 auto; padding:32px 16px 8px; }
+header h1 { margin:0 0 6px; font-size:1.6rem; font-weight:800; letter-spacing:-0.02em; }
+header p { margin:0; color:var(--ink-dim); max-width:760px; line-height:1.5; }
+.phones { max-width:1240px; margin:0 auto; padding:24px 16px 64px; display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:28px; justify-items:center; }
+.wrap { display:flex; flex-direction:column; gap:10px; align-items:center; width:100%; max-width:360px; }
+.cap { font-size:0.85rem; font-weight:700; color:var(--ink-dim); text-align:center; }
+.phone { width:100%; max-width:360px; height:720px; border-radius:40px; border:8px solid #101412; overflow:hidden; position:relative; box-shadow:var(--shadow); background:var(--bg); }
+.photo { position:absolute; inset:0; background:url("https://images.unsplash.com/photo-1512389142860-9c449e58a543?w=800&q=70") center/cover; }
+
+/* 1 · Login */
+.login { height:100%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:16px; padding:24px; text-align:center; }
+.logo { width:72px; height:72px; border-radius:24px; background:#e6e0ff; color:var(--primary); display:grid; place-items:center; }
+.logo svg { width:36px; height:36px; }
+.login h2 { margin:0; font-size:1.6rem; font-weight:800; letter-spacing:-0.02em; }
+.login p { margin:0; color:var(--ink-dim); }
+.g { display:inline-flex; gap:10px; align-items:center; font:inherit; font-weight:700; border:1px solid var(--line); background:var(--surface); color:var(--ink); border-radius:999px; padding:12px 20px; }
+
+/* 2 · Bienvenida */
+.shade { position:absolute; inset:0; background:linear-gradient(to top, rgba(10,8,30,0.85) 0%, rgba(10,8,30,0.35) 50%, rgba(10,8,30,0.1) 100%); }
+.welcome { position:absolute; left:0; right:0; bottom:0; padding:28px 24px 36px; color:#fff; }
+.welcome small { font-weight:700; opacity:0.9; letter-spacing:0.02em; }
+.welcome h2 { margin:6px 0 8px; font-size:2rem; font-weight:800; line-height:1.1; letter-spacing:-0.03em; }
+.welcome p { margin:0 0 20px; font-size:1rem; line-height:1.45; opacity:0.95; }
+.btn { font:inherit; font-weight:800; font-size:1rem; border:0; border-radius:999px; padding:14px 22px; background:var(--sun); color:var(--ink); width:100%; }
+.avatar { position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%; border:2px solid #fff; background:url("https://i.pravatar.cc/80?img=12") center/cover; }
+
+/* 3 · Calendario con fondo casi transparente */
+.cal { position:absolute; inset:0; overflow:hidden; }
+.cal .photo { opacity:0.10; filter:saturate(0.7); }
+.screen { position:relative; height:100%; overflow:auto; padding:18px 18px 40px; }
+.top { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.top small { display:block; font-size:0.78rem; font-weight:600; color:var(--ink-dim); }
+.top strong { font-size:1.1rem; font-weight:800; }
+.top .avatar { position:static; border-color:var(--surface); box-shadow:0 0 0 2px var(--sun); }
+.hero { border-radius:24px; padding:18px; background:var(--primary); color:#fff; margin-bottom:12px; position:relative; overflow:hidden; }
+.hero::after { content:""; position:absolute; right:-36px; top:-36px; width:110px; height:110px; border-radius:50%; background:rgba(255,210,63,0.45); }
+.hero small { font-size:1.2rem; font-weight:700; }
+.hero .big { font-size:2.4rem; font-weight:800; letter-spacing:-0.04em; line-height:1; margin:4px 0; }
+.hero .big span { color:#ffe27a; }
+.month { border-radius:22px; padding:12px; background:rgba(255,255,255,0.85); backdrop-filter:blur(2px); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .month { background:rgba(26,32,29,0.85); } }
+:root[data-theme="dark"] .month { background:rgba(26,32,29,0.85); }
+.wd, .days { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+.wd span { text-align:center; font-size:0.65rem; font-weight:700; color:var(--ink-dim); }
+.wd span:nth-child(n+6) { color:var(--weekend); }
+.d { aspect-ratio:1; border-radius:10px; display:grid; place-items:center; font-weight:800; font-size:0.8rem; background:var(--surface-2); }
+.d.today { background:var(--sun); }
+.d.locked { background:transparent; border:1.5px dashed var(--line); color:var(--ink-dim); }
+.d.seen { background:linear-gradient(140deg,#ff8a8d,#ff5a5f); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Bienvenida con foto, después de entrar</h1>
+  <p>La pantalla de entrar con Google pasa a ser genérica, porque una persona puede tener varios calendarios. Después de entrar, al abrir cada calendario aparece su <b>foto de portada a pantalla completa con el mensaje de bienvenida encima</b>. Al pulsar "Abrir mi calendario" se pasa al calendario, donde la <b>imagen de fondo</b> queda casi transparente, sin destacar.</p>
+</header>
+<div class="phones">
+  <div class="wrap"><div class="cap">1 · Entrar con Google (genérica)</div>
+    <div class="phone"><div class="login">
+      <div class="logo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="3"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="M12 14v4M10 16h4"/></svg></div>
+      <h2>Calendario de Adviento</h2><p>Una sorpresa cada día.</p>
+      <button class="g"><svg width="18" height="18" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Entrar con Google</button>
+    </div></div></div>
+
+  <div class="wrap"><div class="cap">2 · Bienvenida al abrir el calendario</div>
+    <div class="phone"><div class="photo"></div><div class="shade"></div><div class="avatar"></div>
+      <div class="welcome"><small>Hola, Aitor</small><h2>Aupa! Tienes un invitado cada día, amatxu!</h2><p>Faltan 16 días. Hoy hay una sorpresa esperándote.</p><button class="btn">Abrir mi calendario</button></div>
+    </div></div>
+
+  <div class="wrap"><div class="cap">3 · Dentro: imagen de fondo casi transparente</div>
+    <div class="phone"><div class="cal"><div class="photo"></div></div>
+      <div class="screen">
+        <div class="top"><div><small>Aupa! Tienes un invitado cada día</small><strong>¡Hoy toca sorpresa!</strong></div><div class="avatar"></div></div>
+        <div class="hero"><small>Cuenta atrás</small><div class="big"><span>16</span> días</div><div style="font-weight:700;font-size:1.2rem">para la Navidad</div></div>
+        <div class="month"><div class="wd"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div><div class="days" id="days"></div></div>
+      </div>
+    </div></div>
+</div>
+<script>
+let h = '<span></span>';
+for (let d = 1; d <= 27; d++) { let c = 'd'; if (d === 8) c += ' today'; else if (d < 8) c += ' seen'; else c += ' locked'; h += `<span class="${c}">${d}</span>`; }
+document.getElementById('days').innerHTML = h;
+</script>
+</body>
+</html>

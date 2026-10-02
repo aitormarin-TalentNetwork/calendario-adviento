@@ -388,6 +388,32 @@ para subir una imagen (JPG, PNG o WebP, máx. 5 MB) con vista previa en miniatur
 invitado ya haya visto el vídeo. Si no subes ninguna, usamos la miniatura del vídeo."*
 La imagen se guarda en el almacenamiento de archivos de Convex (no URL externa).
 
+### Bienvenida con foto (después de entrar) + imagen de fondo tenue
+
+**Validado con Aitor, 2026-10-02.** Fuente: `design/propuesta-bienvenida.html`. Motivo: una
+persona puede tener varios calendarios, así que la pantalla previa al login no sabe cuál
+mostrar.
+
+- **Login (`/login`) genérico:** logo de la app (icono Lucide de calendario en recuadro
+  `--primary-soft`), "Calendario de Adviento", "Una sorpresa cada día." y "Entrar con
+  Google". **Ya no muestra** título, icono ni foto de ningún calendario, aunque se llegue
+  con `callbackUrl` de invitación (ese `callbackUrl` sigue mandando tras entrar).
+- **Bienvenida al abrir un calendario** (`/c/<id>`): la **foto de portada a pantalla
+  completa** (`object-fit: cover`), con un degradado oscuro de abajo arriba
+  (`rgba(10,8,30,0.85)` → `0.1`) y encima, abajo del todo: "Hola, <nombre>" (`700`),
+  el título de portada (`2rem`, `800`), una línea con la cuenta atrás ("Faltan N días…")
+  y el botón **"Abrir mi calendario"** (píldora `--sun`, texto `--on-sun`, ancho completo).
+  Avatar/menú de la cuenta arriba a la derecha, como en el resto.
+- **Cuándo sale:** la **primera vez de cada día** que la persona abre ese calendario (por
+  persona y calendario; día natural en su zona horaria). Las siguientes veces ese día va
+  directo al calendario. **Si el calendario no tiene foto de portada, no hay bienvenida.**
+  (Decidido por el PM el 2026-10-02; Aitor aprobó el mockup sin objetar.)
+- **Imagen de fondo dentro del calendario:** pasa a ser **casi transparente** (~`10%` de
+  opacidad, saturación algo reducida) sobre el fondo del skin, sin degradado oscuro y sin
+  sustituir al skin. Las tarjetas (grid) llevan fondo semiopaco para que se lean. Sustituye
+  el tratamiento de § "Imagen de fondo del calendario" (que la usaba como base visual con
+  capa oscura).
+
 ### Imagen de fondo del calendario (nuevo campo, distinto de "Foto de portada")
 
 **Pedido explícito de Aitor, 2026-08-17.** Hoy `coverImageUrl` ("Foto de portada") solo
