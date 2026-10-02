@@ -7,6 +7,7 @@ import { MAX_COUNTDOWN_LABEL_LENGTH } from "./countdownLabelConstants";
 import { DEFAULT_COVER_ICON, coverIconForWrite } from "./coverIconCatalog";
 import { assertValidCalendarDate } from "./dates";
 import { requireServerSecret } from "./serverAuth";
+import { getCatalogDefaultSkinId, getSkinStyle, isCatalog2026Seeded } from "./skins";
 import { requireSuperAdmin } from "./superadmin";
 
 /**
@@ -156,6 +157,12 @@ async function assertNoDayOutsideRange(
  * antes de este fix (ver evidencia del export).
  */
 async function resolveDefaultSkinId(ctx: MutationCtx): Promise<Id<"skins">> {
+  // TAL-62 — "Alegre" es el skin por defecto del catálogo nuevo. Si todavía
+  // no se ha sembrado (fase a del despliegue), sigue el comportamiento de
+  // siempre ("pino" y, si no, el primero por key) — despliegue seguro.
+  const alegre = await getCatalogDefaultSkinId(ctx);
+  if (alegre) return alegre;
+
   const pino = await ctx.db
     .query("skins")
     .withIndex("by_key", (q) => q.eq("key", "pino"))
@@ -168,6 +175,34 @@ async function resolveDefaultSkinId(ctx: MutationCtx): Promise<Id<"skins">> {
   }
   all.sort((a, b) => a.key.localeCompare(b.key));
   return all[0]._id;
+}
+
+/**
+ * TAL-62 — barrera atómica contra skins retirados. Se ejecuta DENTRO de la
+ * misma mutation que el insert/patch del calendario (atómica con la
+ * escritura) y devuelve el skin que hay que guardar:
+ * - el skin no existe → error (como siempre);
+ * - todavía no hay catálogo nuevo (`skinStyles` vacía, antes de sembrar) →
+ *   el mismo skin: comportamiento de siempre, compatible con el Next
+ *   anterior a TAL-62 durante la fase (a) del despliegue;
+ * - catálogo sembrado y el skin TIENE estilo (uno de los 8, incluidos los
+ *   conservados nieve / tira-comica / rojiblanco) → el mismo skin;
+ * - catálogo sembrado y el skin NO tiene estilo (uno de los 21 retirados) →
+ *   Alegre, su destino de migración.
+ * Así ninguna escritura posterior al sembrado — venga del Next antiguo, del
+ * Next nuevo en modo degradado, de una pestaña abierta o de la CLI — puede
+ * volver a apuntar un calendario a un skin retirado, y el borrado protegido
+ * (`skinMigration.ts`) no encuentra referencias nuevas. No se registra en
+ * el log de migración: queda cubierto por la auditoría.
+ */
+async function resolveSkinForWrite(ctx: MutationCtx, skinId: Id<"skins">): Promise<Id<"skins">> {
+  const skin = await ctx.db.get(skinId);
+  if (!skin) throw new Error("El skin indicado no existe.");
+  if (!(await isCatalog2026Seeded(ctx))) return skinId;
+  if (await getSkinStyle(ctx, skinId)) return skinId;
+  const alegre = await getCatalogDefaultSkinId(ctx);
+  if (!alegre) throw new Error("Catálogo de skins incoherente: falta Alegre con estilo.");
+  return alegre;
 }
 
 /**
@@ -258,9 +293,7 @@ async function createCalendarHandler(
     .unique();
   if (existing) return existing._id;
 
-  const skinId = args.skinId ?? (await resolveDefaultSkinId(ctx));
-  const skin = await ctx.db.get(skinId);
-  if (!skin) throw new Error("El skin indicado no existe.");
+  const skinId = await resolveSkinForWrite(ctx, args.skinId ?? (await resolveDefaultSkinId(ctx)));
 
   const name = args.name.trim();
   assertValidCalendarName(name);
@@ -333,8 +366,7 @@ async function updateCalendarHandler(
   const calendar = await ctx.db.get(args.calendarId);
   if (!calendar) throw new Error("El calendario ya no existe.");
 
-  const skin = await ctx.db.get(args.skinId);
-  if (!skin) throw new Error("El skin indicado no existe.");
+  const skinId = await resolveSkinForWrite(ctx, args.skinId);
 
   assertValidCalendarDate(args.startDate);
   assertValidCalendarDate(args.endDate);
@@ -354,7 +386,7 @@ async function updateCalendarHandler(
     countdownLabel: args.countdownLabel,
     startDate: args.startDate,
     endDate: args.endDate,
-    skinId: args.skinId,
+    skinId,
     updatedAt: Date.now(),
   });
 }

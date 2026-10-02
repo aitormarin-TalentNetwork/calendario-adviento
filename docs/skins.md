@@ -1,5 +1,7 @@
 # Catálogo de skins (TAL-22)
 
+> **TAL-62 (Onda 4):** el catálogo pasa a 8 skins "Estilo 2026" — ver § "Catálogo 2026" al final (modelo, migración y runbook de producción). Las secciones de abajo describen el catálogo anterior (24), que se retira.
+
 Amplía la tabla `skins` de Convex (`key`/`name`/`description`, sin cambios
 desde TAL-9) con los campos de color que exige el Design System
 (`design/design-system.md` § "Skins": "cada skin es, como mínimo, un
@@ -295,3 +297,135 @@ esa capa) es la siguiente ronda de TAL-47, sobre este mismo catálogo ya
 sembrado. Tampoco toca producción — mismo criterio que TAL-43: diseñado y
 verificado contra el deployment de dev de esta terminal, la re-siembra
 real de producción la decide y ejecuta la Directora con el CEO.
+
+
+## Catálogo 2026 (TAL-62) — 8 skins, migración y runbook de producción
+
+Normativo: `design/design-system.md` § "Estilo 2026 → Skins". Valores exactos:
+`design/propuesta-skins-modernos.html`, copiados en `convex/skinCatalog2026.ts` (datos
+de sembrado; un test los compara con el mockup parseándolo).
+
+### Modelo
+- **`skinStyles`** (tabla nueva): una fila por skin del catálogo nuevo — `sortOrder`
+  (1..8), `palette` (18 colores de la pantalla del invitado), `treatment` (`comic` en
+  Tira Cómica, `stripes-pill` en Rojiblanco) y `swatches` (muestras del selector).
+  **Catálogo activo = skins con fila en `skinStyles`.**
+- En tabla aparte, no como campos de `skins`: Convex valida todos los documentos contra
+  el schema al desplegar, así que campos nuevos en `skins` impedirían volver al Convex
+  anterior. Una tabla nueva no lo impide (filas conservadas, índices recreados).
+- `skins` conserva sus campos antiguos (`background`/`accent`/`textColor`/`textPill`),
+  también rellenos en las 5 filas nuevas, para el Next anterior a TAL-62.
+- `calendars` gana el índice `by_skin` (borrado protegido); `skinMigrationLog` registra la
+  migración.
+
+| # | key | Fila |
+|---|---|---|
+| 1 | `alegre` (por defecto) | nueva |
+| 2 | `navidad-pop` | nueva |
+| 3 | `caramelo` | nueva |
+| 4 | `noche` | nueva |
+| 5 | `nieve` | **conservada** (mismo `_id`; decisión del PM) |
+| 6 | `minimal` | nueva |
+| 7 | `tira-comica` | **conservada** |
+| 8 | `rojiblanco` | **conservada** |
+
+### Funciones (Convex)
+- `skins:seedSkinCatalog2026` — sembrado idempotente (upsert por `key` y por `skinId`);
+  en las conservadas solo cambia la descripción; comprueba `sortOrder` = {1..8}.
+- `skins.listCatalogPublic` — los 8 con estilo, en orden. `listAllPublic` no cambia.
+- **Skin por defecto:** `alegre` si está sembrado; si no, `pino`, y si no, el primero.
+- **Barrera de escritura** (`calendars.ts::resolveSkinForWrite`, dentro de la misma
+  mutation de crear/editar): antes de sembrar, comportamiento de siempre; con el
+  catálogo sembrado, un skin sin estilo se guarda como **Alegre**. Ninguna escritura
+  —Next antiguo, modo degradado, CLI— puede volver a apuntar a un skin retirado.
+- `skinMigration:*` — `migrateCalendarSkinsBatch` / `runCalendarSkinMigration`
+  (log transaccional, idempotente), `auditCalendarSkins` (`inCatalog`, `legacy`,
+  `missingSkin`, `legacyByKey`; acotada), `listSkinMigrationLogPage`,
+  `restoreCalendarSkinsBatch` / `runCalendarSkinRestore`, `deleteRetiredSkinsBatch` /
+  `runDeleteRetiredSkins` (exige `legacy: 0` y `missingSkin: 0`; borra solo skins sin
+  estilo y sin calendarios que los referencien).
+
+### Runbook de producción (lo ejecutan la Directora y el CEO)
+
+**(a) Despliegue.** Merge → Railway (`npx convex deploy --cmd 'npm run build'`): Convex
+se despliega durante el build con el Next antiguo sirviendo. Solo tablas e índice nuevos;
+`listAllPublic` y los datos no cambian: el Next antiguo sigue igual. Antes de sembrar, la
+barrera y el default se comportan como siempre.
+
+**(b) Verificar que sirve el Next nuevo** — `data-skin-style` en la portada de un
+calendario de prueba del Super Admin (con sesión), 3 veces. *(Marcador de la parte
+visual de TAL-62.)*
+
+**(c) Sembrar y smoke.**
+```
+npx convex run --prod skins:seedSkinCatalog2026 '{}'
+npx convex run --prod skins:listCatalogPublic '{"serverSecret":"<secreto>"}'   # 8, en orden
+```
+Seguro también con el Next antiguo (filas nuevas con campos antiguos; conservadas
+intactas). Desde aquí, la barrera de escritura está activa. Smoke: los 8 en el selector,
+un calendario nuevo nace con Alegre, Tira Cómica / Rojiblanco / Nieve con su versión nueva.
+
+**(d) Backup, auditoría y migración.**
+```
+npx convex export --prod --path backups/tal62-pre-migration-<fecha>.zip
+unzip -l backups/tal62-pre-migration-<fecha>.zip | grep -E "calendars/|skins/"
+npx convex run --prod skinMigration:auditCalendarSkins '{}'                                   # legacy > 0
+npx convex run --prod skinMigration:runCalendarSkinMigration '{"migrationId":"tal62-prod-1"}'
+npx convex run --prod skinMigration:auditCalendarSkins '{}'                                   # legacy: 0 Y missingSkin: 0
+npx convex run --prod skinMigration:runCalendarSkinMigration '{"migrationId":"tal62-prod-1-rerun"}'  # migrated: 0
+```
+Fallo a mitad: relanzar con el mismo `migrationId` (idempotente). Lote a lote:
+`skinMigration:migrateCalendarSkinsBatch '{"migrationId":"tal62-prod-1","cursor":null}'`
+siguiendo `continueCursor` hasta `isDone`.
+
+**(e) Retirada física** (tras el periodo de verificación que decidan el CEO y Aitor):
+backup → `npx convex run --prod skinMigration:runDeleteRetiredSkins '{}'`. Aborta sin
+borrar si la auditoría no da `legacy: 0` y `missingSkin: 0` (relanzar la migración);
+si borra, devuelve `skippedReferenced` (esperado 0) y la auditoría final (`legacy: 0` y
+`missingSkin: 0`). Quedan solo los 8 (en producción se esperan 21 borrados; un
+deployment con filas antiguas extra, p. ej. la key `pine` de antes de TAL-30, borra
+también esas).
+
+### Corrección de datos (antes de la retirada física)
+```
+npx convex run --prod skinMigration:runCalendarSkinRestore '{"migrationId":"tal62-prod-1"}'
+```
+Restaura solo los calendarios que siguen en Alegre por la migración; los editados
+después salen como `skippedEdited` (no se pisan; una re-edición que eligió justo Alegre
+no se distingue). Listado completo con bucle hasta `isDone`:
+```
+CURSOR=null
+while :; do
+  PAGE=$(npx convex run --prod skinMigration:listSkinMigrationLogPage \
+    "{\"migrationId\":\"tal62-prod-1\",\"onlyUnrestored\":true,\"cursor\":$CURSOR}")
+  echo "$PAGE" | jq -c '.entries[]'
+  [ "$(echo "$PAGE" | jq '.isDone')" = "true" ] && break
+  CURSOR=$(echo "$PAGE" | jq '.continueCursor')
+done
+```
+Tras restaurar, la barrera sigue activa mientras exista el catálogo (las escrituras nuevas
+irán a Alegre). Después, migración nueva con **otro** `migrationId`.
+
+### Restauración desde backup (último recurso, decisión del CEO)
+ZIP solo con `skins` + `calendars` del backup e `import --replace` (conserva los `_id`;
+demás tablas intactas) — mismo procedimiento que `docs/iconos.md`:
+```
+mkdir -p restore/skins restore/calendars
+unzip -p backups/tal62-pre-migration-<fecha>.zip skins/documents.jsonl > restore/skins/documents.jsonl
+unzip -p backups/tal62-pre-migration-<fecha>.zip calendars/documents.jsonl > restore/calendars/documents.jsonl
+(cd restore && zip -r ../backups/tal62-skins-calendars.zip skins calendars)
+npx convex import --prod --replace backups/tal62-skins-calendars.zip
+```
+El backup se toma DESPUÉS de sembrar (fase d), así `skinStyles` sigue coherente con los
+`_id` de `skins` tras restaurar.
+
+### Rollback
+- **Convex** a funciones anteriores a TAL-62: seguro en cualquier fase (las tablas nuevas
+  se ignoran; el índice nuevo se borra y se recrea al volver). El Next de TAL-62 tolera
+  la ausencia de `listCatalogPublic` (modo degradado — parte visual).
+- **Next** anterior a TAL-62: posible — los skins nuevos llevan campos antiguos y los
+  calendarios migrados se pintan con los de Alegre (estilo antiguo, nada roto).
+
+### Evidencia
+`scripts/verify-tal62-skin-migration.mjs` ensaya todo lo anterior contra el deployment de
+desarrollo de la terminal (aborta si no es `dev:`).

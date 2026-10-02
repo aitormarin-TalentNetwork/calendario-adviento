@@ -100,7 +100,12 @@ export default defineSchema({
     creationKey: v.optional(v.string()),
     skinId: v.id("skins"),
   })
-    .index("by_creation_key", ["creationKey"]),
+    .index("by_creation_key", ["creationKey"])
+    // TAL-62 — el borrado protegido de skins retirados
+    // (`skinMigration.ts::deleteRetiredSkinsBatch`) comprueba que ningún
+    // calendario apunta al skin antes de borrarlo, sin recorrer la tabla
+    // entera. Solo un índice nuevo: no cambia ningún campo.
+    .index("by_skin", ["skinId"]),
 
   calendarMemberships: defineTable({
     // Sin enum nativo en Convex — unión discriminada de literales, el
@@ -241,6 +246,58 @@ export default defineSchema({
     calendarId: v.id("calendars"),
     from: v.string(),
     to: v.string(),
+    restored: v.boolean(),
+  })
+    .index("by_migration", ["migrationId"])
+    .index("by_migration_and_calendar", ["migrationId", "calendarId"]),
+
+  // TAL-62 — estilo "Estilo 2026" de cada skin del catálogo nuevo (8 filas,
+  // una por skin). En una TABLA APARTE y no como campos nuevos de `skins`:
+  // Convex valida todos los documentos existentes contra el schema al
+  // desplegar, así que campos nuevos en `skins` impedirían volver a
+  // desplegar el Convex anterior a TAL-62 (rollback). Una tabla nueva no
+  // bloquea nada (mismo caso que `coverIconMigrationLog`, TAL-60).
+  // Catálogo activo = skins con fila aquí; los 21 antiguos no tienen.
+  // Valores exactos en `convex/skinCatalog2026.ts`.
+  skinStyles: defineTable({
+    skinId: v.id("skins"),
+    sortOrder: v.number(),
+    palette: v.object({
+      bg: v.string(),
+      ink: v.string(),
+      dim: v.string(),
+      line: v.string(),
+      card: v.string(),
+      cell: v.string(),
+      tile: v.string(),
+      tileInk: v.string(),
+      hero: v.string(),
+      heroInk: v.string(),
+      heroNum: v.string(),
+      glow: v.string(),
+      today: v.string(),
+      todayInk: v.string(),
+      todayShadow: v.string(),
+      seenA: v.string(),
+      seenB: v.string(),
+      weekend: v.string(),
+    }),
+    treatment: v.optional(v.union(v.literal("comic"), v.literal("stripes-pill"))),
+    swatches: v.array(v.string()),
+  })
+    .index("by_skin", ["skinId"])
+    .index("by_sort", ["sortOrder"]),
+
+  // TAL-62 — registro duradero de la migración de calendarios al catálogo
+  // nuevo (mismo diseño que `coverIconMigrationLog`): cada fila se escribe en
+  // la MISMA transacción que el `patch` del calendario. Ver
+  // `convex/skinMigration.ts` y docs/skins.md § "Catálogo 2026".
+  skinMigrationLog: defineTable({
+    migrationId: v.string(),
+    calendarId: v.id("calendars"),
+    fromSkinId: v.id("skins"),
+    fromKey: v.string(),
+    toSkinId: v.id("skins"),
     restored: v.boolean(),
   })
     .index("by_migration", ["migrationId"])

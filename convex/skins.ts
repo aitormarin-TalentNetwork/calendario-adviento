@@ -1,6 +1,8 @@
-import { internalMutation, internalQuery, query, type MutationCtx } from "./_generated/server";
+import { internalMutation, internalQuery, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { v } from "convex/values";
+import type { Doc, Id } from "./_generated/dataModel";
 import { requireServerSecret } from "./serverAuth";
+import { DEFAULT_SKIN_KEY_2026, SKIN_CATALOG_2026 } from "./skinCatalog2026";
 
 type SkinSeed = {
   key: string;
@@ -483,5 +485,119 @@ export const listAllPublic = query({
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
     return await ctx.db.query("skins").collect();
+  },
+});
+
+// ---------------------------------------------------------------------------
+// TAL-62 — catálogo "Estilo 2026" (8 skins). Datos en `skinCatalog2026.ts`;
+// estilo en la tabla `skinStyles` (ver el porqué en `convex/schema.ts`).
+// ---------------------------------------------------------------------------
+
+/** Estilo de un skin, o `null` si no está en el catálogo nuevo (antiguo/retirado). Lanza si hay más de una fila (catálogo incoherente). */
+export async function getSkinStyle(ctx: QueryCtx, skinId: Id<"skins">): Promise<Doc<"skinStyles"> | null> {
+  const rows = await ctx.db
+    .query("skinStyles")
+    .withIndex("by_skin", (q) => q.eq("skinId", skinId))
+    .take(2);
+  if (rows.length > 1) throw new Error(`Catálogo incoherente: más de un estilo para el skin ${skinId}.`);
+  return rows[0] ?? null;
+}
+
+/** ¿Existe ya el catálogo nuevo (al menos un estilo sembrado)? Antes de sembrar, el comportamiento es el de siempre. */
+export async function isCatalog2026Seeded(ctx: QueryCtx): Promise<boolean> {
+  return (await ctx.db.query("skinStyles").first()) !== null;
+}
+
+async function getSkinByKey(ctx: QueryCtx, key: string): Promise<Doc<"skins"> | null> {
+  return await ctx.db
+    .query("skins")
+    .withIndex("by_key", (q) => q.eq("key", key))
+    .unique();
+}
+
+/** `_id` de Alegre si está en el catálogo nuevo (con estilo); `null` si todavía no se ha sembrado. */
+export async function getCatalogDefaultSkinId(ctx: QueryCtx): Promise<Id<"skins"> | null> {
+  const alegre = await getSkinByKey(ctx, DEFAULT_SKIN_KEY_2026);
+  if (!alegre) return null;
+  return (await getSkinStyle(ctx, alegre._id)) ? alegre._id : null;
+}
+
+/**
+ * Sembrado idempotente de los 8 (upsert por `key` en `skins` y por `skinId`
+ * en `skinStyles`). En las 3 filas conservadas (`nieve`, `tira-comica`,
+ * `rojiblanco`) solo se actualiza la descripción: los campos antiguos
+ * (`background`/`accent`/`textColor`/`textPill`) NO se tocan, para que el
+ * Next anterior a TAL-62 las siga pintando igual. Si una conservada no
+ * existe en este deployment (seed distinto), se inserta como nueva.
+ * Al terminar comprueba que `sortOrder` es exactamente {1..8} sin repetidos.
+ */
+export const seedSkinCatalog2026 = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const result: { key: string; skinId: Id<"skins">; skin: "inserted" | "updated" | "kept"; style: "inserted" | "updated" }[] = [];
+    for (const entry of SKIN_CATALOG_2026) {
+      const existing = await getSkinByKey(ctx, entry.key);
+      let skinId: Id<"skins">;
+      let skinAction: "inserted" | "updated" | "kept";
+      if (existing && entry.keepsExistingRow) {
+        await ctx.db.patch(existing._id, { name: entry.name, description: entry.description });
+        skinId = existing._id;
+        skinAction = "kept";
+      } else if (existing) {
+        await ctx.db.patch(existing._id, { name: entry.name, description: entry.description, ...entry.legacy });
+        skinId = existing._id;
+        skinAction = "updated";
+      } else {
+        skinId = await ctx.db.insert("skins", { key: entry.key, name: entry.name, description: entry.description, ...entry.legacy });
+        skinAction = "inserted";
+      }
+
+      const style = await getSkinStyle(ctx, skinId);
+      const styleDoc = { skinId, sortOrder: entry.sortOrder, palette: entry.palette, treatment: entry.treatment, swatches: entry.swatches };
+      if (style) {
+        await ctx.db.replace(style._id, styleDoc);
+      } else {
+        await ctx.db.insert("skinStyles", styleDoc);
+      }
+      result.push({ key: entry.key, skinId, skin: skinAction, style: style ? "updated" : "inserted" });
+    }
+
+    const orders = (await ctx.db.query("skinStyles").collect()).map((s) => s.sortOrder).sort((a, b) => a - b);
+    const expected = SKIN_CATALOG_2026.map((e) => e.sortOrder).sort((a, b) => a - b);
+    if (JSON.stringify(orders) !== JSON.stringify(expected)) {
+      throw new Error(`sortOrder incoherente tras sembrar: ${JSON.stringify(orders)}`);
+    }
+    return result;
+  },
+});
+
+/**
+ * Catálogo activo (los 8 con estilo), ordenado por `sortOrder`, para el
+ * selector y la pantalla del invitado del Next de TAL-62. `listAllPublic`
+ * NO cambia de contrato: la sigue usando el Next anterior durante el
+ * despliegue, y el Next nuevo cae a ella si esta función no existe
+ * (rollback de Convex — docs/skins.md § "Catálogo 2026").
+ */
+export const listCatalogPublic = query({
+  args: { serverSecret: v.string() },
+  handler: async (ctx, args) => {
+    await requireServerSecret(args.serverSecret);
+    const styles = await ctx.db.query("skinStyles").withIndex("by_sort").collect();
+    const rows = [];
+    for (const style of styles) {
+      const skin = await ctx.db.get(style.skinId);
+      if (!skin) continue;
+      rows.push({
+        _id: skin._id,
+        key: skin.key,
+        name: skin.name,
+        description: skin.description,
+        sortOrder: style.sortOrder,
+        palette: style.palette,
+        treatment: style.treatment,
+        swatches: style.swatches,
+      });
+    }
+    return rows;
   },
 });
