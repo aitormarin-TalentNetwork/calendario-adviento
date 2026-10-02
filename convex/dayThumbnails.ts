@@ -2,7 +2,7 @@ import { internalAction, internalMutation, internalQuery } from "./_generated/se
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
-import { obtainThumbnail } from "./dayFiles";
+import { faultPoint, obtainThumbnailLinked } from "./dayFiles";
 import { thumbnailSourceForVideo } from "./dayFileGuards";
 
 /**
@@ -82,15 +82,13 @@ export const writeLog = internalMutation({
     videoUrl: v.string(),
     result: v.union(v.literal("stored"), v.literal("failed"), v.literal("skipped")),
     reason: v.optional(v.string()),
+    // El `storageId` EXACTO que enlazó esta migración al ganar el CAS
+    // (`obtainThumbnailLinked`). Nunca se relee del día: entre el enlace y
+    // este log un Admin puede haber enlazado otra copia (NO-GO M1, loop 1).
+    storageId: v.optional(v.id("_storage")),
   },
   handler: async (ctx, args) => {
-    // El `storageId` enlazado (si lo hay) se lee del día ahora mismo: es el
-    // que la reversión comprobará antes de deshacer nada.
-    const day = await ctx.db.get(args.dayId);
-    await ctx.db.insert("dayThumbnailMigrationLog", {
-      ...args,
-      storageId: args.result === "stored" ? day?.thumbnailStorageId : undefined,
-    });
+    await ctx.db.insert("dayThumbnailMigrationLog", args);
   },
 });
 
@@ -113,13 +111,14 @@ export const runThumbnailBackfill = internalAction({
           totals.alreadyLogged += 1;
           continue;
         }
-        const log = (result: "stored" | "failed" | "skipped", reason?: string) =>
+        const log = (result: "stored" | "failed" | "skipped", reason?: string, storageId?: Id<"_storage">) =>
           ctx.runMutation(internal.dayThumbnails.writeLog, {
             migrationId: args.migrationId,
             dayId: day._id,
             videoUrl: day.videoUrl,
             result,
             reason,
+            storageId,
           });
         if (!thumbnailSourceForVideo(day.videoUrl)) {
           totals.skipped += 1;
@@ -131,15 +130,17 @@ export const runThumbnailBackfill = internalAction({
           await log("skipped", "has-copy");
           continue;
         }
-        const outcome = await obtainThumbnail(ctx, {
+        const { outcome, linkedStorageId } = await obtainThumbnailLinked(ctx, {
           calendarId: day.calendarId,
           dayId: day._id,
           videoUrl: day.videoUrl,
           expectedThumbnailStorageId: day.thumbnailStorageId,
         });
+        // Gancho de dev para el test de frontera (Admin enlaza otra copia entre el enlace y el log).
+        await faultPoint("migration-before-log");
         if (outcome === "stored") {
           totals.stored += 1;
-          await log("stored");
+          await log("stored", undefined, linkedStorageId);
         } else if (outcome === "lost") {
           // Otro guardado enlazó entretanto (o borraron el día): no es fallo.
           totals.skipped += 1;

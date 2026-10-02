@@ -70,7 +70,58 @@ type Audit = {
     filesInWindowForReview: { storageId: string }[];
   }[];
 };
-const audit = () => run<Audit>("dayFiles:auditDayFiles");
+type Page<T> = T & { isDone: boolean; continueCursor: string };
+
+/** Recorre TODAS las páginas de una consulta paginada de auditoría (con tamaño de página pequeño a propósito). */
+async function allPages<T>(fn: string, extra: object, numItems: number): Promise<Page<T>[]> {
+  const pages: Page<T>[] = [];
+  let cursor: string | null = null;
+  for (let i = 0; i < 1000; i++) {
+    const page: Page<T> = await run<Page<T>>(fn, { ...extra, cursor, numItems });
+    pages.push(page);
+    if (page.isDone) return pages;
+    cursor = page.continueCursor;
+  }
+  throw new Error(`demasiadas páginas en ${fn}`);
+}
+
+type IntentsPage = { now: number; live: number; expiredRegistered: number; expiredUnregistered: number; registered: number; oldestRegisteredCreation: number | null };
+
+/** Resumen de intenciones sumando páginas (de 7 en 7). */
+async function intentsSummary() {
+  const pages = await allPages<IntentsPage>("dayFiles:auditIntentsPage", {}, 7);
+  const sum = (k: keyof IntentsPage) => pages.reduce((n, p) => n + (p[k] as number), 0);
+  const oldest = pages.map((p) => p.oldestRegisteredCreation).filter((x): x is number => x !== null);
+  const now = pages[pages.length - 1].now;
+  return {
+    liveIntents: sum("live"),
+    expiredRegistered: sum("expiredRegistered"),
+    expiredUnregistered: sum("expiredUnregistered"),
+    registeredPending: sum("registered"),
+    oldestPendingAgeMs: oldest.length ? now - Math.min(...oldest) : null,
+    now,
+  };
+}
+
+/** Auditoría completa recorriendo todas las páginas (ventanas de 3 en 3, candidatos de 4 en 4). */
+async function audit(): Promise<Audit> {
+  const intents = await intentsSummary();
+  const windowPages = await allPages<{ windows: Audit["unresolvedWindows"] }>("dayFiles:listUnresolvedWindowsPage", {}, 3);
+  const windows = windowPages.flatMap((p) => p.windows);
+  const unresolvedWindows = [] as Audit["unresolvedWindows"];
+  for (const w of windows) {
+    const cand = await allPages<{ candidates: { storageId: string }[] }>("dayFiles:windowCandidatesPage", { windowId: w._id }, 4);
+    unresolvedWindows.push({ ...w, filesInWindowForReview: cand.flatMap((c) => c.candidates) });
+  }
+  const refs = await allPages<{ dangling: number }>("dayFiles:auditDayReferencesPage", {}, 7);
+  const created = windows.map((w) => (w as unknown as { _creationTime: number })._creationTime);
+  return {
+    ...intents,
+    unresolvedWindows,
+    oldestUnresolvedWindowAgeMs: created.length ? intents.now - Math.min(...created) : null,
+    danglingDayReferences: refs.reduce((n, r) => n + r.dangling, 0),
+  };
+}
 const storage = (ids: string[] = []) => run<{ total: number; exists: Record<string, boolean> }>("dayFiles:storageInfoForTests", { storageIds: ids });
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -80,7 +131,7 @@ async function drainNow(): Promise<number> {
   await run("dayFiles:startReconcile");
   await expect
     .poll(async () => {
-      const [a, lease] = await Promise.all([audit(), run("dayFiles:leaseForTests")]);
+      const [a, lease] = await Promise.all([intentsSummary(), run("dayFiles:leaseForTests")]);
       return a.expiredRegistered === 0 && a.expiredUnregistered === 0 && lease === null;
     }, { timeout: 240_000, intervals: [500, 1000, 2000] })
     .toBe(true);
@@ -467,4 +518,85 @@ test("13 · drenaje medido, no solape, continuación obsoleta, watchdog sin cron
   expect(aged.oldestPendingAgeMs).toBeGreaterThanOrEqual(3_000);
   await drainNow();
   expect((await audit()).oldestPendingAgeMs).toBeNull();
+});
+
+test("M1 · rollback de la migración: si el Admin enlaza otra copia entre el enlace y el log, el log guarda la de la migración y revertir NO borra la del Admin", async () => {
+  const calendarId = await newCalendar("m1");
+  const date = nextDate();
+  // Día SIN copia (como los de producción), para que la migración lo procese.
+  await convex.mutation(api.days.upsertDayPublic, { serverSecret: serverSecret(), calendarId, date, videoUrl: YOUTUBE });
+  // Base: cualquier otro día ya migrado, para que esta migración solo toque el nuevo.
+  await run("dayThumbnails:runThumbnailBackfill", { migrationId: `tal67-m1-base-${runId}`, batchSize: 25 });
+  await convex.mutation(api.days.upsertDayPublic, { serverSecret: serverSecret(), calendarId, date: nextDate(), videoUrl: "https://example.com/v.mp4" });
+  const dayId = await dayIdOf(calendarId, date);
+  // El día del test vuelve a no tener copia: se le cambia la URL y vuelve (sin Next nuevo).
+  await convex.mutation(api.days.upsertDayPublic, { serverSecret: serverSecret(), calendarId, date, videoUrl: YOUTUBE_2 });
+  await convex.mutation(api.days.upsertDayPublic, { serverSecret: serverSecret(), calendarId, date, videoUrl: YOUTUBE });
+
+  const migrationId = `tal67-m1-${runId}`;
+  envSet("DAY_FILES_PAUSE_AT", "migration-before-log:8000");
+  const migration = run<{ stored: number }>("dayThumbnails:runThumbnailBackfill", { migrationId, batchSize: 25 });
+  // Mientras la migración está parada entre el enlace (copia A) y el log: el Admin guarda otra URL → copia B.
+  let copyA: string | null = null;
+  await expect
+    .poll(async () => {
+      copyA = (await convex.query(api.days.getCalendarDaysPublic, { serverSecret: serverSecret(), calendarId })).days.find((d) => d.date === date)!.imageUrl;
+      return copyA !== null;
+    }, { timeout: 180_000, intervals: [1000] })
+    .toBe(true);
+  expect(await saveDay(calendarId, date, YOUTUBE_2)).toMatchObject({ thumbnail: "stored" });
+  const copyB = (await convex.query(api.days.getCalendarDaysPublic, { serverSecret: serverSecret(), calendarId })).days.find((d) => d.date === date)!.imageUrl!;
+  expect(copyB).not.toBe(copyA);
+  await migration;
+  envRemove("DAY_FILES_PAUSE_AT");
+
+  const log = await run<{ page: { dayId: string; result: string; storageId?: string }[] }>("dayThumbnails:listMigrationLogPage", { migrationId, numItems: 100 });
+  const entry = log.page.find((e) => e.dayId === dayId)!;
+  console.log("TAL-67 M1 log de la migración para el día:", JSON.stringify(entry));
+  expect(entry.result).toBe("stored");
+  // El id del log es el de A (la copia que enlazó la migración), no el de B (releído del día).
+  const info = await storage([entry.storageId!]);
+  expect(info.exists[entry.storageId!]).toBe(false); // A ya se borró al cambiar la URL el Admin
+  expect((await fetch(copyB)).status).toBe(200);
+
+  const revert = await run<{ reverted: number }>("dayThumbnails:revertThumbnailBackfill", { migrationId });
+  console.log("TAL-67 M1 revert:", JSON.stringify(revert));
+  expect(revert.reverted).toBe(0);
+  expect((await fetch(copyB)).status).toBe(200); // la copia del Admin sigue
+});
+
+test("M2 · auditoría paginada: más ventanas y más candidatos que el tamaño de página → se listan todos", async () => {
+  const calendarId = await newCalendar("m2");
+  const date = nextDate();
+  await saveDay(calendarId, date, "https://example.com/v.mp4");
+  const dayId = await dayIdOf(calendarId, date);
+  const before = (await allPages<{ windows: unknown[] }>("dayFiles:listUnresolvedWindowsPage", {}, 3)).flatMap((p) => p.windows).length;
+
+  // 11 intenciones sin registrar ya expiradas → 11 ventanas (más que 3 por página).
+  await run("dayFiles:seedExpiredIntentsForTests", { calendarId, dayId, count: 11, registered: false });
+  // Una intención sin registrar que caduca en 20 s, y 9 ficheros ajenos creados dentro de su ventana (más que 4 por página).
+  await run("dayFiles:insertIntentForTests", { calendarId, dayId, expiresAt: Date.now() + 20_000 });
+  const foreign: string[] = [];
+  for (let i = 0; i < 9; i++) {
+    foreign.push(await run<string>("dayFiles:storeUntrackedFileForTests", { base64: PNG_1PX.toString("base64"), contentType: "image/png" }));
+  }
+  await sleep(21_000);
+  await drainNow();
+
+  const pages = await allPages<{ windows: { _id: string; windowStart: number; windowEnd: number }[] }>("dayFiles:listUnresolvedWindowsPage", {}, 3);
+  const windows = pages.flatMap((p) => p.windows);
+  console.log(`TAL-67 M2: ${windows.length - before} ventanas nuevas en ${pages.length} páginas de 3`);
+  expect(windows.length - before).toBe(12);
+  expect(new Set(windows.map((w) => w._id)).size).toBe(windows.length);
+
+  const wide = windows.reduce((a, b) => (b.windowEnd - b.windowStart > a.windowEnd - a.windowStart ? b : a));
+  const candPages = await allPages<{ candidates: { storageId: string }[] }>("dayFiles:windowCandidatesPage", { windowId: wide._id }, 4);
+  const cands = candPages.flatMap((p) => p.candidates.map((c) => c.storageId));
+  console.log(`TAL-67 M2: ${cands.length} candidatos en ${candPages.length} páginas de 4`);
+  for (const id of foreign) expect(cands).toContain(id);
+
+  for (const w of windows) await run("dayFiles:closeUnresolvedWindow", { id: w._id, resolvedBy: "e2e TAL-67", resolution: "test M2" });
+  expect((await allPages<{ windows: unknown[] }>("dayFiles:listUnresolvedWindowsPage", {}, 3)).flatMap((p) => p.windows)).toEqual([]);
+  const after = await storage(foreign);
+  expect(Object.values(after.exists).every(Boolean)).toBe(true); // el cierre no borra nada
 });

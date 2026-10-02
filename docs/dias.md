@@ -1160,15 +1160,38 @@ cuerpo y después tres mutations cortas.
 
 ### Runbook: auditoría y ventanas sin resolver
 
+La auditoría está **paginada**: ninguna consulta recorre una tabla entera, porque el
+registro duradero crece con el tiempo (corrección del NO-GO M2 del loop 1). Cada función
+devuelve una página con `isDone` y `continueCursor`, y se repite pasando el cursor hasta
+`isDone: true`:
+
+| Función (internal) | Página máx. | Qué devuelve |
+|---|---|---|
+| `dayFiles:auditIntentsPage` | 500 | Intenciones vivas, expiradas registradas y sin registrar, y `oldestRegisteredCreation` de la página |
+| `dayFiles:listUnresolvedWindowsPage` | 100 | Ventanas `unresolved-window` (con `includeResolved: true`, también las cerradas) |
+| `dayFiles:windowCandidatesPage` | 200 | Por ventana (`windowId`): ficheros de `_storage` creados en su ventana que no referencia ningún día ni registra ninguna intención (**solo ayuda**) |
+| `dayFiles:auditDayReferencesPage` | 500 | Referencias de días a ficheros que ya no existen (debe ser 0) |
+
 ```sh
-npx convex run --prod dayFiles:auditDayFiles '{}'
+# Recorre todas las páginas de una función de auditoría (requiere node para leer el JSON).
+pages() { fn=$1; extra=$2; cursor=null; while :; do
+  out=$(npx convex run --prod "$fn" "{${extra}\"cursor\":$cursor,\"numItems\":100}"); echo "$out"
+  [ "$(echo "$out" | node -pe 'JSON.parse(require("fs").readFileSync(0)).isDone')" = true ] && break
+  cursor=$(echo "$out" | node -pe 'JSON.stringify(JSON.parse(require("fs").readFileSync(0)).continueCursor)'); done; }
+pages dayFiles:auditIntentsPage ''                   # suma de recuentos; antigüedad del pendiente más viejo = ahora − mín(oldestRegisteredCreation)
+pages dayFiles:listUnresolvedWindowsPage ''          # todas las ventanas sin resolver
+pages dayFiles:windowCandidatesPage '"windowId":"<id>",'   # ayuda para revisar UNA ventana
+pages dayFiles:auditDayReferencesPage ''             # suma de dangling = 0
 ```
 
-Para cada `unresolvedWindows[]`:
+`oldestPendingAgeMs` = `now` − el mínimo de `oldestRegisteredCreation` de todas las
+páginas. Si pasa de 90 min, el objetivo medido se está incumpliendo: revisar el
+scheduler.
+
+Para cada ventana sin resolver:
 1. Revisar el día o calendario, el actor y la ventana.
-2. La auditoría lista también, **solo como ayuda**, los ficheros de `_storage` creados en
-   esa ventana que no referencia ningún día ni registra ninguna intención. Pueden ser de
-   TAL-67 o de cualquier otra cosa: estar ahí no prueba nada.
+2. Mirar sus candidatos con `windowCandidatesPage`, **solo como ayuda**: pueden ser de
+   TAL-67 o de cualquier otra cosa, y estar ahí no prueba nada.
 3. Si una persona identifica un fichero huérfano concreto de TAL-67, lo borra **a mano
    desde el dashboard de Convex**: Data → `_storage` → el fichero → Delete.
 4. Cerrar la entrada, anotando qué se hizo:
@@ -1242,7 +1265,7 @@ Si hay que revertir, lo ejecuta quien publica:
    copias dan `frozen`; el día se guarda igual, con aviso. Quitar y borrar siguen
    funcionando, y el cron solo borra.
 2. **Esperar a que la auditoría marque 0 intenciones vivas.** Exportar y anotar las
-   entradas `unresolved-window` (`npx convex export --prod` o `auditDayFiles`).
+   entradas `unresolved-window` (`npx convex export --prod` o `listUnresolvedWindowsPage` página a página).
 3. `dayFiles:stripDayImagesForRollback` (repetir con el cursor hasta `isDone`) y
    comprobar con `dayFiles:countDaysWithImageFields` que da 0.
 4. (Opcional, y solo ANTES del redeploy, porque después la función ya no existe.)

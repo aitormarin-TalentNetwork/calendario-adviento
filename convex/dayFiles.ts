@@ -80,7 +80,9 @@ function testHelpersAllowed(): void {
  * (`DAY_FILES_FAULT=<punto>`, `DAY_FILES_PAUSE_AT=<punto>:<ms>`). En
  * producción esas variables no existen y esto no hace nada.
  */
-export async function faultPoint(point: "before-store" | "after-store" | "after-register"): Promise<void> {
+export async function faultPoint(
+  point: "before-store" | "after-store" | "after-register" | "migration-before-log"
+): Promise<void> {
   const pause = process.env.DAY_FILES_PAUSE_AT;
   if (pause) {
     const [name, ms] = pause.split(":");
@@ -286,6 +288,21 @@ export type ThumbnailOutcome = "stored" | "failed" | "lost" | "not-applicable" |
  */
 export async function obtainThumbnail(
   ctx: ActionCtx,
+  args: Parameters<typeof obtainThumbnailLinked>[1],
+  fetchImpl: FetchImpl = fetch
+): Promise<ThumbnailOutcome> {
+  return (await obtainThumbnailLinked(ctx, args, fetchImpl)).outcome;
+}
+
+/**
+ * Igual que `obtainThumbnail`, pero devuelve además el `storageId` EXACTO que
+ * esta operación enlazó al ganar el compare-and-set (solo con `stored`). La
+ * migración lo guarda en su log tal cual: nunca relee el día, porque entre
+ * el enlace y el log un Admin puede haber enlazado otra copia, y la
+ * reversión borraría la suya (NO-GO M1 del loop 1 de TAL-67).
+ */
+export async function obtainThumbnailLinked(
+  ctx: ActionCtx,
   args: {
     calendarId: Id<"calendars">;
     dayId: Id<"days">;
@@ -294,10 +311,10 @@ export async function obtainThumbnail(
     actorUserId?: Id<"users">;
   },
   fetchImpl: FetchImpl = fetch
-): Promise<ThumbnailOutcome> {
+): Promise<{ outcome: ThumbnailOutcome; linkedStorageId?: Id<"_storage"> }> {
   const source = thumbnailSourceForVideo(args.videoUrl);
-  if (!source) return "not-applicable";
-  if (dayImagesFrozen()) return "frozen";
+  if (!source) return { outcome: "not-applicable" };
+  if (dayImagesFrozen()) return { outcome: "frozen" };
 
   const download = await fetchProviderThumbnail(fetchImpl, source);
   if (!download.ok) {
@@ -306,7 +323,7 @@ export async function obtainThumbnail(
       forVideoUrl: args.videoUrl,
       expectedThumbnailStorageId: args.expectedThumbnailStorageId,
     });
-    return recorded === "failed-recorded" ? "failed" : "lost";
+    return { outcome: recorded === "failed-recorded" ? "failed" : "lost" };
   }
 
   const begun: BeginIntentResult = await ctx.runMutation(internal.dayFiles.beginDayFileIntent, {
@@ -316,7 +333,7 @@ export async function obtainThumbnail(
     actorUserId: args.actorUserId,
     requireActor: false,
   });
-  if (!begun.ok) return begun.error === "frozen" ? "frozen" : "lost";
+  if (!begun.ok) return { outcome: begun.error === "frozen" ? "frozen" : "lost" };
 
   await faultPoint("before-store");
   const storageId = await ctx.storage.store(new Blob([download.bytes], { type: download.contentType }));
@@ -330,7 +347,7 @@ export async function obtainThumbnail(
     // lo acabamos de crear, y no queda registrado → se borra en el acto.
     await ctx.storage.delete(storageId);
     console.error("TAL-67: registerDayFile no encontró la intención", begun.intentId);
-    return "lost";
+    return { outcome: "lost" };
   }
   await faultPoint("after-register");
   const result: SetThumbnailResult = await ctx.runMutation(internal.dayFiles.setThumbnail, {
@@ -340,7 +357,7 @@ export async function obtainThumbnail(
     expectedThumbnailStorageId: args.expectedThumbnailStorageId,
     candidateStorageId: storageId,
   });
-  return result === "stored" ? "stored" : "lost";
+  return result === "stored" ? { outcome: "stored", linkedStorageId: storageId } : { outcome: "lost" };
 }
 
 // --- Quitar la imagen subida (frontera pública) ---
@@ -471,72 +488,109 @@ export const reconcileBatch = internalMutation({
   },
 });
 
-// --- Auditoría ---
+// --- Auditoría (paginada: nada de `collect()` sin cota; NO-GO M2 del loop 1) ---
+//
+// El registro duradero crece con el tiempo (las ventanas no se borran), así
+// que ninguna consulta de auditoría recorre una tabla entera: cada una es una
+// PÁGINA acotada con cursor, y quien audita (runbook de docs/dias.md, tests)
+// recorre las páginas hasta `isDone`. El resumen agregado se calcula
+// sumando páginas.
+
+const MAX_AUDIT_PAGE = 500;
+const MAX_WINDOWS_PAGE = 100;
+const MAX_CANDIDATES_PAGE = 200;
+const pageArgs = { cursor: v.union(v.string(), v.null()), numItems: v.optional(v.number()) };
+const clampPage = (n: number | undefined, max: number) => Math.min(Math.max(Math.floor(n ?? max), 1), max);
+
+/** Una página de intenciones: recuentos y la creación más antigua de las registradas (pendientes). */
+export const auditIntentsPage = internalQuery({
+  args: pageArgs,
+  handler: async (ctx, args) => {
+    const now = Date.now();
+    const page = await ctx.db
+      .query("dayFileIntents")
+      .withIndex("by_expires")
+      .paginate({ cursor: args.cursor, numItems: clampPage(args.numItems, MAX_AUDIT_PAGE) });
+    let live = 0;
+    let expiredRegistered = 0;
+    let expiredUnregistered = 0;
+    let registered = 0;
+    let oldestRegisteredCreation: number | null = null;
+    for (const intent of page.page) {
+      if (intent.expiresAt >= now) live += 1;
+      else if (intent.storageId) expiredRegistered += 1;
+      else expiredUnregistered += 1;
+      if (intent.storageId) {
+        registered += 1;
+        if (oldestRegisteredCreation === null || intent._creationTime < oldestRegisteredCreation) oldestRegisteredCreation = intent._creationTime;
+      }
+    }
+    return {
+      now,
+      live,
+      expiredRegistered,
+      expiredUnregistered,
+      registered,
+      oldestRegisteredCreation,
+      isDone: page.isDone,
+      continueCursor: page.continueCursor,
+    };
+  },
+});
+
+/** Una página de ventanas del registro duradero (por defecto, solo las sin resolver). */
+export const listUnresolvedWindowsPage = internalQuery({
+  args: { ...pageArgs, includeResolved: v.optional(v.boolean()) },
+  handler: async (ctx, args) => {
+    const base = args.includeResolved
+      ? ctx.db.query("dayFileUnresolvedWindows")
+      : ctx.db.query("dayFileUnresolvedWindows").withIndex("by_status", (q) => q.eq("status", "unresolved-window"));
+    const page = await base.paginate({ cursor: args.cursor, numItems: clampPage(args.numItems, MAX_WINDOWS_PAGE) });
+    return { windows: page.page, isDone: page.isDone, continueCursor: page.continueCursor };
+  },
+});
 
 /**
- * Estado del limpiador y del registro duradero. Lista SIEMPRE las ventanas
- * sin resolver y, como ayuda (nunca como decisión), los ficheros de
- * `_storage` creados dentro de cada ventana que no referencia ningún día ni
- * registra ninguna intención. `oldestPendingAgeMs` es la antigüedad del
- * pendiente registrado más viejo (objetivo medido: ≤ 90 min).
+ * Una página de ficheros de `_storage` creados dentro de la ventana de una
+ * entrada, que no referencia ningún día ni registra ninguna intención. SOLO
+ * como ayuda para la revisión manual: nunca prueba que un fichero sea de
+ * TAL-67, y nada lo borra automáticamente.
  */
-export const auditDayFiles = internalQuery({
-  args: {},
-  handler: async (ctx) => {
-    const now = Date.now();
-    const intents = await ctx.db.query("dayFileIntents").collect();
-    const expired = intents.filter((i) => i.expiresAt < now);
-    const expiredRegistered = expired.filter((i) => i.storageId);
-    const registered = intents.filter((i) => i.storageId);
-    const unresolved = await ctx.db
-      .query("dayFileUnresolvedWindows")
-      .withIndex("by_status", (q) => q.eq("status", "unresolved-window"))
-      .collect();
-    const registeredIds = new Set(registered.map((i) => i.storageId as string));
-
-    const unresolvedReport = [];
-    for (const row of unresolved) {
-      const inWindow = await ctx.db.system
-        .query("_storage")
-        .withIndex("by_creation_time", (q) => q.gte("_creationTime", row.windowStart).lte("_creationTime", row.windowEnd))
-        .collect();
-      const candidates = [];
-      for (const file of inWindow) {
-        if (registeredIds.has(file._id)) continue;
-        if (await isReferencedByDays(ctx, file._id)) continue;
-        candidates.push({ storageId: file._id, size: file.size, contentType: file.contentType, createdAt: file._creationTime });
-      }
-      unresolvedReport.push({ ...row, filesInWindowForReview: candidates });
+export const windowCandidatesPage = internalQuery({
+  args: { ...pageArgs, windowId: v.id("dayFileUnresolvedWindows") },
+  handler: async (ctx, args) => {
+    const row = await ctx.db.get(args.windowId);
+    if (!row) return { candidates: [], scanned: 0, isDone: true, continueCursor: "" };
+    const page = await ctx.db.system
+      .query("_storage")
+      .withIndex("by_creation_time", (q) => q.gte("_creationTime", row.windowStart).lte("_creationTime", row.windowEnd))
+      .paginate({ cursor: args.cursor, numItems: clampPage(args.numItems, MAX_CANDIDATES_PAGE) });
+    const candidates = [];
+    for (const file of page.page) {
+      const registered = await ctx.db
+        .query("dayFileIntents")
+        .withIndex("by_storage", (q) => q.eq("storageId", file._id))
+        .first();
+      if (registered) continue;
+      if (await isReferencedByDays(ctx, file._id)) continue;
+      candidates.push({ storageId: file._id, size: file.size, contentType: file.contentType, createdAt: file._creationTime });
     }
+    return { candidates, scanned: page.page.length, isDone: page.isDone, continueCursor: page.continueCursor };
+  },
+});
 
-    const oldestPending = registered.reduce<number | null>(
-      (oldest, i) => (oldest === null || i._creationTime < oldest ? i._creationTime : oldest),
-      null
-    );
-    const oldestUnresolved = unresolved.reduce<number | null>(
-      (oldest, r) => (oldest === null || r._creationTime < oldest ? r._creationTime : oldest),
-      null
-    );
-
-    // Referencias rotas: un día que apunta a un fichero que ya no existe.
-    const days = await ctx.db.query("days").collect();
-    let danglingDayReferences = 0;
-    for (const day of days) {
+/** Una página de días: cuántas referencias apuntan a ficheros que ya no existen (debe ser 0). */
+export const auditDayReferencesPage = internalQuery({
+  args: pageArgs,
+  handler: async (ctx, args) => {
+    const page = await ctx.db.query("days").paginate({ cursor: args.cursor, numItems: clampPage(args.numItems, MAX_AUDIT_PAGE) });
+    let dangling = 0;
+    for (const day of page.page) {
       for (const id of [day.imageStorageId, day.thumbnailStorageId]) {
-        if (id && !(await storageExists(ctx, id))) danglingDayReferences += 1;
+        if (id && !(await storageExists(ctx, id))) dangling += 1;
       }
     }
-
-    return {
-      liveIntents: intents.length - expired.length,
-      expiredRegistered: expiredRegistered.length,
-      expiredUnregistered: expired.length - expiredRegistered.length,
-      registeredPending: registered.length,
-      oldestPendingAgeMs: oldestPending === null ? null : now - oldestPending,
-      unresolvedWindows: unresolvedReport,
-      oldestUnresolvedWindowAgeMs: oldestUnresolved === null ? null : now - oldestUnresolved,
-      danglingDayReferences,
-    };
+    return { dangling, isDone: page.isDone, continueCursor: page.continueCursor };
   },
 });
 
