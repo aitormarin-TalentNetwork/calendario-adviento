@@ -103,8 +103,11 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
 
 export default async function AdminCalendarPage({
   params,
+  searchParams,
 }: PageProps<"/admin/[calendarId]">) {
   const { calendarId } = await params;
+  // TAL-65 — error de "Personas del calendario" (`guests-actions.ts`).
+  const { people_error: peopleError } = await searchParams;
 
   const user = await getAuthorizedUser();
   if (!user) redirect(`/login?callbackUrl=/admin/${calendarId}`);
@@ -136,7 +139,11 @@ export default async function AdminCalendarPage({
         skinTextPill={skinTextPill}
       />
 
-      <GuestsSection calendarId={calendar.id} />
+      <GuestsSection
+        calendarId={calendar.id}
+        actorUserId={user.id}
+        peopleError={typeof peopleError === "string" ? peopleError : undefined}
+      />
 
       {/* TAL-33 — "Eliminar calendario" (ajuste de Aitor: antes "Borrar
           calendario") pasa de botón fantasma en la cabecera a botón rojo

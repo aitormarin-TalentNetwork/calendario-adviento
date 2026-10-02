@@ -2,7 +2,13 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { inviteGuest, removeGuestEverywhere, removeGuestFromCalendar } from "@/lib/guests";
+import {
+  inviteToCalendar,
+  parseCalendarRole,
+  removePersonFromCalendar,
+  setPersonRole,
+} from "@/lib/calendar-people";
+import { removeGuestEverywhere } from "@/lib/guests";
 import { getAuthorizedUser, type AuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
 
@@ -30,32 +36,65 @@ async function requireCalendarAdmin(calendarId: string): Promise<AuthorizedUser>
   return user;
 }
 
-export async function inviteGuestAction(calendarId: string, formData: FormData) {
-  await requireCalendarAdmin(calendarId);
+// TAL-65 — errores tipados de "Personas del calendario" que se muestran en
+// el propio editor (`guests-section.tsx` lee `?people_error=`).
+export type PeopleError = "invalid-email" | "last-admin" | "frozen" | "not-found";
+
+function peopleErrorRedirect(calendarId: string, error: PeopleError): never {
+  redirect(`/admin/${calendarId}?people_error=${error}`);
+}
+
+/**
+ * Tras cambiarse el rol a sí mismo (a Visitante) o quitarse del calendario,
+ * quien no es Super Admin ya no puede seguir en este editor: `/admin` le
+ * lleva a "Mis calendarios", o a "Tus calendarios" si ya no administra
+ * ninguno (TAL-58/59).
+ */
+function leftAdminRole(user: AuthorizedUser, email: string): boolean {
+  return !user.isSuperAdmin && user.email.trim().toLowerCase() === email.trim().toLowerCase();
+}
+
+export async function inviteToCalendarAction(calendarId: string, formData: FormData) {
+  const user = await requireCalendarAdmin(calendarId);
 
   const email = formData.get("email")?.toString() ?? "";
-  // TAL-16 — reconectada contra Convex: `inviteGuest` (`src/lib/guests.ts`)
-  // ya escribe de verdad. Solo queda el caso tipado `invalid-email`
-  // (`{ok:false,...}`) — un fallo real e inesperado de la mutation (p. ej.
-  // el calendario ya no existe) se deja propagar tal cual, no se mapea a
-  // ningún resultado tipado (ver comentario en `src/lib/guests.ts`).
-  const result = await inviteGuest(calendarId, email);
+  const role = parseCalendarRole(formData.get("role"));
+  // TAL-65 — `inviteToCalendar` relee el rol del actor dentro de Convex;
+  // `requireCalendarAdmin` de arriba es solo la puerta rápida.
+  const result = await inviteToCalendar(user.id, calendarId, email, role);
   if (!result.ok) {
-    throw new Error("Introduce un email válido.");
+    if (result.error === "not-authorized") redirect("/unauthorized");
+    peopleErrorRedirect(calendarId, result.error);
   }
 
   revalidatePath(`/admin/${calendarId}`);
 }
 
-export async function removeGuestFromCalendarAction(calendarId: string, email: string) {
-  await requireCalendarAdmin(calendarId);
-  // No hace falta comprobar aparte que `email` sea invitado de este
-  // calendario: removeGuestFromCalendar ya filtra sus borrados por
-  // `calendarId`, así que llamarla con un email que no tiene relación con
-  // este calendario es, como mucho, un no-op — nunca toca datos de otro
-  // calendario (a diferencia de removeGuestEverywhereAction, ver abajo).
-  await removeGuestFromCalendar(calendarId, email);
+export async function setPersonRoleAction(calendarId: string, email: string, formData: FormData) {
+  const user = await requireCalendarAdmin(calendarId);
+
+  const role = parseCalendarRole(formData.get("role"));
+  const result = await setPersonRole(user.id, calendarId, email, role);
+  if (!result.ok) {
+    if (result.error === "not-authorized") redirect("/unauthorized");
+    peopleErrorRedirect(calendarId, result.error);
+  }
+
   revalidatePath(`/admin/${calendarId}`);
+  if (role === "GUEST" && leftAdminRole(user, email)) redirect("/admin");
+}
+
+export async function removePersonAction(calendarId: string, email: string) {
+  const user = await requireCalendarAdmin(calendarId);
+
+  const result = await removePersonFromCalendar(user.id, calendarId, email);
+  if (!result.ok) {
+    if (result.error === "not-authorized") redirect("/unauthorized");
+    peopleErrorRedirect(calendarId, result.error);
+  }
+
+  revalidatePath(`/admin/${calendarId}`);
+  if (leftAdminRole(user, email)) redirect("/admin");
 }
 
 export async function removeGuestEverywhereAction(calendarId: string, email: string) {

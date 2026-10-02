@@ -145,3 +145,14 @@ TAL-12/TAL-16 no estén mergeadas), con un cliente externo real
 
 Scripts de prueba no comprometidos al repo (mismo criterio que el resto
 del proyecto); los resultados quedan documentados aquí.
+
+## "Quitar" no deja ningún calendario sin Admin (TAL-65)
+
+Decisión del PM: la misma regla del último Admin del editor aplica aquí.
+`removeAdminEverywhere` comprueba primero, en la misma mutation, si la persona
+es el único Admin efectivo de algún calendario. Si lo es, no toca nada y
+devuelve `{ok:false, error:"last-admin", calendars}`, y el panel muestra
+*"No se puede quitar: es el único Admin de «X». Nombra antes a otro Admin."* (los
+nombres llegan por la URL y se pintan como texto, nunca como HTML). Detalle,
+carreras y compatibilidad con el despliegue en docs/invitados.md § "Invitar con
+rol (TAL-65)".
