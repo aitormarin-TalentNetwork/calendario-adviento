@@ -111,8 +111,17 @@ el PM el 2026-10-01) pasan a la versión nueva de su skin; **todos los demás pa
 "Alegre"**. Los 21 skins antiguos
 restantes se retiran del catálogo.
 
-**Fuera de la Onda 4** (aparecían en el mockup solo como ambientación): barra de progreso
-"8/24", filtros "Todos / En marcha / Próximos" y etiquetas de estado en el panel del Admin.
+**Progreso, filtros y etiquetas de estado** (aprobados por Aitor el 2026-10-02, tal como
+aparecen en `design/propuesta-estilo-moderno.html`):
+- **"Tus calendarios"**: cada tarjeta lleva una barra de progreso (pista blanca 70 %,
+  relleno `--ink`, altura `8px`, radio píldora) con "vistos/total" de esa persona a la
+  derecha (`700`, `tabular-nums`). Los calendarios que aún no han empezado muestran
+  "Empieza en N días" en lugar de la barra. Encima de la lista, chips de filtro **Todos /
+  En marcha / Próximos** (activo: fondo `--ink`, texto `--bg`), solo si hay más de un
+  calendario; los terminados solo salen en "Todos".
+- **"Mis calendarios" (Admin)**: cada fila lleva a la derecha una etiqueta-píldora de
+  estado según las fechas: **En marcha** (`--mint-soft`), **Próximo** (`--primary-soft`),
+  **Terminado** (`--surface-2`), texto `--ink`, `0.7rem`, `800`.
 
 ## Tokens (estilo anterior — vigente hasta la Onda 4, ver § "Estilo 2026")
 
