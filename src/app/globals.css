@@ -153,14 +153,16 @@ body {
   overflow-x: hidden;
 }
 
-/* TAL-61 — los controles y <code> no heredan la fuente por defecto. Solo la
-   familia/tamaño heredados: no cambia ninguna geometría. */
+/* TAL-61 — los controles y <code> no heredan la FAMILIA por defecto (el
+   navegador les pone la del sistema). Solo la familia: el tamaño de letra
+   por defecto de cada control no cambia, así que su geometría tampoco (las
+   variantes .btn y los inputs de texto fijan su propio tamaño). */
 button,
 input,
 select,
 textarea,
 code {
-  font: inherit;
+  font-family: inherit;
 }
 
 /* TAL-61 — cifras de ancho fijo para números y fechas (sin cambiar de
