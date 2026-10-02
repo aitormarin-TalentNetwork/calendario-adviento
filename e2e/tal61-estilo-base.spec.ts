@@ -596,6 +596,14 @@ for (const [vp, viewport] of [
 // tokens (caso 4).
 const SRC = path.resolve(__dirname, "..", "src");
 const AA_TEXT_TOKENS = new Set(["ink", "ink-dim", "primary-ink", "coral-ink", "on-sun"]);
+// TAL-62 — tokens de TEXTO del skin (pantalla del invitado, vista previa):
+// su contraste en los 8 skins del catálogo lo verifica la puerta
+// scripts/verify-tal62-skin-contrast.mjs sobre cada fondo donde se usan
+// (ink sobre bg/card/cell, dim sobre bg/card, weekend sobre card/cell,
+// todayInk sobre today, heroInk/heroNum sobre el bloque). Solo cuentan como
+// AA dentro de un contenedor con skinStyleVars, que es el único sitio donde
+// existen (sin él, la variable no resuelve y el texto hereda).
+const SKIN_AA_TEXT_TOKENS = new Set(["skin-ink", "skin-dim", "skin-weekend", "skin-today-ink", "skin-hero-ink", "skin-hero-num"]);
 const SKIN = "superficie del calendario: el color lo pone el skin (--accent o su tratamiento de texto); su contraste lo cubre TAL-62";
 const TYPE = "anotación de tipo de TypeScript, no un valor de color";
 type ColorException = { value: string; reason: string };
@@ -614,20 +622,16 @@ const EXCEPTIONS: Record<string, ColorException> = {
   "app/globals.css:1011": { value: "#ffffff", reason: "opción marcada del segmentado de TAL-65: blanco sobre --primary-btn (5,06 / 4,66)" },
   // Editor (fuera del calendario)
   "app/admin/[calendarId]/days-grid-editor.tsx:512": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
-  "app/admin/[calendarId]/calendar-preview.tsx:232": { value: '"#ffffff"', reason: "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin" },
+  "app/admin/[calendarId]/calendar-preview.tsx:221": { value: '"#ffffff"', reason: "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin" },
   // Superficie del calendario: grid del editor dentro de la sección de días (days-section.tsx fija --accent con el del skin) y /c/[id]
   "app/admin/[calendarId]/days-grid-editor.tsx:48": { value: '"inherit"', reason: "casilla del grid: hereda; " + SKIN },
   "app/admin/[calendarId]/days-grid-editor.tsx:103": { value: 'isToday ? "var(--accent)" : "#ffffff"', reason: "número sobre miniatura de vídeo (blanco) o de hoy (--accent del skin); " + SKIN },
   "app/admin/[calendarId]/days-grid-editor.tsx:113": { value: 'isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
   "app/admin/[calendarId]/days-grid-editor.tsx:266": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:29": { value: '"inherit"', reason: "puerta: hereda; " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:121": { value: 'door.isToday ? "var(--accent)" : "#ffffff"', reason: "número sobre miniatura (blanco) o de hoy (--accent del skin); " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:129": { value: 'door.isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:697": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:808": { value: '"var(--bg)"', reason: "burbuja de paciencia invertida: --bg sobre --ink (15,2 / 16,3)" },
-  "app/c/[calendarId]/door-grid-loader.tsx:59": { value: '"var(--accent)"', reason: "«Cargando calendario…» en --accent del skin; " + SKIN },
-  "app/c/[calendarId]/door-grid-loader.tsx:63": { value: '"var(--accent)"', reason: "aviso de carga en --accent del skin; " + SKIN },
-  "app/c/[calendarId]/page.tsx:299": { value: '"var(--accent)"', reason: "aviso de rango demasiado largo en --accent del skin; " + SKIN },
+  "app/c/[calendarId]/door-grid.tsx:117": { value: '"#ffffff"', reason: "número del día «visto» en blanco sobre su píldora rgba(15,24,18,0.6) compuesta sobre --skin-seen-bg: ≥ 4,5 en los 8 skins (puerta de TAL-62, regla aprobada por el PM)" },
+  "app/c/[calendarId]/door-grid.tsx:133": { value: "numColor", reason: "número de día: --skin-dim (bloqueada), --skin-today-ink (hoy), --skin-weekend (fin de semana) o --skin-ink — los cuatro, tokens de texto del skin verificados por la puerta de TAL-62" },
+  "app/c/[calendarId]/door-grid.tsx:675": { value: 'i >= 5 ? "var(--skin-weekend)" : undefined', reason: "inicial S/D en --skin-weekend (verificado por la puerta de TAL-62), resto heredado de --skin-dim" },
+  "app/c/[calendarId]/door-grid.tsx:789": { value: '"var(--bg)"', reason: "burbuja de paciencia invertida: --bg sobre --ink (15,2 / 16,3)" },
   "components/cover-text.tsx:37": { value: "treatment.color", reason: "texto de portada: el color lo da el tratamiento del skin (resolveCoverTextTreatment, TAL-47); " + SKIN },
   "components/cover-text.tsx:51": { value: "treatment.color", reason: "ídem (variante píldora); " + SKIN },
   // .ts (desde el loop 4)
@@ -690,7 +694,7 @@ function colorValues(line: string, isCss: boolean): string[] {
 
 function isAaValue(value: string, isCss: boolean): boolean {
   const m = isCss ? value.match(/^var\(--([a-z0-9-]+)\)$/) : value.match(/^"var\(--([a-z0-9-]+)\)"$/);
-  return !!m && AA_TEXT_TOKENS.has(m[1]);
+  return !!m && (AA_TEXT_TOKENS.has(m[1]) || SKIN_AA_TEXT_TOKENS.has(m[1]));
 }
 
 test("10 · ningún color de texto fuera de la lista blanca AA sin excepción atada a su valor exacto (barrido de todo src/)", () => {

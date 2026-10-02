@@ -44,11 +44,11 @@ export function DoorGridLoader({ calendarId }: { calendarId: string }) {
   }, [calendarId]);
 
   if (!result) {
-    return <p style={{ color: "var(--accent)" }}>Cargando calendario…</p>;
+    return <p style={{ color: "var(--skin-dim)" }}>Cargando calendario…</p>;
   }
   if (!result.ok) {
     return (
-      <p style={{ color: "var(--accent)" }}>
+      <p style={{ color: "var(--skin-dim)" }}>
         {result.reason === "range-too-long"
           ? `Este calendario tiene un rango de fechas demasiado largo (${result.span} días) para mostrarlo aquí — contacta con quien lo administra.`
           : "No se ha podido cargar el calendario. Recarga la página."}

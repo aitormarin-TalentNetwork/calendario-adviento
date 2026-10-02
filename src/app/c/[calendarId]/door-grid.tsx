@@ -119,17 +119,18 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
       fontVariantNumeric: "tabular-nums",
     };
   }
+  const numColor =
+    door.state === "locked"
+      ? "var(--skin-dim)"
+      : door.isToday
+        ? "var(--skin-today-ink)"
+        : isWeekend
+          ? "var(--skin-weekend)"
+          : "var(--skin-ink)";
   return {
     fontVariantNumeric: "tabular-nums",
     fontWeight: 800,
-    color:
-      door.state === "locked"
-        ? "var(--skin-dim)"
-        : door.isToday
-          ? "var(--skin-today-ink)"
-          : isWeekend
-            ? "var(--skin-weekend)"
-            : "var(--skin-ink)",
+    color: numColor,
   };
 }
 
@@ -146,24 +147,14 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
  * (TAL-61: la única familia de la app, `--font`, con `tabular-nums`), fin
  * de semana en `--coral-ink`.
  *
- * TAL-24 — `background` (el `background` real del skin del calendario,
- * `src/lib/skin-appearance.ts`) se aplica SOLO a la cabecera sticky de
- * cada mes (antes un color fijo del DS anterior) — decisión deliberada de NO tocar el
- * fondo de las casillas individuales (`cellStyle`, más abajo): esas ya
- * codifican los 4 estados (bloqueado/abierto/visto/hoy) que TAL-21 acaba
- * de auditar, y aplicar un degradado arbitrario del skin ahí arriesgaba
- * romper ese contraste ya validado. El acento (`--accent`, heredado desde
- * `page.tsx` — las custom properties CSS heredan por el árbol del DOM sin
- * importar límites de componente) ya tiñe el borde de "hoy" sin tocar
- * nada aquí. El modal SÍ gana un borde de acento (más abajo, TAL-24) y
- * ahora también un fondo (TAL-39, ver el comentario siguiente) — el
- * iframe en sí no se toca en ningún caso, como pide el brief.
- *
- * TAL-39 — `backgroundImageUrl`, si el calendario tiene uno, sustituye el
- * `background` del skin en los dos sitios que ya usaban
- * `coverBackgroundCss(background)`: la cabecera de mes de aquí abajo Y el
- * modal de vídeo (antes con un fondo fijo `var(--background)`, sin
- * relación con el skin) — ver `coverBackgroundStyle`, `skin-appearance.ts`.
+ * TAL-62 — los colores de casillas, cabecera de mes y modal salen de las
+ * variables `--skin-*` del skin (`skinStyleVars`, puestas en el `<main>`
+ * de `page.tsx`; las custom properties heredan por el árbol del DOM sin
+ * importar límites de componente), con el contraste de cada par
+ * verificado por scripts/verify-tal62-skin-contrast.mjs. El iframe en sí
+ * no se toca en ningún caso, como pedía el brief de TAL-24.
+ * La imagen de fondo del calendario (TAL-39) va solo en el `<main>`; la
+ * cabecera de mes y el modal quedan sobre la tarjeta opaca del skin.
  */
 export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: string; doors: DoorInfo[] }) {
   // TAL-62 — la cabecera del mes y el modal van sobre la tarjeta opaca del
@@ -841,11 +832,8 @@ export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: stri
           <div
             onClick={(event) => event.stopPropagation()}
             style={{
-              // TAL-24 — brief: "aplica el acento del skin de forma
-              // consistente (borde, o algún detalle visual — el iframe en
-              // sí no se toca)". `--accent` ya está heredado desde
-              // `page.tsx`, así que no hace falta pasar el skin explícito
-              // aquí también.
+              // TAL-24 / TAL-62 — borde y fondo del modal con los colores
+              // del skin (`--skin-line`, `--skin-card`); el iframe no se toca.
               border: "2px solid var(--skin-line)",
               // TAL-47 — `skinBackgroundStyle` en vez del antiguo
               // `coverBackgroundStyle`.

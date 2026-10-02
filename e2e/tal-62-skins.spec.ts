@@ -44,7 +44,23 @@ const rgb = (hex: string) => {
 };
 // Etiqueta del día tal como la pinta la app (formatCalendarDate, es-ES, UTC).
 const label = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("es-ES", { timeZone: "UTC" });
-const TODAY = "2026-10-01";
+// Fechas relativas a HOY (zona horaria local, la misma que usa el navegador
+// de Playwright): el calendario va de hoy-7 a hoy+18; hoy-3 tiene vídeo y se
+// marca como visto; hoy-7 es una casilla abierta sin vídeo; hoy+4, bloqueada.
+const isoDay = (d: Date) => d.toLocaleDateString("sv-SE");
+const addDays = (iso: string, n: number) => {
+  const d = new Date(`${iso}T12:00:00`);
+  d.setDate(d.getDate() + n);
+  return isoDay(d);
+};
+const TODAY = isoDay(new Date());
+const START = addDays(TODAY, -7);
+const END = addDays(TODAY, 18);
+const SEEN = addDays(TODAY, -3);
+const OPEN = START;
+const LOCKED = addDays(TODAY, 4);
+// Un sábado o domingo abierto (entre hoy-6 y hoy-1 siempre hay dos) que no sea el visto.
+const WEEKEND = [1, 2, 3, 4, 5, 6].map((n) => addDays(TODAY, -n)).find((d) => [0, 6].includes(new Date(`${d}T12:00:00`).getDay()) && d !== SEEN)!;
 
 async function css(page: Page, selector: string, prop: string): Promise<string> {
   return await page.locator(selector).first().evaluate((el, p) => getComputedStyle(el).getPropertyValue(p), prop);
@@ -62,8 +78,8 @@ async function createCalendar(name: string, skinId?: string): Promise<Id<"calend
     userId: actorId,
     name: `${name} ${runId}`,
     coverTitle: name,
-    startDate: "2026-09-25",
-    endDate: "2026-10-20",
+    startDate: START,
+    endDate: END,
     creationKey: `tal62v-${name}-${runId}`,
     ...(skinId ? { skinId: skinId as Id<"skins"> } : {}),
   });
@@ -80,7 +96,7 @@ test.beforeAll(async ({ browser }) => {
   for (const skin of catalog) {
     const id = await createCalendar(`Skin ${skin.name}`, skin._id);
     calendarBySkin[skin.key] = id;
-    await convex.mutation(api.days.upsertDayPublic, { serverSecret: serverSecret(), calendarId: id, date: "2026-09-29", videoUrl: "https://example.com/video" });
+    await convex.mutation(api.days.upsertDayPublic, { serverSecret: serverSecret(), calendarId: id, date: SEEN, videoUrl: "https://example.com/video" });
   }
   defaultCalendar = await createCalendar("Por defecto");
 
@@ -91,7 +107,7 @@ test.beforeAll(async ({ browser }) => {
   const legacySkin = all.find((s) => !catalog.some((c) => c._id === s._id));
   expect(legacySkin, "hace falta un skin antiguo en el deployment de desarrollo").toBeTruthy();
   const file = path.join(mkdtempSync(path.join(tmpdir(), "tal62v-")), "legacy.jsonl");
-  writeFileSync(file, JSON.stringify({ name: `tal62v-legacy-${runId}`, coverTitle: "Antiguo sin migrar", startDate: "2026-09-25", endDate: "2026-10-20", updatedAt: Date.now(), skinId: legacySkin!._id }) + "\n");
+  writeFileSync(file, JSON.stringify({ name: `tal62v-legacy-${runId}`, coverTitle: "Antiguo sin migrar", startDate: START, endDate: END, updatedAt: Date.now(), skinId: legacySkin!._id }) + "\n");
   execFileSync("npx", ["convex", "import", "--table", "calendars", "--append", "-y", file], { stdio: "pipe" });
   const listed = await convex.query(api.superadmin.listCalendarsWithStatsPublic, { serverSecret: serverSecret(), actorUserId: actorId, now: TODAY });
   legacyCalendar = listed.find((c) => c.name === `tal62v-legacy-${runId}`)!.id;
@@ -102,7 +118,7 @@ test.beforeAll(async ({ browser }) => {
   const page = await guestPage(browser);
   for (const skin of catalog) {
     await page.goto(`/c/${calendarBySkin[skin.key]}`);
-    await page.getByRole("button", { name: new RegExp(`^${label("2026-09-29")}`) }).click();
+    await page.getByRole("button", { name: new RegExp(`^${label(SEEN)}`) }).click();
     await page.getByRole("dialog").getByRole("button", { name: "Cerrar" }).click();
   }
   await page.context().close();
@@ -145,12 +161,12 @@ test("1 · cada skin pinta la pantalla del invitado con sus colores (como el moc
     expect(await css(page, ".cover-icon-box", "color")).toBe(rgb(p.tileInk));
     expect(await css(page, ".skin-month-card", "background-color")).toBe(rgb(p.card));
     const door = (d: string) => `button[aria-label^="${label(d)}"]`;
-    expect(await css(page, door("2026-09-25"), "background-color"), `${skin.key} casilla abierta`).toBe(rgb(p.cell));
-    expect(await css(page, `${door("2026-09-26")} span`, "color"), `${skin.key} fin de semana`).toBe(rgb(p.weekend));
+    expect(await css(page, door(OPEN), "background-color"), `${skin.key} casilla abierta`).toBe(rgb(p.cell));
+    expect(await css(page, `${door(WEEKEND)} span`, "color"), `${skin.key} fin de semana`).toBe(rgb(p.weekend));
     expect(await css(page, door(TODAY), "background-color"), `${skin.key} hoy`).toBe(rgb(p.today));
     expect(await css(page, `${door(TODAY)} span`, "color")).toBe(rgb(p.todayInk));
-    expect(await css(page, door("2026-10-05"), "border-top-style"), `${skin.key} bloqueada`).toBe("dashed");
-    const seen = door("2026-09-29");
+    expect(await css(page, door(LOCKED), "border-top-style"), `${skin.key} bloqueada`).toBe("dashed");
+    const seen = door(SEEN);
     await expect(page.locator(seen)).toHaveAttribute("aria-label", /ya visto/);
     expect(await css(page, seen, "background-image"), `${skin.key} visto`).toMatch(/gradient/);
     expect(await css(page, `${seen} span`, "background-color"), `${skin.key} píldora del visto`).toBe("rgba(15, 24, 18, 0.6)");
@@ -162,7 +178,7 @@ test("1 · cada skin pinta la pantalla del invitado con sus colores (como el moc
     expect(font, `${skin.key} misma fuente que Alegre`).toBe(alegreFont);
 
     // Modal sobre la tarjeta del skin.
-    await page.locator(door("2026-09-25")).click();
+    await page.locator(door(OPEN)).click();
     const dialogCard = page.getByRole("dialog").locator("> div");
     expect(await dialogCard.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe(rgb(p.card));
     await page.getByRole("dialog").getByRole("button", { name: "Cerrar" }).click();
@@ -185,7 +201,7 @@ test("2 · Tira Cómica: contorno negro 2.5px y sombra dura 3px 3px 0", async ({
     return null;
   });
   expect(declared).toMatch(/^2\.5px solid/);
-  for (const sel of ["[data-skin-hero]", ".skin-month-card", ".cover-icon-box", `button[aria-label^="${label("2026-09-25")}"]`, `button[aria-label^="${label(TODAY)}"]`]) {
+  for (const sel of ["[data-skin-hero]", ".skin-month-card", ".cover-icon-box", `button[aria-label^="${label(OPEN)}"]`, `button[aria-label^="${label(TODAY)}"]`]) {
     expect(await css(page, sel, "border-top-style"), sel).toBe("solid");
     expect(await css(page, sel, "border-top-color"), sel).toBe("rgb(26, 26, 26)");
     expect(parseFloat(await css(page, sel, "border-top-width")), sel).toBeGreaterThanOrEqual(2);

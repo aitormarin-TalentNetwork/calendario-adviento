@@ -124,7 +124,12 @@ export default async function AdminCalendarPage({
 
       <DaysSection
         calendarId={calendar.id}
-        skinAccent={skinStyle.palette.tileInk}
+        // TAL-62 — el grid del editor está sobre el fondo del TEMA (--bg /
+        // --surface-2), no sobre el del skin: su --accent (número y borde
+        // de "hoy") es --primary-ink, AA en claro y oscuro (tal61 caso 4).
+        // El `tileInk` del skin solo está verificado sobre su `tile` (en
+        // Minimal/Rojiblanco es blanco: invisible sobre el crema del tema).
+        skinAccent="var(--primary-ink)"
         skinBackground={skinStyle.palette.bg}
         backgroundImageUrl={calendar.backgroundImageUrl}
         skinTextColor={skinStyle.palette.ink}

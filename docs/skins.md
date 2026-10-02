@@ -438,7 +438,9 @@ El backup se toma DESPUÉS de sembrar (fase d), así `skinStyles` sigue coherent
   paleta del skin o `ALEGRE_FALLBACK_STYLE` (key `"fallback"`: skin antiguo sin migrar,
   retirado, inexistente o modo degradado). `skinStyleVars()` lo lleva a variables CSS
   `--skin-*` en el contenedor, y además `--icon-tile-bg`/`--icon-tile-fg` (recuadro del
-  icono, par `tile`/`tileInk`) y `--accent`. Un skin **nunca** cambia la fuente.
+  icono, par `tile`/`tileInk`). **No** toca `--accent`: `tileInk` solo está verificado
+  sobre `tile` (en Minimal/Rojiblanco es blanco); el grid del editor, que está sobre el
+  fondo del tema, usa `--primary-ink`. Un skin **nunca** cambia la fuente.
 - **`--skin-seen-bg`** = `linear-gradient(140deg, seenA, seenB)`: contrato con TAL-67.
   Se define en el `<main>` del invitado y en la sección "Días del calendario" del editor;
   TAL-67 lo consume como capa inferior (`var(--skin-seen-bg, var(--primary))`).

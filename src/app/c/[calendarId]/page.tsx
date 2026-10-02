@@ -192,7 +192,7 @@ export default async function GuestCalendarPage({
           ...mainBackgroundStyle,
           // TAL-62 — colores del skin como variables (`skinStyleVars`): los
           // consumen la cabecera, el bloque de la cuenta atrás, el grid, el
-          // modal y el recuadro del icono (también sobrescribe `--accent`).
+          // modal y el recuadro del icono.
           // `--skin-seen-bg` es el contrato con TAL-67 (casilla "visto").
           ...skinStyleVars(skinStyle),
           color: "var(--skin-ink)",

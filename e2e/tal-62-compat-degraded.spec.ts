@@ -45,8 +45,8 @@ test.beforeAll(async () => {
     userId: actorId,
     name: `TAL-62 degradado ${runId}`,
     coverTitle: "Degradado",
-    startDate: "2026-09-25",
-    endDate: "2026-10-20",
+    startDate: "2026-12-01",
+    endDate: "2026-12-24",
     creationKey: `tal62d-${runId}`,
   });
   await convex.mutation(api.invitations.inviteGuestPublic, { serverSecret: serverSecret(), calendarId, email: GUEST_EMAIL });
@@ -56,8 +56,8 @@ test.beforeAll(async () => {
     userId: actorId,
     name: `TAL-62 degradado 2 ${runId}`,
     coverTitle: "Degradado 2",
-    startDate: "2026-09-25",
-    endDate: "2026-10-20",
+    startDate: "2026-12-01",
+    endDate: "2026-12-24",
     creationKey: `tal62d2-${runId}`,
   });
   await convex.mutation(api.invitations.inviteGuestPublic, { serverSecret: serverSecret(), calendarId: secondCalendarId, email: GUEST_EMAIL });

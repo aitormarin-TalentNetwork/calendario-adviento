@@ -61,8 +61,10 @@ export function skinTreatmentClass(style: SkinStyle): string | undefined {
 /**
  * Variables CSS del skin para el contenedor. Además de las `--skin-*`,
  * sobrescribe `--icon-tile-bg`/`--icon-tile-fg` (recuadro del icono de
- * TAL-60: el par `tile`/`tileInk` está diseñado — y verificado — por skin)
- * y `--accent` (lo que todavía lo use dentro del calendario).
+ * TAL-60: el par `tile`/`tileInk` está diseñado — y verificado — por skin).
+ * NO sobrescribe `--accent`: `tileInk` solo está verificado sobre `tile`
+ * (en Minimal y Rojiblanco es blanco), así que como color de texto sobre
+ * otro fondo no sirve; los textos del calendario usan los `--skin-*`.
  */
 export function skinStyleVars(style: SkinStyle): CSSProperties {
   const p = style.palette;
@@ -88,6 +90,5 @@ export function skinStyleVars(style: SkinStyle): CSSProperties {
     "--skin-weekend": p.weekend,
     "--icon-tile-bg": p.tile,
     "--icon-tile-fg": p.tileInk,
-    "--accent": p.tileInk,
   } as CSSProperties;
 }
