@@ -454,7 +454,11 @@ function DayDialogForm({
   // posterior aterriza) en vez de un `setTimeout` con un número arbitrario
   // de milisegundos adivinado.
   useEffect(() => {
-    if (pending || state.status !== "success") return;
+    // TAL-66 — con aviso (URL guardada pero no incrustable) NO se cierra
+    // solo: si se cerrara, el Admin no llegaría a ver el aviso. Lo cierra él
+    // (X, Escape o fuera). Un guardado posterior con una URL incrustable
+    // trae un estado nuevo sin `warning` y entonces sí se cierra solo.
+    if (pending || state.status !== "success" || state.warning) return;
     const raf1 = requestAnimationFrame(() => {
       const raf2 = requestAnimationFrame(() => onSaveSuccess());
       rafIdsRef.current.push(raf2);
@@ -471,6 +475,11 @@ function DayDialogForm({
       {state.status === "error" && state.error ? (
         <p role="alert" style={{ color: "#c00" }}>
           {state.error}
+        </p>
+      ) : null}
+      {state.status === "success" && state.warning ? (
+        <p role="status" className="day-video-warning">
+          {state.warning}
         </p>
       ) : null}
       <div

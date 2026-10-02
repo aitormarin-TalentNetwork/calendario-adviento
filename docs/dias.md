@@ -943,3 +943,45 @@ motivo ya documentado en verificaciones previas de otras tareas):
 
 Build/tsc/lint limpios desde instalación limpia real (`rm -rf node_modules .next && npm
 install`).
+
+## Vídeos incrustables (TAL-66)
+
+`src/lib/video-embed.ts::parseEmbeddableVideo` decide si un `videoUrl` se reproduce
+**dentro** del diálogo (iframe) y si lleva miniatura, o si cae al enlace externo
+"Ver vídeo ↗". Lista cerrada de proveedores y formas, sin peticiones de red (anti-SSRF).
+Solo `http:`/`https:` (al guardar se exige `https:`); la salida siempre es `https`.
+
+**Aceptados**
+
+| Proveedor | Formas | Embed |
+|---|---|---|
+| YouTube (`youtube.com`, `www.`, `m.`, `music.`, `youtube-nocookie.com`, `www.youtube-nocookie.com`, `youtu.be`) | `/watch?v=ID` (el `v` en cualquier posición), `/embed/ID`, `/shorts/ID`, `/live/ID`, `/v/ID`, `/e/ID`, `youtu.be/ID`; barra final y parámetros (`si`, `feature`, `list`…) permitidos; `/attribution_link?u=<ruta relativa>` (endurecido: sin esquema, sin `//`, sin `\`, sin doble codificación, una sola recursión con las mismas reglas) | `https://www.youtube.com/embed/ID[?start=N]` + miniatura `img.youtube.com/vi/ID/hqdefault.jpg` |
+| Vimeo (`vimeo.com`, `www.vimeo.com`) | Solo `vimeo.com/ID` (barra final y query opcionales) | `https://player.vimeo.com/video/ID`, sin miniatura |
+| Google Drive (`drive.google.com`) | `/file/d/ID/…` | `https://drive.google.com/file/d/ID/preview`, sin miniatura |
+
+- Id de YouTube validado: exactamente 11 caracteres `[A-Za-z0-9_-]`.
+- **Tiempo de inicio** (decisión del PM): `t`/`start` de la query o `#t=`, en `90`,
+  `90s`, `1m30s`, `1h2m3s` → `?start=<segundos>`. Un valor no válido (texto, 0,
+  negativo, > 24 h) se ignora — nunca invalida el embed.
+
+**No aceptados (caen al aviso)**: búsquedas (`/results`), playlists, clips, canales,
+URLs sin esquema, otros hosts; Vimeo con algo detrás del id (`/ID/HASH` de un vídeo
+oculto — su embed necesita `h=HASH` y antes se generaba sin él, un iframe roto sin
+aviso; `/123abc`; channels/groups/showcase; `player.vimeo.com`); Drive `/open?id`,
+`/uc?id`, `docs.google.com`. Se podrán ampliar con fixtures públicos reales y una carga
+verificada.
+
+**Aviso al Admin** (obligatorio, decisión del PM): al guardar un día con una URL que
+`parseEmbeddableVideo` no reconoce, `saveDayAction` guarda igual y devuelve
+`warning` con el texto literal `NON_EMBEDDABLE_VIDEO_WARNING`. El diálogo lo muestra y
+**no se cierra solo**; tras corregir la URL y guardar una incrustable, el aviso
+desaparece y el diálogo sí se cierra solo (TAL-45).
+
+**Caso de producción que originó TAL-66 — CERRADO.** El calendario donde Aitor no veía
+miniaturas ni el vídeo dentro del diálogo tenía como `videoUrl`
+`https://www.youtube.com/results?search_query=cute+kitten+purring`: una **página de
+resultados de búsqueda** de YouTube, no un vídeo. No se puede incrustar (el parser
+devuelve `null` con razón, en todas las variantes de host). Causa raíz: la URL guardada.
+Arreglo: el aviso al Admin al guardar, para que cambie el enlace por el de un vídeo.
+Test de regresión con esa URL literal en `e2e/tal-66-video-embed.spec.ts` (unit) y
+`e2e/tal-66-videos.spec.ts` (síntoma del invitado + aviso del editor).

@@ -841,3 +841,21 @@ a {
 :root[data-theme="dark"] .cover-icon-box {
   color: var(--icon-tile-fg-dark, var(--icon-tile-fg));
 }
+
+/* TAL-66 — aviso del editor de días al guardar un vídeo que no se puede
+   incrustar (texto literal del PM en `NON_EMBEDDABLE_VIDEO_WARNING`). Es
+   un aviso, no un error: el día se guardó. Solo tokens semánticos que
+   sobreviven a TAL-61 (`--bg-sunken`/`--text` los renombra su script;
+   `--accent` se mantiene). `overflow-wrap` para que el texto largo no
+   provoque scroll horizontal a 375px. */
+.day-video-warning {
+  margin: 0;
+  padding: 0.6rem 0.75rem;
+  border-left: 3px solid var(--accent);
+  border-radius: 0.5rem;
+  background: var(--bg-sunken);
+  color: var(--text);
+  font-size: 0.85rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
