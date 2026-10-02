@@ -1,5 +1,5 @@
 import { CoverText } from "@/components/cover-text";
-import { resolveCoverTextTreatment, skinBackgroundStyle, type CoverTextTreatment } from "@/lib/skin-appearance";
+import { faintBackgroundLayer, resolveCoverTextTreatment, skinBackgroundStyle, type CoverTextTreatment } from "@/lib/skin-appearance";
 
 export type CalendarCoverHeaderProps = {
   background: string;
@@ -104,11 +104,16 @@ export function CalendarCoverHeader({
   paintBackground = true,
   children,
 }: CalendarCoverHeaderProps) {
-  const treatment = resolveCoverTextTreatment({ textColor, textPill }, !!backgroundImageUrl);
-  const backgroundStyle = paintBackground ? skinBackgroundStyle(background, backgroundImageUrl) : undefined;
+  // TAL-70 — la imagen de fondo ya no domina (capa al 10 % encima del skin),
+  // así que el texto usa siempre el tratamiento normal del skin, nunca el
+  // «photo» (blanco con sombra), y el fondo es el del skin.
+  const treatment = resolveCoverTextTreatment({ textColor, textPill }, false);
+  const backgroundStyle = paintBackground ? skinBackgroundStyle(background) : undefined;
+  const faintLayer = paintBackground ? faintBackgroundLayer(backgroundImageUrl) : null;
 
   return (
-    <div style={{ ...containerStyle, ...backgroundStyle }}>
+    <div className={faintLayer ? "faint-bg-host" : undefined} style={{ ...containerStyle, ...backgroundStyle }}>
+      {faintLayer && <div className="faint-bg-layer" aria-hidden="true" style={faintLayer} />}
       {children}
       <TitleTag style={titleTagStyle}>
         <CoverText treatment={treatment} style={titleStyle}>

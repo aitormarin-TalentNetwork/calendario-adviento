@@ -8,16 +8,19 @@ import { DoorGridLoader } from "@/app/c/[calendarId]/door-grid-loader";
 import { SessionIndicator } from "@/components/session-indicator";
 import { parseUtcDateOnly, todayInTimeZone } from "@/lib/calendars";
 import { convexAppServerSecret } from "@/lib/convex-server";
-import { DEFAULT_COUNTDOWN_LABEL, daysUntil } from "@/lib/countdown";
+import { DEFAULT_COUNTDOWN_LABEL, daysUntil, formatCountdownMessage } from "@/lib/countdown";
 import { CoverIcon } from "@/components/cover-icon";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { resolveCalendarAccess } from "@/lib/roles";
-import { skinBackgroundStyle } from "@/lib/skin-appearance";
+import { faintBackgroundLayer, skinBackgroundStyle } from "@/lib/skin-appearance";
 import { loadSkinCatalog } from "@/lib/skin-catalog";
 import { resolveSkinStyle, skinStyleVars, skinTreatmentClass, type SkinStyle } from "@/lib/skin-style";
 import { CalendarCoverHeader } from "@/components/calendar-cover-header";
 import { CountdownHero } from "@/components/countdown-hero";
+import { auth } from "@/lib/auth";
+import { hasSeenWelcomeToday } from "@/lib/welcome";
+import { WelcomeOverlay } from "@/app/c/[calendarId]/welcome-overlay";
 
 /**
  * TAL-14 — reconectada contra Convex (`calendars.getPublic`, TAL-12, ya
@@ -44,6 +47,7 @@ async function getCalendarForGuestPage(
   countdownLabel: string;
   skinStyle: SkinStyle;
   backgroundImageUrl: string | null;
+  coverImageUrl: string | null;
 } | null> {
   const serverSecret = convexAppServerSecret();
   // TAL-62 — catálogo 2026 (`loadSkinCatalog`, con modo degradado si el
@@ -69,6 +73,9 @@ async function getCalendarForGuestPage(
     // página SÍ está autenticada, mismo criterio ya establecido para
     // `appearance` arriba.
     backgroundImageUrl: calendar.backgroundImageUrl ?? null,
+    // TAL-70 — la foto de portada ya no sale en `/login` (genérico): solo en
+    // la bienvenida de esta página, ya autenticada y con acceso.
+    coverImageUrl: calendar.coverImageUrl ?? null,
   };
 }
 
@@ -124,6 +131,24 @@ export default async function GuestCalendarPage({
   // mismo patrón ya establecido, sin reinventarlo.
   const daysRemaining = tz ? daysUntil(todayInTimeZone(new Date(), tz), endDate) : null;
 
+  // TAL-70 — bienvenida con foto: solo si el calendario tiene foto de
+  // portada, hay cookie `tz` (el día natural de la persona; sin ella —caso
+  // raro, el layout la pone antes— no hay bienvenida) y aún no la ha visto
+  // hoy en este calendario. Si la lectura falla, no se enseña: nunca bloquea
+  // el calendario.
+  let showWelcome = false;
+  if (calendar.coverImageUrl && tz) {
+    try {
+      showWelcome = !(await hasSeenWelcomeToday(user.id, calendarId, tz));
+    } catch {
+      showWelcome = false;
+    }
+  }
+  // "Hola, <nombre>": el primer nombre de la sesión de Google. El login de
+  // desarrollo usa el email como nombre si no se da uno → solo "Hola".
+  const sessionName = showWelcome ? (await auth())?.user?.name?.trim() : undefined;
+  const firstName = sessionName && !sessionName.includes("@") ? sessionName.split(/\s+/)[0] : null;
+
   // TAL-47 — resuelto en una variable propia (tipada como
   // `React.CSSProperties`, no con un `as` inline) antes de mezclarla con
   // `"--accent"` más abajo: `skinBackgroundStyle` devuelve una unión
@@ -134,11 +159,18 @@ export default async function GuestCalendarPage({
   // `skinBackgroundStyle`, no `coverBackgroundStyle` — la primera ya no
   // antepone la capa oscura cuando no hay foto (el contraste lo garantiza
   // `textColor` ahora), ver `skin-appearance.ts`.
-  const mainBackgroundStyle: React.CSSProperties = skinBackgroundStyle(skinStyle.palette.bg, backgroundImageUrl);
+  //
+  // TAL-70 — la imagen de fondo ya no sustituye al skin: capa casi
+  // transparente encima (`faintLayer`), y con ella la tarjeta del mes y el
+  // modal pasan a semiopacos (`--skin-card-surface`, 85 %).
+  const mainBackgroundStyle: React.CSSProperties = skinBackgroundStyle(skinStyle.palette.bg);
+  const faintLayer = faintBackgroundLayer(backgroundImageUrl);
 
   return (
     <main
-      className={["session-page-main", skinTreatmentClass(skinStyle)].filter(Boolean).join(" ")}
+      id="calendar-main"
+      tabIndex={-1}
+      className={["session-page-main", skinTreatmentClass(skinStyle), faintLayer ? "faint-bg-host" : null].filter(Boolean).join(" ")}
       data-skin-style={skinStyle.key}
       style={
         {
@@ -195,6 +227,7 @@ export default async function GuestCalendarPage({
           // modal y el recuadro del icono.
           // `--skin-seen-bg` es el contrato con TAL-67 (casilla "visto").
           ...skinStyleVars(skinStyle),
+          ...(faintLayer ? { "--skin-card-surface": "color-mix(in srgb, var(--skin-card) 85%, transparent)" } : {}),
           color: "var(--skin-ink)",
         } as React.CSSProperties
       }
@@ -211,7 +244,17 @@ export default async function GuestCalendarPage({
           NO-GO de TAL-24). `position: fixed`, así que no vive dentro de
           la cabecera oscurecida — flota en la esquina de la pantalla
           igual que en las otras 3 pantallas. */}
+      {faintLayer && <div className="faint-bg-layer" aria-hidden="true" style={faintLayer} />}
       <SessionIndicator user={user} mode="user" currentCalendarId={calendarId} />
+      {showWelcome && calendar.coverImageUrl && (
+        <WelcomeOverlay
+          calendarId={calendarId}
+          photoUrl={calendar.coverImageUrl}
+          firstName={firstName}
+          title={calendar.coverTitle}
+          countdownText={daysRemaining === null ? null : formatCountdownMessage(daysRemaining, countdownLabel)}
+        />
+      )}
       {/* TAL-49 — cabecera compartida con la vista previa en vivo del editor
           de Admin (`calendar-preview.tsx`), ver `calendar-cover-header.tsx`.
 
