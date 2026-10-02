@@ -118,6 +118,12 @@ export type UpdateCalendarFieldValues = {
 export type UpdateCalendarState = {
   error: string | null;
   values: UpdateCalendarFieldValues;
+  /**
+   * TAL-69 — instante del último guardado CORRECTO. El editor lo usa para
+   * lanzar, después y sin bloquear, `checkImageUrlsAction` (aviso de URL de
+   * imagen que es una página). Este guardado no hace ninguna petición de red.
+   */
+  savedAt?: number;
 };
 
 // TAL-20, hallazgo de auditoría ronda 1: el mensaje que ve el usuario ante
@@ -207,12 +213,10 @@ export async function updateCalendarAction(
     // Solo https: — new URL() por sí sola solo valida sintaxis y acepta
     // esquemas como javascript:/data:/file:, que ejecutarían contenido
     // activo si esto se renderiza tal cual más adelante (hallazgo de
-    // auditoría, ronda 1). No se hace una petición HTTP desde el servidor
-    // para comprobar que es "de verdad" una imagen a propósito — eso
-    // abriría un vector de SSRF (el servidor pediría lo que sea que el
-    // usuario le mande) a cambio de una validación que de todas formas no
-    // es determinante; una URL rota simplemente no cargará como <img> más
-    // adelante, que es un fallo visible y de bajo riesgo, no de seguridad.
+    // auditoría, ronda 1). Aquí NO se hace ninguna petición HTTP: la
+    // comprobación de que la URL es "de verdad" una imagen (TAL-69) la hace
+    // DESPUÉS del guardado `checkImageUrlsAction`, con guardas anti-SSRF
+    // (src/lib/image-url-check.ts) y sin bloquear nunca el guardado.
     if (parsed.protocol !== "https:") {
       return {
         error: "La foto de portada debe ser una URL https:// — no se aceptan otros esquemas por seguridad.",
@@ -221,9 +225,9 @@ export async function updateCalendarAction(
     }
   }
 
-  // TAL-39 — mismo criterio y mismo motivo que `coverImageUrl` arriba
-  // (solo https:, sin comprobación HTTP real por el mismo riesgo de
-  // SSRF) para la imagen de fondo del calendario.
+  // TAL-39 — mismo criterio que `coverImageUrl` arriba (solo https:; la
+  // comprobación de imagen de TAL-69 va aparte, tras guardar) para la imagen
+  // de fondo del calendario.
   const backgroundImageUrl = backgroundImageUrlRaw || null;
   if (backgroundImageUrl) {
     let parsed: URL;
@@ -304,7 +308,7 @@ export async function updateCalendarAction(
 
   revalidatePath(`/admin/${calendarId}`);
   revalidatePath("/admin");
-  return { error: null, values };
+  return { error: null, values, savedAt: Date.now() };
 }
 
 export async function deleteCalendarAction(calendarId: string) {

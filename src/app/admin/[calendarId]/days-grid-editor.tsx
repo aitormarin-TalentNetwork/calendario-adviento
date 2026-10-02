@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { deleteDayAction, saveDayAction, type SaveDayState } from "@/app/admin/[calendarId]/days-actions";
+import { EditorWarning } from "@/components/editor-warning";
 import { SubmitButton } from "@/components/submit-button";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { resolveCoverTextTreatment, skinBackgroundStyle } from "@/lib/skin-appearance";
@@ -479,11 +480,7 @@ function DayDialogForm({
           {state.error}
         </p>
       ) : null}
-      {state.status === "success" && state.warning ? (
-        <p role="status" className="day-video-warning">
-          {state.warning}
-        </p>
-      ) : null}
+      {state.status === "success" && state.warning ? <EditorWarning>{state.warning}</EditorWarning> : null}
       <div
         style={{
           display: "flex",

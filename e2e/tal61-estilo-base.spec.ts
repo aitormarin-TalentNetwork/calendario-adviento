@@ -621,13 +621,13 @@ const EXCEPTIONS: Record<string, ColorException> = {
   "app/globals.css:1204": { value: "var(--skin-ink)", reason: ".skin-month-card: fondo --skin-card en la misma regla: ink/card, " + GATE },
   "app/globals.css:1214": { value: "var(--skin-ink)", reason: ".skin-notice (avisos del invitado, NO-GO M2): fondo --skin-card opaco en la misma regla, haya o no imagen debajo: ink/card, " + GATE },
   // Editor (fuera del calendario)
-  "app/admin/[calendarId]/days-grid-editor.tsx:514": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
+  "app/admin/[calendarId]/days-grid-editor.tsx:511": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
   "app/admin/[calendarId]/calendar-preview.tsx:221": { value: '"#ffffff"', reason: "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin" },
   // Superficie del calendario: grid del editor dentro de la sección de días (days-section.tsx fija --accent con el del skin) y /c/[id]
-  "app/admin/[calendarId]/days-grid-editor.tsx:48": { value: '"inherit"', reason: "casilla del grid: hereda; " + SKIN },
-  "app/admin/[calendarId]/days-grid-editor.tsx:105": { value: '"var(--bg)"', reason: "número sobre miniatura de vídeo (foto arbitraria), «hoy» o no: píldora OPACA --bg sobre --ink (15,2 / 16,3, caso 4) — TAL-62, NO-GO M3 del loop2" },
-  "app/admin/[calendarId]/days-grid-editor.tsx:115": { value: 'isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
-  "app/admin/[calendarId]/days-grid-editor.tsx:268": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:49": { value: '"inherit"', reason: "casilla del grid: hereda; " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:106": { value: '"var(--bg)"', reason: "número sobre miniatura de vídeo (foto arbitraria), «hoy» o no: píldora OPACA --bg sobre --ink (15,2 / 16,3, caso 4) — TAL-62, NO-GO M3 del loop2" },
+  "app/admin/[calendarId]/days-grid-editor.tsx:116": { value: 'isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:269": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
   "app/c/[calendarId]/door-grid.tsx:36": { value: '"var(--skin-ink)"', reason: "número de casilla abierta sobre --skin-cell: ink/cell, " + GATE },
   "app/c/[calendarId]/door-grid.tsx:40": { value: '"var(--skin-dim)"', reason: "casilla bloqueada: fondo transparente dentro de la tarjeta del mes (--skin-card): dim/card, " + GATE },
   "app/c/[calendarId]/door-grid.tsx:49": { value: '"var(--skin-today-ink)"', reason: "casilla de hoy sobre --skin-today: todayInk/today, " + GATE },

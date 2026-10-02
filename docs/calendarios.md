@@ -1145,3 +1145,53 @@ la corrección del estilo mencionada arriba.
   se decida el backend de almacenamiento (`docs/stack.md`).
 - (TAL-23) El grid de días (TAL-21) y el catálogo de skins (TAL-22) —
   dominios de otras tareas en paralelo bajo el mismo Design System.
+
+## TAL-69 — Aviso si la URL de portada o fondo no es una imagen directa
+
+**Qué hace.** Tras un guardado correcto del editor, el cliente llama a
+`checkImageUrlsAction(calendarId)` (`src/app/admin/[calendarId]/image-check-actions.ts`).
+Si `coverImageUrl` o `backgroundImageUrl` responden con una página HTML, el campo muestra
+`<EditorWarning>` (el mismo componente que el aviso de vídeo de TAL-66) con el texto de
+`src/lib/image-url-warning.ts`. El aviso **no bloquea**, y se oculta si el Admin edita el
+campo.
+
+**El guardado no espera.** `updateCalendarAction` no hace ninguna petición de red: solo
+devuelve `savedAt`. La comprobación es una acción aparte y **fail-open**: `try/catch`
+global y plazo de 3 s con `Promise.race`; ante cualquier error o sin permiso, devuelve
+`{}`. Solo cuenta la respuesta del último guardado.
+
+**Clasificación** (`classify`, `src/lib/image-url-check.ts`):
+
+| Respuesta | Resultado |
+|---|---|
+| 2xx con `image/*` | `image` |
+| 2xx con HTML | `page`, **único caso que avisa** |
+| Todo lo demás | `unknown`, sin aviso |
+
+**SSRF** (petición del servidor a una URL del usuario):
+- solo `https:` en el puerto 443, sin credenciales;
+- **lista de permitidos**, con criterio conservador (un falso negativo solo quita el
+  aviso):
+  - IPv4: unicast global;
+  - IPv6: `2000::/3`, quitando enteros `2001::/23`, `2001:db8::/32`, `3fff::/20`,
+    `2002::/16`, NAT64 y `100::/64`;
+- la IP literal se comprueba antes de pedir nada;
+- el hostname se valida antes y otra vez en la conexión, con el `lookup` propio de
+  `https.request`, sin ventana de DNS rebinding;
+- como mucho 3 redirecciones, revalidadas;
+- `HEAD`, y si no sirve, `GET` con `Range: bytes=0-0`, sin leer el cuerpo;
+- un solo `AbortController` por comprobación para toda la cadena.
+
+**Abuso** (`src/lib/image-check-service.ts`, en memoria del proceso):
+- solo Admins del calendario, que es el primer filtro;
+- solo las URLs **guardadas**, nunca URLs del cliente;
+- caché por URL de 10 min, sin guardar `unknown`;
+- deduplicación de comprobaciones en curso;
+- como mucho 1 comprobación cada 10 s por calendario.
+
+**Tests sin red.** El stub (`src/lib/image-checker.ts`) solo se activa con
+`E2E_IMAGE_CHECK_STUB=1`, que define únicamente el `webServer` de `playwright.config.ts`,
+**y** fuera de producción. Prueba real opcional: `npx tsx scripts/check-tal69-real-urls.ts`.
+
+**Seguimiento.** Las guardas de TAL-67 (`convex/dayFileGuards.ts`, de lista cerrada de
+hosts) y estas (host arbitrario) podrían unificarse en un solo módulo de "fetch seguro".
