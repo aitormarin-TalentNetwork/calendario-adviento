@@ -6,7 +6,7 @@
 
    La paleta cruda (pine/paper/gold/berry/ink/mist) NO cambia entre modo
    claro/oscuro — son los colores base del catálogo. Los tokens
-   SEMÁNTICOS (--bg, --text, --accent, --border, etc.) sí cambian: son
+   SEMÁNTICOS (--bg, --ink, --accent, --line, etc.) sí cambian: son
    los que debe usar el resto del código (nunca los crudos directamente
    en un componente), así que solo estos se redefinen en los bloques de
    modo oscuro más abajo.
@@ -21,18 +21,17 @@
   --gold-2: #e3bb63;
   --berry: #8c2f39;
   --berry-2: #e08a92;
-  --ink: #16211c;
   --mist: #d9e0d6;
 
   /* --- Color: tokens semánticos, valores de modo claro (por defecto) --- */
   --bg: var(--paper);
-  --bg-raised: #ffffff;
-  --bg-sunken: var(--paper-2);
-  --text: var(--ink);
-  --text-dim: #57604f;
+  --surface: #ffffff;
+  --surface-2: var(--paper-2);
+  --ink: #16211c;
+  --ink-dim: #57604f;
   --accent: var(--gold);
   --accent-ink: #3c2c0c;
-  --border: #ded3ba;
+  --line: #ded3ba;
   --nav-bg: var(--pine);
   --nav-text: var(--paper);
   --nav-text-dim: #b9c9bf;
@@ -43,7 +42,7 @@
   /* TAL-21 — casilla "abierto, sin ver" del grid de días (design-system.md
      § "Grid de días": "fondo --paper-2 (claro) / --pine-2 (oscuro)").
      --paper-2/--pine-2 son paleta cruda, no cambian de valor por modo — a
-     diferencia de --bg-sunken (que sí es semántico pero apunta a un tono
+     diferencia de --surface-2 (que sí es semántico pero apunta a un tono
      distinto, casi negro, pensado para otro uso), este token elige entre
      los dos crudos según el modo, específicamente para el grid. */
   --day-open-bg: var(--paper-2);
@@ -57,7 +56,7 @@
      link de invitación y el hover del botón de copiar (design/propuesta-
      editor-calendario.html § .invite-link-row/.btn-icon:hover). Token
      propio en vez de reutilizar --day-open-bg (que es del grid de días,
-     un concepto distinto) o --bg-sunken (semántico pero de un tono
+     un concepto distinto) o --surface-2 (semántico pero de un tono
      distinto, casi negro en oscuro). */
   --invite-link-bg: var(--paper-2);
 
@@ -79,7 +78,7 @@
 
   /* --- Compatibilidad con el esquema previo del MVP (--background/
      --foreground/--accent, 3 variables, hallazgo de esta tarea) — se
-     mapean a los tokens SEMÁNTICOS nuevos (`--bg`/`--text`), no a los
+     mapean a los tokens SEMÁNTICOS nuevos (`--bg`/`--ink`), no a los
      crudos (`--paper`/`--ink`): los crudos no cambian en modo oscuro, así
      que mapear ahí rompería el fondo casi negro que ya tenía este
      esquema en dark mode. `--accent` no necesita una línea de mapeo
@@ -88,7 +87,7 @@
      tiene que cambiar mientras cada página migra a los tokens nuevos por
      su cuenta (fuera de esta tarea, ver brief). --- */
   --background: var(--bg);
-  --foreground: var(--text);
+  --foreground: var(--ink);
 }
 
 /* Modo oscuro por preferencia del sistema — mismo patrón que
@@ -100,13 +99,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0f1e17;
-    --bg-raised: #16281f;
-    --bg-sunken: #0b1712;
-    --text: #ece6d6;
-    --text-dim: #a9b6a9;
+    --surface: #16281f;
+    --surface-2: #0b1712;
+    --ink: #ece6d6;
+    --ink-dim: #a9b6a9;
     --accent: var(--gold-2);
     --accent-ink: #2a1e07;
-    --border: #2a4436;
+    --line: #2a4436;
     --nav-bg: #0b1712;
     --nav-text: #ece6d6;
     --nav-text-dim: #7f9186;
@@ -123,13 +122,13 @@
    que el bloque de arriba, para cuando exista un selector de tema real. */
 :root[data-theme="dark"] {
   --bg: #0f1e17;
-  --bg-raised: #16281f;
-  --bg-sunken: #0b1712;
-  --text: #ece6d6;
-  --text-dim: #a9b6a9;
+  --surface: #16281f;
+  --surface-2: #0b1712;
+  --ink: #ece6d6;
+  --ink-dim: #a9b6a9;
   --accent: var(--gold-2);
   --accent-ink: #2a1e07;
-  --border: #2a4436;
+  --line: #2a4436;
   --nav-bg: #0b1712;
   --nav-text: #ece6d6;
   --nav-text-dim: #7f9186;
@@ -248,9 +247,9 @@ a {
   right: 0;
   min-width: 220px;
   padding: 6px;
-  background: var(--bg-raised);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: var(--shadow);
   font-family: var(--font-body);
@@ -268,7 +267,7 @@ a {
 .account-menu-email {
   padding: 8px 10px;
   font-size: 0.8rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   overflow-wrap: anywhere;
 }
 
@@ -277,13 +276,13 @@ a {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .account-menu-divider {
   height: 1px;
   margin: 6px 0;
-  background: var(--border);
+  background: var(--line);
 }
 
 .account-menu-item {
@@ -296,7 +295,7 @@ a {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--text);
+  color: var(--ink);
   font: inherit;
   text-align: left;
   text-decoration: none;
@@ -305,7 +304,7 @@ a {
 
 .account-menu-item:hover,
 .account-menu-item:focus-visible {
-  background: var(--bg-sunken);
+  background: var(--surface-2);
   outline: none;
 }
 
@@ -330,7 +329,7 @@ a {
 
 .account-menu-calendar.is-current {
   font-weight: 700;
-  background: var(--bg-sunken);
+  background: var(--surface-2);
 }
 
 .account-menu-calendar-icon {
@@ -341,7 +340,7 @@ a {
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  background: var(--bg-sunken);
+  background: var(--surface-2);
   font-size: 1rem;
 }
 
@@ -422,7 +421,7 @@ a {
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   text-align: right;
 }
 
@@ -432,10 +431,10 @@ a {
   font-family: var(--font-body);
   font-size: 0.92rem;
   padding: 8px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--bg);
-  color: var(--text);
+  color: var(--ink);
 }
 
 /* TAL-37 — la fila "Skin" reemplaza `align-items: center` de
@@ -483,7 +482,7 @@ a {
 .editor-danger-zone {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   display: flex;
   justify-content: flex-end;
 }
@@ -517,7 +516,7 @@ a {
   align-items: center;
   gap: 10px;
   background: var(--invite-link-bg);
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 14px;
   margin-bottom: 16px;
@@ -527,7 +526,7 @@ a {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   flex-shrink: 0;
 }
 
@@ -535,7 +534,7 @@ a {
   flex: 1;
   font-family: var(--font-mono);
   font-size: 0.82rem;
-  color: var(--text);
+  color: var(--ink);
   overflow-x: auto;
   white-space: nowrap;
 }
@@ -550,15 +549,15 @@ a {
   border-radius: 999px;
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   flex-shrink: 0;
   cursor: pointer;
 }
 
 .copy-icon-button:hover {
   background: var(--invite-link-bg);
-  color: var(--text);
-  border-color: var(--border);
+  color: var(--ink);
+  border-color: var(--line);
 }
 
 .copy-icon-button:focus-visible {
@@ -627,8 +626,8 @@ a {
   display: flex;
   padding: 3px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  background: var(--surface);
   cursor: pointer;
 }
 
@@ -655,7 +654,7 @@ a {
    inline de React no puede expresar — mismo criterio y mismos valores que
    `.skin-swatch` (borde `--gold` en hover, outline `--gold` en foco). */
 .cover-icon-trigger {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   cursor: pointer;
 }
 
@@ -690,7 +689,7 @@ a {
 
 .user-calendars-sub {
   margin-top: 0.5rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .user-calendars-grid {
@@ -707,10 +706,10 @@ a {
   height: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  background: var(--surface);
   box-shadow: var(--shadow);
-  color: var(--text);
+  color: var(--ink);
 }
 
 .calendar-card:hover {
@@ -744,7 +743,7 @@ a {
 
 .calendar-card-meta {
   font-size: 0.8rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .calendar-card-tag {
@@ -754,9 +753,9 @@ a {
   letter-spacing: 0.05em;
   padding: 2px 8px;
   border-radius: var(--radius-pill);
-  background: var(--bg-sunken);
-  color: var(--text-dim);
-  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--ink-dim);
+  border: 1px solid var(--line);
 }
 
 @media (max-width: 640px) {
@@ -782,7 +781,7 @@ a {
 
 .superadmin-calendar-card:hover,
 .superadmin-calendar-card:focus-visible {
-  background: var(--bg-sunken);
+  background: var(--surface-2);
   outline: none;
 }
 

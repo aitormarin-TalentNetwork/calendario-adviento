@@ -67,7 +67,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
  * futuro), es un día que no pertenece a este calendario en absoluto.
  *
  * TAL-44 — segunda vuelta, pedido explícito de Aitor: el fondo pasa de
- * `--bg` (bloque propio, destacaba) a `--bg-raised` — el mismo que usa el
+ * `--bg` (bloque propio, destacaba) a `--surface` — el mismo que usa el
  * relleno de alineación de semana (`padding`, más abajo) — para que se
  * funda con la tarjeta en vez de marcar un bloque aparte. El tachado
  * diagonal (`.dg-out-of-range::after`, en el `<style jsx>` de más abajo)
@@ -76,7 +76,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
  */
 const outOfRangeCellStyle: React.CSSProperties = {
   aspectRatio: "1",
-  background: "var(--bg-raised)",
+  background: "var(--surface)",
   position: "relative",
   display: "flex",
   alignItems: "center",
@@ -86,7 +86,7 @@ const outOfRangeCellStyle: React.CSSProperties = {
 const outOfRangeNumStyle: React.CSSProperties = {
   fontFamily: "var(--font-body)",
   fontWeight: 800,
-  color: "var(--text)",
+  color: "var(--ink)",
   // Ajustado a 0.15 para encajar con el borrador en vivo de
   // design-system.md § "Responsive / Mobile" (opacity baja, ejemplo
   // explícito 0.15) confirmado por la Directora — no venía de ningún
@@ -126,7 +126,7 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
   return {
     fontFamily: "var(--font-body)",
     fontWeight: 800,
-    color: door.isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--text)",
+    color: door.isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--ink)",
   };
 }
 
@@ -512,7 +512,7 @@ export function DoorGrid({
           right: 14%;
           top: 50%;
           height: 1px;
-          background: var(--text-dim);
+          background: var(--ink-dim);
           opacity: 0.4;
           transform: rotate(-18deg);
           pointer-events: none;
@@ -624,14 +624,14 @@ export function DoorGrid({
         }
       `}</style>
       {/* TAL-50 — esta tarjeta ya NO pinta el fondo del skin por su cuenta
-          (antes: `background: "var(--bg-raised)"` aquí) — deja pasar la
+          (antes: `background: "var(--surface)"` aquí) — deja pasar la
           ÚNICA capa de fondo real, la de `<main>` (`mainBackgroundStyle`,
           `page.tsx`). Segura de dejar transparente porque no es
           `position: sticky` — nada se desplaza "por debajo" de ella en un
           sentido que pueda filtrarse. */}
       <div
         style={{
-          border: "1px solid var(--border)",
+          border: "1px solid var(--line)",
           borderRadius: "16px",
           boxShadow: "var(--shadow)",
           overflow: "hidden",
@@ -680,18 +680,18 @@ export function DoorGrid({
                   display: "grid",
                   gridTemplateColumns: "repeat(7, 1fr)",
                   gap: "1px",
-                  background: "var(--border)",
+                  background: "var(--line)",
                   fontFamily: "var(--font-mono)",
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
-                  color: "var(--text-dim)",
+                  color: "var(--ink-dim)",
                 }}
               >
                 {WEEKDAY_INITIALS.map((initial, i) => (
                   <span
                     key={initial}
                     style={{
-                      background: "var(--bg-raised)",
+                      background: "var(--surface)",
                       textAlign: "center",
                       padding: "6px 0",
                       color: i >= 5 ? "var(--weekend-text)" : undefined,
@@ -709,12 +709,12 @@ export function DoorGrid({
                     display: "grid",
                     gridTemplateColumns: "repeat(7, 1fr)",
                     gap: "1px",
-                    background: "var(--border)",
+                    background: "var(--line)",
                   }}
                 >
                   {week.map((cell, dayIdx) => {
                     if (cell.kind === "padding") {
-                      return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--bg-raised)" }} />;
+                      return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--surface)" }} />;
                     }
                     if (cell.kind === "out-of-range") {
                       return (

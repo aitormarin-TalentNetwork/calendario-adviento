@@ -179,7 +179,7 @@ export async function DaysSection({
       {/* TAL-34 (design/design-system.md § "Editor de calendario",
           design/propuesta-editor-calendario.html) — texto explicativo fijo
           encima del grid, mismo criterio de wording que el mockup. */}
-      <p style={{ color: "var(--text-dim)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
+      <p style={{ color: "var(--ink-dim)", fontSize: "0.85rem", marginBottom: "0.75rem" }}>
         Selecciona el día para subir el vídeo.
       </p>
       <DaysGridEditor

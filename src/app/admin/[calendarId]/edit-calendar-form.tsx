@@ -343,7 +343,7 @@ export function EditCalendarForm({ calendar, skins }: EditCalendarFormProps) {
           {state.error}
         </p>
       ) : null}
-      <div style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-dim)" }}>
+      <div style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-dim)" }}>
         Datos del calendario
       </div>
       <EditCalendarFields fieldValues={fieldValues} setField={setField} skins={skins} />

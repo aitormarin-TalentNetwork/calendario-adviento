@@ -17,8 +17,8 @@ const CONFIRM_STYLE: React.CSSProperties = { ...TRIGGER_STYLE };
 
 const CANCEL_STYLE: React.CSSProperties = {
   background: "transparent",
-  border: "1px solid var(--border)",
-  color: "var(--text)",
+  border: "1px solid var(--line)",
+  color: "var(--ink)",
   borderRadius: "999px",
   padding: "0.6rem 1.25rem",
   fontWeight: 600,
@@ -97,8 +97,8 @@ export function DeleteCalendarButton({ calendarName }: { calendarName: string })
           <div
             onClick={(event) => event.stopPropagation()}
             style={{
-              background: "var(--bg-raised)",
-              border: "1px solid var(--border)",
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
               borderRadius: "16px",
               maxWidth: "420px",
               width: "100%",
@@ -108,7 +108,7 @@ export function DeleteCalendarButton({ calendarName }: { calendarName: string })
             <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem", marginBottom: "8px" }}>
               ¿Eliminar &quot;{calendarName}&quot;?
             </h4>
-            <p style={{ color: "var(--text-dim)", fontSize: "0.88rem" }}>
+            <p style={{ color: "var(--ink-dim)", fontSize: "0.88rem" }}>
               Esto borra también sus días, vídeos e invitados — no se puede deshacer.
             </p>
             <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>

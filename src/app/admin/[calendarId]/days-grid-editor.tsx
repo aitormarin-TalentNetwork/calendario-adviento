@@ -69,11 +69,11 @@ function cellStyle(day: DayInfo, isToday: boolean, isSelected: boolean): React.C
  * se colapsaban junto con el relleno de alineación de semana (`padding`)
  * — a propósito, fuera de alcance de TAL-31 en su momento. Ahora sí: mes
  * completo también aquí, número en marca de agua + tachado + fondo
- * `--bg-raised` (se funde con la tarjeta, no un bloque aparte).
+ * `--surface` (se funde con la tarjeta, no un bloque aparte).
  */
 const outOfRangeCellStyle: React.CSSProperties = {
   aspectRatio: "1",
-  background: "var(--bg-raised)",
+  background: "var(--surface)",
   position: "relative",
   display: "flex",
   alignItems: "center",
@@ -83,7 +83,7 @@ const outOfRangeCellStyle: React.CSSProperties = {
 const outOfRangeNumStyle: React.CSSProperties = {
   fontFamily: "var(--font-body)",
   fontWeight: 800,
-  color: "var(--text)",
+  color: "var(--ink)",
   fontSize: "1.9rem",
   opacity: 0.15,
 };
@@ -110,7 +110,7 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
     fontFamily: "var(--font-body)",
     fontSize: "1.9rem",
     fontWeight: 800,
-    color: isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--text)",
+    color: isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--ink)",
   };
 }
 
@@ -216,10 +216,10 @@ export function DaysGridEditor({
     <div>
       <div
         style={{
-          border: "1px solid var(--border)",
+          border: "1px solid var(--line)",
           borderRadius: "16px",
           boxShadow: "var(--shadow)",
-          background: "var(--bg-raised)",
+          background: "var(--surface)",
           overflow: "hidden",
         }}
       >
@@ -248,19 +248,19 @@ export function DaysGridEditor({
                   display: "grid",
                   gridTemplateColumns: "repeat(7, minmax(64px, 1fr))",
                   gap: "1px",
-                  background: "var(--border)",
+                  background: "var(--line)",
                   fontFamily: "var(--font-mono)",
                   fontSize: "0.68rem",
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
-                  color: "var(--text-dim)",
+                  color: "var(--ink-dim)",
                 }}
               >
                 {WEEKDAY_INITIALS.map((initial, i) => (
                   <span
                     key={initial}
                     style={{
-                      background: "var(--bg-raised)",
+                      background: "var(--surface)",
                       textAlign: "center",
                       padding: "6px 0",
                       color: i >= 5 ? "var(--weekend-text)" : undefined,
@@ -278,7 +278,7 @@ export function DaysGridEditor({
                     display: "grid",
                     gridTemplateColumns: "repeat(7, minmax(64px, 1fr))",
                     gap: "1px",
-                    background: "var(--border)",
+                    background: "var(--line)",
                   }}
                 >
                   {week.map((cell, dayIdx) => {
@@ -286,7 +286,7 @@ export function DaysGridEditor({
                     // pertenecen a ningún mes, ni siquiera fuera de rango.
                     // Sigue en blanco sin numerar, sin cambios.
                     if (cell.kind === "padding") {
-                      return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--bg-raised)" }} />;
+                      return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--surface)" }} />;
                     }
                     // TAL-44 — antes (TAL-31) un día "out-of-range" se
                     // trataba igual que el relleno de arriba, a propósito
@@ -355,8 +355,8 @@ export function DaysGridEditor({
           <div
             onClick={(event) => event.stopPropagation()}
             style={{
-              background: "var(--bg-raised)",
-              border: "1px solid var(--border)",
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
               borderRadius: "16px",
               maxWidth: "420px",
               width: "100%",
@@ -367,7 +367,7 @@ export function DaysGridEditor({
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
               <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem" }}>{openDay.label}</h4>
-              <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: "0.25rem" }}>
+              <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--ink-dim)", cursor: "pointer", display: "flex", padding: "0.25rem" }}>
                 <X size={20} strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
@@ -394,7 +394,7 @@ export function DaysGridEditor({
           right: 14%;
           top: 50%;
           height: 1px;
-          background: var(--text-dim);
+          background: var(--ink-dim);
           opacity: 0.4;
           transform: rotate(-18deg);
           pointer-events: none;
@@ -485,7 +485,7 @@ function DayDialogForm({
       <div
         style={{
           display: "flex",
-          border: "1px solid var(--border)",
+          border: "1px solid var(--line)",
           borderRadius: "999px",
           overflow: "hidden",
           width: "fit-content",
@@ -510,7 +510,7 @@ function DayDialogForm({
               fontFamily: "var(--font-body)",
               cursor: "pointer",
               background: videoSource === value ? "var(--gold)" : "transparent",
-              color: videoSource === value ? "#241a06" : "var(--text-dim)",
+              color: videoSource === value ? "#241a06" : "var(--ink-dim)",
               fontWeight: videoSource === value ? 600 : 400,
             }}
           >
@@ -521,7 +521,7 @@ function DayDialogForm({
 
       {videoSource === "link" ? (
         <>
-          <label htmlFor={`day-videoUrl-${day.dateStr}`} style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-dim)" }}>
+          <label htmlFor={`day-videoUrl-${day.dateStr}`} style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-dim)" }}>
             URL del vídeo
           </label>
           <input
@@ -535,12 +535,12 @@ function DayDialogForm({
           />
         </>
       ) : (
-        <p style={{ color: "var(--text-dim)", fontSize: "0.85rem", margin: "4px 0" }}>
+        <p style={{ color: "var(--ink-dim)", fontSize: "0.85rem", margin: "4px 0" }}>
           Subida de archivos: todavía no disponible. Usa un link externo por ahora.
         </p>
       )}
 
-      <label htmlFor={`day-message-${day.dateStr}`} style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--text-dim)", marginTop: "6px" }}>
+      <label htmlFor={`day-message-${day.dateStr}`} style={{ fontSize: "0.72rem", textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-dim)", marginTop: "6px" }}>
         Mensaje del día (opcional)
       </label>
       <textarea
