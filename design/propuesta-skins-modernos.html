@@ -37,10 +37,13 @@ header p { margin: 0; color: var(--page-dim); max-width: 760px; line-height: 1.5
 .tile svg { width: 22px; height: 22px; }
 .hero { border-radius: 24px; padding: 16px 18px; background: var(--hero); color: var(--hero-ink); position: relative; overflow: hidden; margin-bottom: 12px; }
 .hero::after { content: ""; position: absolute; right: -30px; top: -30px; width: 120px; height: 120px; border-radius: 50%; background: var(--glow); }
-.hero small { font-size: 0.75rem; font-weight: 600; opacity: 0.85; }
+/* Contraste (TAL-62, aprobado por el PM): textos del bloque como TEXTO GRANDE (≥ 18.66px en negrita, umbral 3:1), sin opacidad,
+   y nunca bajo el halo: el halo es decorativo y se queda en la esquina; el contenido deja libre su zona. */
+.hero > * { position: relative; z-index: 1; max-width: calc(100% - 92px); }
+.hero small { display: block; font-size: 1.2rem; font-weight: 700; }
 .hero .big { font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em; line-height: 1; margin: 4px 0 2px; }
 .hero .big span { color: var(--hero-num); }
-.hero .for { font-size: 0.88rem; font-weight: 600; }
+.hero .for { font-size: 1.2rem; font-weight: 700; }
 .month { border-radius: 22px; padding: 12px; background: var(--card); }
 .wd, .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
 .wd span { text-align: center; font-size: 0.65rem; font-weight: 700; color: var(--dim); padding-bottom: 3px; }
@@ -48,6 +51,8 @@ header p { margin: 0; color: var(--page-dim); max-width: 760px; line-height: 1.5
 .d { aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; font-weight: 800; font-size: 0.8rem; background: var(--cell); color: var(--ink); }
 .d.we { color: var(--weekend); }
 .d.seen { background: linear-gradient(140deg, var(--seen-a), var(--seen-b)); color: #fff; font-size: 0.6rem; place-items: end end; padding: 3px 5px; }
+/* Número del "visto" sobre píldora oscura (contraste en los 8 skins, aprobado por el PM). */
+.d.seen b { background: rgba(15,24,18,0.6); border-radius: 999px; padding: 1px 5px; font-weight: 600; }
 .d.today { background: var(--today); color: var(--today-ink); transform: scale(1.06); box-shadow: 0 5px 12px var(--today-shadow); }
 .d.locked { background: transparent; border: 1.5px dashed var(--line); color: var(--dim); font-weight: 600; }
 .d.out { background: transparent; color: var(--dim); opacity: 0.3; font-weight: 600; }
@@ -56,39 +61,39 @@ header p { margin: 0; color: var(--page-dim); max-width: 760px; line-height: 1.5
 
 /* 1 · Alegre (estándar) */
 .s-alegre { --bg:#fff8ee; --ink:#1d2320; --dim:#6b726e; --line:#e8dfcf; --card:#ffffff; --cell:#f6f1ff; --tile:#e6e0ff; --accent:#7b61ff;
-  --hero:#7b61ff; --hero-ink:#fff; --hero-num:#ffd23f; --glow:rgba(255,210,63,0.45); --today:#ffd23f; --today-ink:#1d2320; --today-shadow:rgba(255,210,63,0.6);
-  --seen-a:#ff8a8d; --seen-b:#ff5a5f; --weekend:#ff5a5f; }
+  --hero:#7b61ff; --hero-ink:#fff; --hero-num:#ffe07a; --glow:rgba(255,210,63,0.45); --today:#ffd23f; --today-ink:#1d2320; --today-shadow:rgba(255,210,63,0.6);
+  --seen-a:#ff8a8d; --seen-b:#ff5a5f; --weekend:#cc3338; }
 /* 2 · Navidad pop */
-.s-navidad { --bg:#fff7f2; --ink:#2a1a1c; --dim:#7a6466; --line:#f0d9d3; --card:#ffffff; --cell:#fff0ee; --tile:#ffd6db; --accent:#f2374b;
-  --hero:#f2374b; --hero-ink:#fff; --hero-num:#ffc23d; --glow:rgba(255,194,61,0.5); --today:#ffc23d; --today-ink:#2a1a1c; --today-shadow:rgba(255,194,61,0.6);
-  --seen-a:#3fd394; --seen-b:#1fb57a; --weekend:#f2374b; }
+.s-navidad { --bg:#fff7f2; --ink:#2a1a1c; --dim:#7a6466; --line:#f0d9d3; --card:#ffffff; --cell:#fff0ee; --tile:#ffd6db; --accent:#e8293e;
+  --hero:#f2374b; --hero-ink:#fff; --hero-num:#ffe08f; --glow:rgba(255,194,61,0.5); --today:#ffc23d; --today-ink:#2a1a1c; --today-shadow:rgba(255,194,61,0.6);
+  --seen-a:#3fd394; --seen-b:#1fb57a; --weekend:#d1142c; }
 /* 3 · Caramelo */
-.s-caramelo { --bg:#fffaf3; --ink:#24202a; --dim:#77707f; --line:#f1dfe8; --card:#ffffff; --cell:#fff0f7; --tile:#d3f0fd; --accent:#4f8dff;
-  --hero:#4f8dff; --hero-ink:#fff; --hero-num:#ffe45c; --glow:rgba(255,228,92,0.55); --today:#ffe45c; --today-ink:#24202a; --today-shadow:rgba(255,228,92,0.7);
-  --seen-a:#ff9bcb; --seen-b:#ff6fb5; --weekend:#ff6fb5; }
+.s-caramelo { --bg:#fffaf3; --ink:#24202a; --dim:#77707f; --line:#f1dfe8; --card:#ffffff; --cell:#fff0f7; --tile:#d3f0fd; --accent:#3478f5;
+  --hero:#4f8dff; --hero-ink:#fff; --hero-num:#ffffff; --glow:rgba(255,228,92,0.55); --today:#ffe45c; --today-ink:#24202a; --today-shadow:rgba(255,228,92,0.7);
+  --seen-a:#ff9bcb; --seen-b:#ff6fb5; --weekend:#c2185b; }
 /* 4 · Noche */
 .s-noche { --bg:#10142a; --ink:#f3f1ff; --dim:#a4a8c8; --line:#2c3256; --card:#181d3a; --cell:#222852; --tile:#2a2f5e; --accent:#f5c451;
   --hero:linear-gradient(140deg,#2b2f6b,#5b3fd1); --hero-ink:#fff; --hero-num:#f5c451; --glow:rgba(245,196,81,0.3); --today:#f5c451; --today-ink:#10142a; --today-shadow:rgba(245,196,81,0.45);
   --seen-a:#8f7bff; --seen-b:#5b3fd1; --weekend:#ff8fb1; }
 /* 5 · Nieve */
-.s-nieve { --bg:#f2f8ff; --ink:#14233a; --dim:#64748b; --line:#d6e4f5; --card:#ffffff; --cell:#e8f2ff; --tile:#dcecff; --accent:#2f6bff;
-  --hero:linear-gradient(140deg,#5aa9ff,#2f6bff); --hero-ink:#fff; --hero-num:#ffffff; --glow:rgba(255,255,255,0.35); --today:#2f6bff; --today-ink:#fff; --today-shadow:rgba(47,107,255,0.4);
-  --seen-a:#9fd0ff; --seen-b:#5aa9ff; --weekend:#2f6bff; }
+.s-nieve { --bg:#f2f8ff; --ink:#14233a; --dim:#5f6f86; --line:#d6e4f5; --card:#ffffff; --cell:#e8f2ff; --tile:#dcecff; --accent:#2f6bff;
+  --hero:linear-gradient(140deg,#5aa9ff,#2f6bff); --hero-ink:#14233a; --hero-num:#14233a; --glow:rgba(255,255,255,0.35); --today:#2a67ff; --today-ink:#fff; --today-shadow:rgba(47,107,255,0.4);
+  --seen-a:#9fd0ff; --seen-b:#5aa9ff; --weekend:#1f58f0; }
 /* 6 · Minimal */
-.s-minimal { --bg:#ffffff; --ink:#111111; --dim:#7a7a7a; --line:#e6e6e6; --card:#f6f6f6; --cell:#ffffff; --tile:#111111; --accent:#ffffff;
-  --hero:#111111; --hero-ink:#fff; --hero-num:#ff4d2e; --glow:rgba(255,77,46,0.25); --today:#ff4d2e; --today-ink:#fff; --today-shadow:rgba(255,77,46,0.35);
-  --seen-a:#3a3a3a; --seen-b:#111111; --weekend:#ff4d2e; }
+.s-minimal { --bg:#ffffff; --ink:#111111; --dim:#6e6e6e; --line:#e6e6e6; --card:#f6f6f6; --cell:#ffffff; --tile:#111111; --accent:#ffffff;
+  --hero:#111111; --hero-ink:#fff; --hero-num:#ff4d2e; --glow:rgba(255,77,46,0.25); --today:#ff4d2e; --today-ink:#111111; --today-shadow:rgba(255,77,46,0.35);
+  --seen-a:#3a3a3a; --seen-b:#111111; --weekend:#cc3516; }
 /* 7 · Tira Cómica */
 .s-comic { --bg:#fdf8ec; --ink:#1a1a1a; --dim:#5c5650; --line:#1a1a1a; --card:#ffffff; --cell:#ffffff; --tile:#ffd23f; --accent:#1a1a1a;
-  --hero:#e63946; --hero-ink:#fff; --hero-num:#ffd23f; --glow:rgba(47,168,224,0.55); --today:#ffd23f; --today-ink:#1a1a1a; --today-shadow:rgba(0,0,0,0);
-  --seen-a:#2fa8e0; --seen-b:#2fa8e0; --weekend:#e63946; }
+  --hero:#e63946; --hero-ink:#fff; --hero-num:#ffe066; --glow:rgba(47,168,224,0.55); --today:#ffd23f; --today-ink:#1a1a1a; --today-shadow:rgba(0,0,0,0);
+  --seen-a:#2fa8e0; --seen-b:#2fa8e0; --weekend:#d62835; }
 .s-comic .hero, .s-comic .month, .s-comic .tile, .s-comic .d:not(.out):not(.locked) { border: 2.5px solid #1a1a1a; box-shadow: 3px 3px 0 #1a1a1a; }
 .s-comic .d.locked { border-color: #1a1a1a; }
 /* 8 · Rojiblanco */
 .s-rojiblanco { --bg:#ffffff; --ink:#1a1a1a; --dim:#6b6b6b; --line:#e9d2d3; --card:#ffffff; --cell:#fbeeee; --tile:#1a1a1a; --accent:#ffffff;
   --hero:repeating-linear-gradient(90deg, #d61f26 0 22px, #ffffff 22px 44px); --hero-ink:#1a1a1a; --hero-num:#d61f26; --glow:rgba(0,0,0,0); --today:#1a1a1a; --today-ink:#fff; --today-shadow:rgba(0,0,0,0.25);
   --seen-a:#e5484e; --seen-b:#d61f26; --weekend:#d61f26; }
-.s-rojiblanco .hero > * { position: relative; z-index: 1; background: #fff; display: inline-block; padding: 2px 10px; border-radius: 999px; }
+.s-rojiblanco .hero > * { position: relative; z-index: 1; background: #fff; display: inline-block; padding: 2px 10px; border-radius: 999px; max-width: none; }
 .s-rojiblanco .hero .big { padding: 4px 14px; }
 </style>
 </head>
@@ -118,7 +123,7 @@ function days() {
     let c = 'd';
     if (d > 24) c += ' out'; else if (d === 8) c += ' today'; else if (d < 8 && d !== 3 && d !== 6) c += ' seen'; else if (d > 8) c += ' locked';
     if (we && !/seen|today/.test(c)) c += ' we';
-    h += `<span class="${c}">${d}</span>`;
+    h += `<span class="${c}">${/seen/.test(c) ? `<b>${d}</b>` : d}</span>`;
   }
   return h;
 }

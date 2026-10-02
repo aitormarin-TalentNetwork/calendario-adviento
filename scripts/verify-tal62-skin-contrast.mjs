@@ -6,12 +6,15 @@
 // - degradados (hero de Noche y Nieve; "visto" seenA → seenB): extremos +
 //   9 muestras intermedias interpoladas en sRGB (espacio por defecto de los
 //   degradados CSS), peor caso;
-// - halo `glow` (rgba) compuesto sobre cada muestra del bloque;
-// - texto con opacidad: "Cuenta atrás" (`.hero small`, 0.75rem, opacity
-//   0.85) con su color EFECTIVO = 0.85·heroInk + 0.15·fondo, por muestra;
 // - Rojiblanco: textos del bloque sobre su píldora blanca (#ffffff).
-// Umbrales WCAG: 4.5:1 texto normal, 3:1 texto grande (el número de la
-// cuenta atrás, 2.2rem/800) y elementos gráficos (icono).
+// Reglas aprobadas por el PM (2026-10-01) tras el primer informe, ya
+// normativas (mockup y app): el halo `glow` es decorativo y NUNCA queda bajo
+// el texto (el contenido del bloque deja libre su esquina), así que no se
+// compone bajo el texto; el número del "visto" va sobre una píldora oscura
+// rgba(15,24,18,0.6); "Cuenta atrás" y "para …" van SIN opacidad y como
+// TEXTO GRANDE (1.2rem/700 ≥ 18.66px en negrita), igual que el número.
+// Umbrales WCAG: 4.5:1 texto normal, 3:1 texto grande y elementos gráficos
+// (icono).
 //
 // Lee la paleta del catálogo SEMBRADO en el deployment de desarrollo
 // (`skins.listCatalogPublic`), la misma que pinta la app.
@@ -154,26 +157,20 @@ for (const skin of catalog) {
   for (const [label, bg] of [["card", p.card], ["cell", p.cell]]) check(name, `weekend sobre ${label}`, parseColor(p.weekend), flat(bg), 4.5);
   check(name, "todayInk sobre today", parseColor(p.todayInk), flat(p.today), 4.5);
   check(name, "icono tileInk sobre tile", parseColor(p.tileInk), flat(p.tile), 3);
-  // "Visto": número blanco sobre el degradado seenA → seenB (como el mockup, sin capa)
-  // y, como referencia, con la píldora oscura que la app ya pone hoy detrás del número.
+  // "Visto": número blanco sobre su píldora oscura, compuesta sobre cada muestra de seenA → seenB.
   const seen = samples(`linear-gradient(140deg,${p.seenA},${p.seenB})`);
-  check(name, "blanco sobre visto (seenA→seenB)", parseColor("#ffffff"), seen, 4.5);
-  check(name, "  ref: blanco sobre visto + píldora 0.6", parseColor("#ffffff"), seen.map((s) => ({ at: s.at, color: over(parseColor("rgba(15,24,18,0.6)"), s.color) })), 4.5);
+  check(name, "blanco sobre píldora del visto (seenA→seenB)", parseColor("#ffffff"), seen.map((s) => ({ at: s.at, color: over(parseColor("rgba(15,24,18,0.6)"), s.color) })), 4.5);
 
   // Bloque de la cuenta atrás.
   if (skin.treatment === "stripes-pill") {
     const pill = flat("#ffffff");
     check(name, "heroInk sobre píldora blanca", parseColor(p.heroInk), pill, 4.5);
+    void withAlpha;
     check(name, "heroNum (grande) sobre píldora blanca", parseColor(p.heroNum), pill, 3);
-    check(name, "'Cuenta atrás' (85%) sobre píldora blanca", withAlpha(parseColor(p.heroInk), 0.85), pill, 4.5);
   } else {
     const heroSamples = samples(p.hero);
-    const glow = parseColor(p.glow);
-    const withGlow = [...heroSamples, ...heroSamples.map((s) => ({ at: `${s.at}+glow`, color: over(glow, s.color) }))];
-    check(name, "  ref: heroInk sobre bloque SIN glow", parseColor(p.heroInk), heroSamples, 4.5);
-    check(name, "heroInk sobre bloque (+glow)", parseColor(p.heroInk), withGlow, 4.5);
-    check(name, "heroNum (grande) sobre bloque (+glow)", parseColor(p.heroNum), withGlow, 3);
-    check(name, "'Cuenta atrás' (85%) sobre bloque (+glow)", withAlpha(parseColor(p.heroInk), 0.85), withGlow, 4.5);
+    check(name, "heroInk (grande: 'Cuenta atrás', 'para …') sobre bloque", parseColor(p.heroInk), heroSamples, 3);
+    check(name, "heroNum (grande) sobre bloque", parseColor(p.heroNum), heroSamples, 3);
   }
 }
 
@@ -182,8 +179,5 @@ console.log("skin".padEnd(13) + "par".padEnd(44) + "mín  peor    texto    fondo
 for (const r of rows) {
   console.log(`${r.skin.padEnd(13)}${r.what.padEnd(44)}${String(r.min).padEnd(5)}${r.r.toFixed(2).padStart(5)}:1 ${r.fg} ${r.bg} ${r.at.padEnd(10)} ${r.ok ? "✓" : "✗"} ${r.fix}`);
 }
-const refFailures = rows.filter((r) => !r.ok && r.what.startsWith("  ref:")).length;
-failures -= refFailures; // las filas "ref:" son de referencia, no cuentan para la puerta
-console.log("(Las filas 'ref:' son referencias informativas — sin glow / con la píldora actual — y no cuentan para la puerta.)");
 console.log(failures === 0 ? `\nOK — los ${rows.length} pares cumplen.` : `\n✗ ${failures} de ${rows.length} pares NO cumplen. Puerta de contraste CERRADA: informe al PM antes de publicar la parte visual.`);
 process.exit(failures === 0 ? 0 : 1);

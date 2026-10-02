@@ -4,6 +4,16 @@
 // (los siembra `skins.seedSkinCatalog2026` en las tablas `skins` +
 // `skinStyles`); la app nunca los lee de aquí, siempre de Convex.
 //
+// Contraste (puerta obligatoria, plan § 7; aprobado por el PM en bloque el
+// 2026-10-01): algunos valores de TEXTO se ajustaron respecto a la primera
+// versión del mockup para cumplir WCAG AA — fin de semana más oscuro en 6
+// skins, número de la cuenta atrás más claro (Alegre, Navidad pop, Tira
+// Cómica) o blanco (Caramelo), texto del bloque en azul marino en Nieve,
+// `dim` de Nieve y Minimal, texto de "hoy" en Minimal e icono de Navidad pop
+// y Caramelo; el único fondo tocado es el "hoy" de Nieve (#2f6bff → #2a67ff,
+// imperceptible). El mockup se actualizó con estos valores finales y sigue
+// siendo normativo. Ver `scripts/verify-tal62-skin-contrast.mjs`.
+//
 // Fichero NEUTRAL (sin runtime de Convex), mismo patrón que
 // `coverIconCatalog.ts`: lo importan la mutation de sembrado y los tests
 // puros (`e2e/tal-62-skin-catalog.spec.ts`).
@@ -76,9 +86,9 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
     keepsExistingRow: false,
     palette: {
       bg: "#fff8ee", ink: "#1d2320", dim: "#6b726e", line: "#e8dfcf", card: "#ffffff", cell: "#f6f1ff",
-      tile: "#e6e0ff", tileInk: "#7b61ff", hero: "#7b61ff", heroInk: "#fff", heroNum: "#ffd23f",
+      tile: "#e6e0ff", tileInk: "#7b61ff", hero: "#7b61ff", heroInk: "#fff", heroNum: "#ffe07a",
       glow: "rgba(255,210,63,0.45)", today: "#ffd23f", todayInk: "#1d2320", todayShadow: "rgba(255,210,63,0.6)",
-      seenA: "#ff8a8d", seenB: "#ff5a5f", weekend: "#ff5a5f",
+      seenA: "#ff8a8d", seenB: "#ff5a5f", weekend: "#cc3338",
     },
     swatches: ["#7b61ff", "#ffd23f", "#ff5a5f", "#3ddc97"],
     legacy: { background: "#fff8ee", accent: "#7b61ff", textColor: "#1d2320" },
@@ -91,9 +101,9 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
     keepsExistingRow: false,
     palette: {
       bg: "#fff7f2", ink: "#2a1a1c", dim: "#7a6466", line: "#f0d9d3", card: "#ffffff", cell: "#fff0ee",
-      tile: "#ffd6db", tileInk: "#f2374b", hero: "#f2374b", heroInk: "#fff", heroNum: "#ffc23d",
+      tile: "#ffd6db", tileInk: "#e8293e", hero: "#f2374b", heroInk: "#fff", heroNum: "#ffe08f",
       glow: "rgba(255,194,61,0.5)", today: "#ffc23d", todayInk: "#2a1a1c", todayShadow: "rgba(255,194,61,0.6)",
-      seenA: "#3fd394", seenB: "#1fb57a", weekend: "#f2374b",
+      seenA: "#3fd394", seenB: "#1fb57a", weekend: "#d1142c",
     },
     swatches: ["#f2374b", "#1fb57a", "#ffc23d"],
     legacy: { background: "#fff7f2", accent: "#f2374b", textColor: "#2a1a1c" },
@@ -106,9 +116,9 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
     keepsExistingRow: false,
     palette: {
       bg: "#fffaf3", ink: "#24202a", dim: "#77707f", line: "#f1dfe8", card: "#ffffff", cell: "#fff0f7",
-      tile: "#d3f0fd", tileInk: "#4f8dff", hero: "#4f8dff", heroInk: "#fff", heroNum: "#ffe45c",
+      tile: "#d3f0fd", tileInk: "#3478f5", hero: "#4f8dff", heroInk: "#fff", heroNum: "#ffffff",
       glow: "rgba(255,228,92,0.55)", today: "#ffe45c", todayInk: "#24202a", todayShadow: "rgba(255,228,92,0.7)",
-      seenA: "#ff9bcb", seenB: "#ff6fb5", weekend: "#ff6fb5",
+      seenA: "#ff9bcb", seenB: "#ff6fb5", weekend: "#c2185b",
     },
     swatches: ["#ff6fb5", "#4f8dff", "#ffe45c", "#4fc3f7"],
     legacy: { background: "#fffaf3", accent: "#4f8dff", textColor: "#24202a" },
@@ -135,10 +145,10 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
     sortOrder: 5,
     keepsExistingRow: true,
     palette: {
-      bg: "#f2f8ff", ink: "#14233a", dim: "#64748b", line: "#d6e4f5", card: "#ffffff", cell: "#e8f2ff",
-      tile: "#dcecff", tileInk: "#2f6bff", hero: "linear-gradient(140deg,#5aa9ff,#2f6bff)", heroInk: "#fff",
-      heroNum: "#ffffff", glow: "rgba(255,255,255,0.35)", today: "#2f6bff", todayInk: "#fff",
-      todayShadow: "rgba(47,107,255,0.4)", seenA: "#9fd0ff", seenB: "#5aa9ff", weekend: "#2f6bff",
+      bg: "#f2f8ff", ink: "#14233a", dim: "#5f6f86", line: "#d6e4f5", card: "#ffffff", cell: "#e8f2ff",
+      tile: "#dcecff", tileInk: "#2f6bff", hero: "linear-gradient(140deg,#5aa9ff,#2f6bff)", heroInk: "#14233a",
+      heroNum: "#14233a", glow: "rgba(255,255,255,0.35)", today: "#2a67ff", todayInk: "#fff",
+      todayShadow: "rgba(47,107,255,0.4)", seenA: "#9fd0ff", seenB: "#5aa9ff", weekend: "#1f58f0",
     },
     swatches: ["#f2f8ff", "#5aa9ff", "#2f6bff"],
     legacy: { background: "#f2f8ff", accent: "#2f6bff", textColor: "#14233a" },
@@ -150,10 +160,10 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
     sortOrder: 6,
     keepsExistingRow: false,
     palette: {
-      bg: "#ffffff", ink: "#111111", dim: "#7a7a7a", line: "#e6e6e6", card: "#f6f6f6", cell: "#ffffff",
+      bg: "#ffffff", ink: "#111111", dim: "#6e6e6e", line: "#e6e6e6", card: "#f6f6f6", cell: "#ffffff",
       tile: "#111111", tileInk: "#ffffff", hero: "#111111", heroInk: "#fff", heroNum: "#ff4d2e",
-      glow: "rgba(255,77,46,0.25)", today: "#ff4d2e", todayInk: "#fff", todayShadow: "rgba(255,77,46,0.35)",
-      seenA: "#3a3a3a", seenB: "#111111", weekend: "#ff4d2e",
+      glow: "rgba(255,77,46,0.25)", today: "#ff4d2e", todayInk: "#111111", todayShadow: "rgba(255,77,46,0.35)",
+      seenA: "#3a3a3a", seenB: "#111111", weekend: "#cc3516",
     },
     swatches: ["#ffffff", "#111111", "#ff4d2e"],
     legacy: { background: "#ffffff", accent: "#ff4d2e", textColor: "#111111" },
@@ -166,9 +176,9 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
     keepsExistingRow: true,
     palette: {
       bg: "#fdf8ec", ink: "#1a1a1a", dim: "#5c5650", line: "#1a1a1a", card: "#ffffff", cell: "#ffffff",
-      tile: "#ffd23f", tileInk: "#1a1a1a", hero: "#e63946", heroInk: "#fff", heroNum: "#ffd23f",
+      tile: "#ffd23f", tileInk: "#1a1a1a", hero: "#e63946", heroInk: "#fff", heroNum: "#ffe066",
       glow: "rgba(47,168,224,0.55)", today: "#ffd23f", todayInk: "#1a1a1a", todayShadow: "rgba(0,0,0,0)",
-      seenA: "#2fa8e0", seenB: "#2fa8e0", weekend: "#e63946",
+      seenA: "#2fa8e0", seenB: "#2fa8e0", weekend: "#d62835",
     },
     treatment: "comic",
     swatches: ["#e63946", "#2fa8e0", "#ffd23f", "#1a1a1a"],
