@@ -1010,9 +1010,15 @@ Vimeo y Drive nunca se piden directamente desde el navegador. La casilla pinta u
 debajo, el fondo del skin. Si la imagen no carga, se ve el fondo: **nunca una casilla
 rota**.
 
-En el editor, el número de un día con imagen va siempre en blanco sobre una píldora
-opaca `#0f1812` (≈ 18,6:1), con independencia de la imagen y del skin (aviso de T2 tras
-el barrido de TAL-61). "Hoy" se sigue marcando con el borde discontinuo de la casilla.
+El número de un día con imagen nunca va directamente sobre la imagen. Las dos variantes
+vienen de TAL-62:
+- en el editor, una píldora opaca de par fijo, `--bg` sobre `--ink` (15,2:1 claro y
+  16,3:1 oscuro);
+- en el invitado, la píldora `rgba(15,24,18,0.6)`, ≥ 4,74:1 en el peor caso de foto en
+  los 8 skins.
+
+TAL-67 hereda las dos tal cual, para cualquier imagen (subida o copia). "Hoy" lo marca el
+borde de la casilla.
 
 ### Seguridad de las descargas (SSRF)
 
