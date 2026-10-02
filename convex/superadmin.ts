@@ -9,7 +9,7 @@ import {
 import { v } from "convex/values";
 import type { Id } from "./_generated/dataModel";
 import { requireServerSecret } from "./serverAuth";
-import { countCalendarAdmins } from "./calendarPeople";
+import { countCalendarAdmins, invitationRolesFrozen } from "./calendarPeople";
 
 export type CalendarStatus = "upcoming" | "live" | "finished";
 
@@ -343,8 +343,16 @@ async function removeAdminEverywhereHandler(
       .unique();
     if (invitation) {
       await ctx.db.patch(membership._id, { role: "GUEST" });
-      // TAL-65 — la invitación queda coherente con el nuevo rol.
-      if (invitation.role !== undefined && invitation.role !== "GUEST") await ctx.db.patch(invitation._id, { role: "GUEST" });
+      // TAL-65 — la invitación queda coherente con el nuevo rol, salvo con la
+      // congelación del runbook de rollback activa (`INVITATION_ROLES_FROZEN`):
+      // entonces ninguna función escribe `invitations.role`, para que nada
+      // vuelva a meter el campo entre `stripRolesForRollback` y el deploy del
+      // schema anterior. "Quitar" sigue funcionando igual (la membership se
+      // degrada o se borra; `calendarMemberships.role` existe en los dos
+      // schemas). Una invitación que se quede en ADMIN la limpia el strip.
+      if (!invitationRolesFrozen() && invitation.role !== undefined && invitation.role !== "GUEST") {
+        await ctx.db.patch(invitation._id, { role: "GUEST" });
+      }
     } else {
       await ctx.db.delete(membership._id);
     }

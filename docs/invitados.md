@@ -653,9 +653,26 @@ estaba. Si de verdad hay que revertir, **lo ejecuta quien publica**
 (Integrador/CEO), nunca una terminal de trabajo:
 
 0. **Congelar** escrituras con rol: `npx convex env set
-   INVITATION_ROLES_FROZEN 1 --prod`. Invitar y cambiar rol responden `frozen`
-   ("La gestión de roles está en mantenimiento…"). Las funciones antiguas no
-   escriben `role`, y aceptar una invitación solo lo lee.
+   INVITATION_ROLES_FROZEN 1 --prod`. Con la congelación activa **ninguna
+   función escribe `invitations.role`** (inventario completo, corrección del
+   NO-GO del loop 1 de TAL-65):
+   - `calendarPeople.ts::inviteToCalendar` y `setPersonRole` (las únicas que
+     crean o cambian el rol) responden `frozen` ("La gestión de roles está en
+     mantenimiento…").
+   - `superadmin.ts::removeAdminEverywhere` ("Quitar" de `/superadmin`)
+     **sigue funcionando** (degrada o borra la membership), pero no toca el
+     `role` de la invitación. Elegido frente a bloquear la operación porque
+     es lo más simple y seguro: quitar a un Admin no tiene por qué esperar al
+     rollback, y una invitación que se quede en ADMIN la limpia el paso 1
+     igual que cualquier otra. Antes ya solo escribía si la invitación tenía
+     `role: "ADMIN"`, nunca sobre una fila sin rol; ahora además deja de
+     depender de esa condición.
+   - `removePersonFromCalendar` solo borra filas. `access.ts` (aceptar)
+     lee el rol de la invitación y escribe en `calendarMemberships`, que
+     tiene `role` en los dos schemas. Las funciones anteriores a TAL-65
+     (`inviteGuestPublic` y compañía) no escriben `role`.
+   - La única escritura de `role` que queda es la del propio
+     `stripRolesForRollback`, que lo borra.
 1. **Limpiar por lotes**, repitiendo con el `continueCursor` devuelto hasta
    `isDone: true`:
    ```sh
