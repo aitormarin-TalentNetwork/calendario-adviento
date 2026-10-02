@@ -377,17 +377,25 @@ test("13 · drenaje medido, no solape, continuación obsoleta, watchdog sin cron
   })()));
   const base = (await storage()).total;
 
+  // Los pendientes de las medidas se siembran con caducidad FUTURA (+45 s) y se
+  // espera a que expiren: así ningún drenaje (el cron real de 15 min está
+  // desplegado) puede llevárselos mientras se siembran y la cuenta es exacta.
+  const seedFuture = async (count: number) => {
+    await run("dayFiles:seedExpiredIntentsForTests", { calendarId: cal, dayId, count, registered: true, ageMs: -45_000 });
+    expect((await storage()).total).toBe(base + count);
+    await sleep(46_000);
+  };
+
   // Drenaje: 300 pendientes con lotes de 25 → un solo disparo.
   envSet("DAY_FILE_RECONCILE_BATCH", "25");
-  await run("dayFiles:seedExpiredIntentsForTests", { calendarId: cal, dayId, count: 300, registered: true });
-  expect((await storage()).total).toBe(base + 300);
+  await seedFuture(300);
   const ms25 = await drainNow();
   expect((await storage()).total).toBe(base);
   console.log(`TAL-67 drenaje: 300 pendientes, lotes de 25 (12 lotes) en ${ms25} ms → ${(ms25 / 12).toFixed(0)} ms/lote`);
 
   // Medida con el lote por defecto (100) para estimar 10.000.
   envRemove("DAY_FILE_RECONCILE_BATCH");
-  await run("dayFiles:seedExpiredIntentsForTests", { calendarId: cal, dayId, count: 300, registered: true });
+  await seedFuture(300);
   const ms100 = await drainNow();
   const perBatch100 = ms100 / 3;
   console.log(
