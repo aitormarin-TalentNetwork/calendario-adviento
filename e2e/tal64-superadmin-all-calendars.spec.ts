@@ -137,7 +137,8 @@ test("2 · Super Admin administra un ajeno sin membership: edita, invita, guarda
   // Invitar.
   await page.getByPlaceholder("email@ejemplo.com").fill(INVITED_EMAIL);
   await page.getByRole("button", { name: "Invitar ahora" }).click();
-  await expect(page.getByRole("cell", { name: INVITED_EMAIL })).toBeVisible();
+  // TAL-65 — la tabla "Invitados" pasa a ser la lista "Personas del calendario".
+  await expect(page.locator(`li.people-row[data-email="${INVITED_EMAIL}"]`)).toBeVisible();
 
   // Guardar un día con vídeo.
   const emptyDay = page.locator('button[aria-label$=" — sin vídeo"]').first();
