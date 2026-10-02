@@ -14,6 +14,7 @@ import { convexAppServerSecret } from "@/lib/convex-server";
 import { extractConvexErrorMessage } from "@/lib/convex-error";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
+import { NON_EMBEDDABLE_VIDEO_WARNING, parseEmbeddableVideo } from "@/lib/video-embed";
 
 /**
  * Misma comprobación que `requireCalendarAdmin` en
@@ -80,6 +81,13 @@ const MAX_MESSAGE_LENGTH = 2000;
 export type SaveDayState = {
   status: "idle" | "error" | "success";
   error: string | null;
+  // TAL-66 — solo en un "success": el día SE GUARDÓ, pero su URL no se
+  // puede incrustar (`parseEmbeddableVideo` → null) y el invitado tendrá
+  // que abrirla fuera. Es un aviso, no un bloqueo (decisión del PM): el
+  // diálogo lo muestra y NO se cierra solo (`days-grid-editor.tsx`).
+  // Ausente en cualquier otro resultado, así que un guardado posterior con
+  // una URL incrustable lo "devuelve a null".
+  warning?: string;
 };
 
 const GENERIC_SAVE_DAY_ERROR_MESSAGE = "No se pudo guardar el día. Inténtalo de nuevo.";
@@ -153,6 +161,9 @@ export async function saveDayAction(
   }
 
   revalidatePath(`/admin/${calendarId}`);
+  if (parseEmbeddableVideo(videoUrl) === null) {
+    return { status: "success", error: null, warning: NON_EMBEDDABLE_VIDEO_WARNING };
+  }
   return { status: "success", error: null };
 }
 
