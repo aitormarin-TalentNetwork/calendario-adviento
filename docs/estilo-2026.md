@@ -70,6 +70,9 @@ idempotente. Al rebasar otra rama sobre TAL-61, pasarlo sobre sus ficheros
   search, password, number y tel, más `select` y `textarea`. Radios,
   checkboxes, hidden, file, color y range quedan fuera por construcción.
 - `.card`: `--surface`, `--radius-lg`, `--shadow`.
+- Aviso de vídeo no incrustable del editor de días (TAL-66,
+  `.day-video-warning`): es un aviso, no un error, así que franja `--sun`
+  (no `--coral`), fondo `--surface-2` y texto `--ink`.
 
 ## Frontera con TAL-62 (skins)
 

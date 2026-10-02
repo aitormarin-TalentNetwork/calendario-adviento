@@ -334,6 +334,7 @@ test("4 · contraste WCAG de los pares de uso (claro y oscuro)", () => {
       ["blanco/--coral-btn", "#ffffff", t["--coral-btn"]],
       ["--on-sun/--sun", t["--on-sun"], t["--sun"]],
       ["--ink/--primary-soft (píldoras)", t["--ink"], t["--primary-soft"]],
+      ["--ink/--surface-2 (aviso de vídeo, TAL-66)", t["--ink"], t["--surface-2"]],
     ];
     for (const [label, fg, bg] of text) {
       expect(contrast(fg, bg), `${scheme} ${label} sobre ${bg}`).toBeGreaterThanOrEqual(4.5);
@@ -445,5 +446,41 @@ for (const scheme of ["light", "dark"] as const) {
     expect(overflow, "login 375").toBe(true);
     await anon.screenshot({ path: path.join(EVIDENCE_DIR, `login-375-${scheme}.png`) });
     await anon.context().close();
+  });
+}
+
+/** Guarda en el día 30/9 una URL que no se puede incrustar, para que aparezca el aviso de TAL-66. */
+async function openNonEmbeddableWarning(page: Page) {
+  await page.goto(`/admin/${calendarId}`);
+  await page.locator('button[aria-label^="30/9/2026"]').click();
+  const dialog = page.getByRole("dialog", { name: /^Editar día/ });
+  await dialog.locator('input[name="videoUrl"]').fill("https://example.com/mi-video.mp4");
+  await dialog.getByRole("button", { name: "Guardar día" }).click();
+  const warning = dialog.locator(".day-video-warning");
+  await expect(warning).toBeVisible();
+  return { dialog, warning };
+}
+
+for (const scheme of ["light", "dark"] as const) {
+  test(`8 · aviso de vídeo no incrustable (TAL-66) con tokens Alegre y sin desbordar a 375px (${scheme === "light" ? "claro" : "oscuro"})`, async ({ browser }) => {
+    const page = await newPage(browser, { colorScheme: scheme, viewport: { width: 375, height: 812 } });
+    const { warning } = await openNonEmbeddableWarning(page);
+    const t = TOKENS[scheme];
+    const style = await warning.evaluate((el) => {
+      const s = getComputedStyle(el);
+      return { color: s.color, background: s.backgroundColor, stripe: s.borderLeftColor, family: s.fontFamily };
+    });
+    expect(rgbToHex(style.color)).toBe(t["--ink"]);
+    expect(rgbToHex(style.background)).toBe(t["--surface-2"]);
+    expect(rgbToHex(style.stripe)).toBe(t["--sun"]);
+    expect(style.family.toLowerCase()).toContain("plus jakarta sans");
+    expect(await fontOffenders(page), "diálogo de día con el aviso").toEqual([]);
+    const box = (await warning.boundingBox())!;
+    expect(box.x).toBeGreaterThanOrEqual(0);
+    expect(box.x + box.width).toBeLessThanOrEqual(375);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+    expect(overflow, "sin scroll horizontal con el aviso").toBe(true);
+    await page.screenshot({ path: path.join(EVIDENCE_DIR, `aviso-video-375-${scheme}.png`) });
+    await page.context().close();
   });
 }
