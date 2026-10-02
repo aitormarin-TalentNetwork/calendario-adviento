@@ -400,7 +400,7 @@ mostrar.
   con `callbackUrl` de invitación (ese `callbackUrl` sigue mandando tras entrar).
 - **Bienvenida al abrir un calendario** (`/c/<id>`): la **foto de portada a pantalla
   completa** (`object-fit: cover`), con un degradado oscuro de abajo arriba
-  (`rgba(10,8,30,0.85)` → `0.1`) y encima, abajo del todo: "Hola, <nombre>" (`700`),
+  (`rgba(10,8,30,0.85)` 0% → `0.6` 50% → `0.1` 100%; la parada intermedia se subió de 0.35 a 0.6 para el contraste AA del texto en móvil, 2026-10-02) y encima, abajo del todo: "Hola, <nombre>" (`700`),
   el título de portada (`2rem`, `800`), una línea con la cuenta atrás ("Faltan N días…")
   y el botón **"Abrir mi calendario"** (píldora `--sun`, texto `--on-sun`, ancho completo).
   Avatar/menú de la cuenta arriba a la derecha, como en el resto.
