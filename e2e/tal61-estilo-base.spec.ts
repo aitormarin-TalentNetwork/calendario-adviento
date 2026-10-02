@@ -484,3 +484,80 @@ for (const scheme of ["light", "dark"] as const) {
     await page.context().close();
   });
 }
+
+// --- TAL-65: "Personas del calendario" (segmentado de radios, select de rol, "Quitar") ---
+// Medidas de referencia del segmentado Visitante | Administrador, sobre
+// main 5b45add (TAL-65 publicada, ANTES de TAL-61) y tras la tipografía de
+// TAL-61. El contenedor y las opciones conservan borde, padding y radio de
+// main; el ancho/alto de cada opción (lleva texto) se compara con la medida
+// post-tipografía. Los dos <input type="radio"> NO reciben el estilo base
+// de campos (solo lo reciben los tipos de texto).
+const SEG_MAIN = {
+  container: { padding: "2px", radius: "999px", border: "1px" },
+  option: { padding: "5.6px 13.6px", radius: "999px" },
+};
+const SEG_POSTFONT = { visitante: [88, 29], admin: [124, 29] } as const;
+
+for (const [vp, viewport] of [
+  ["desktop", { width: 1280, height: 900 }],
+  ["mobile", { width: 375, height: 812 }],
+] as const) {
+  test(`9 · TAL-65 «Personas del calendario»: segmentado intacto, radios sin estilo de campo, Quitar/Cambiar con clases opt-in (${vp})`, async ({ browser }) => {
+    const page = await newPage(browser, { viewport });
+    await page.goto(`/admin/${calendarId}`);
+    const m = await page.evaluate(() => {
+      const r = (el: Element) => {
+        const b = el.getBoundingClientRect();
+        const s = getComputedStyle(el);
+        return { w: Math.round(b.width), h: Math.round(b.height), padding: s.padding, radius: s.borderRadius, border: s.borderTopWidth };
+      };
+      const seg = document.querySelector(".people-seg")!;
+      const spans = Array.from(seg.querySelectorAll("span"));
+      const radios = Array.from(seg.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+      return { seg: r(seg), visitante: r(spans[0]), admin: r(spans[1]), radios: radios.map(r), radioClasses: radios.map((x) => x.className) };
+    });
+    expect(m.seg.padding).toBe(SEG_MAIN.container.padding);
+    expect(m.seg.radius).toBe(SEG_MAIN.container.radius);
+    expect(m.seg.border).toBe(SEG_MAIN.container.border);
+    for (const [key, [w, h]] of Object.entries(SEG_POSTFONT)) {
+      const o = m[key as "visitante" | "admin"];
+      expect(o.padding, key).toBe(SEG_MAIN.option.padding);
+      expect(o.radius, key).toBe(SEG_MAIN.option.radius);
+      expect(Math.abs(o.w - w) <= 1 && Math.abs(o.h - h) <= 1, `${key} ${o.w}×${o.h} vs ${w}×${h}`).toBe(true);
+    }
+    for (const radio of m.radios) {
+      expect(radio.padding).toBe("0px");
+      expect(radio.border).toBe("0px");
+      expect(radio.radius).toBe("0px");
+    }
+
+    // Opción marcada (Visitante por defecto): fondo --primary-btn, texto blanco.
+    const checked = page.locator(".people-seg input:checked + span");
+    const t = TOKENS.light;
+    expect(rgbToHex(await checked.evaluate((el) => getComputedStyle(el).backgroundColor))).toBe(t["--primary-btn"]);
+    expect(rgbToHex(await checked.evaluate((el) => getComputedStyle(el).color))).toBe("#ffffff");
+
+    // El select de rol sí recibe el estilo base de campos.
+    const select = page.locator(".people-role-form select").first();
+    expect(await select.evaluate((el) => getComputedStyle(el).borderRadius)).toBe("14px");
+
+    // "Quitar" y "Borrar por completo": .btn .btn-danger con texto --coral-ink.
+    const remove = page.locator(".people-remove:not(:disabled)").first();
+    await expect(remove).toHaveClass(/\bbtn\b.*\bbtn-danger\b/);
+    expect(rgbToHex(await remove.evaluate((el) => getComputedStyle(el).color))).toBe(t["--coral-ink"]);
+    await expect(page.getByRole("button", { name: "Borrar por completo" }).first()).toHaveClass(/btn-danger/);
+
+    // "Cambiar" (solo sin JS, dentro de <noscript>): en el HTML servido lleva .btn.
+    const html = await (await page.request.get(`/admin/${calendarId}`)).text();
+    expect(html).toMatch(/<noscript>[^]*?<button[^>]*class="btn"[^>]*>\s*Cambiar/);
+
+    // 375px: la sección no provoca scroll horizontal.
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
+    expect(overflow, "sin scroll horizontal").toBe(true);
+    if (vp === "mobile") {
+      await page.locator(".people-section").scrollIntoViewIfNeeded();
+      await page.locator(".people-section").screenshot({ path: path.join(EVIDENCE_DIR, "personas-375-light.png") });
+    }
+    await page.context().close();
+  });
+}

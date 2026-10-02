@@ -69,6 +69,16 @@ idempotente. Al rebasar otra rama sobre TAL-61, pasarlo sobre sus ficheros
 - **Campos**: estilo base solo para `input` de tipo text, email, url, date,
   search, password, number y tel, más `select` y `textarea`. Radios,
   checkboxes, hidden, file, color y range quedan fuera por construcción.
+- "Personas del calendario" (TAL-65): el segmentado Visitante |
+  Administrador está hecho con `<input type="radio" name="role">`, así que
+  no recibe el estilo base de campos y conserva su geometría; la opción
+  marcada va en `--primary-btn` con texto blanco. El `<select>` de rol sí
+  recibe el estilo base. "Quitar" y "Borrar por completo" son
+  `.btn .btn-danger`; "Cambiar" (solo sin JavaScript, dentro de
+  `<noscript>`) es `.btn`. Lo comprueba el caso 9 del spec.
+- Clases de TAL-67 (después de TAL-61) que reutilizan esto:
+  `.day-image-preview` y `.day-image-field-help` (de T3), junto a
+  `.editor-field`, `.btn .btn-danger`, `--radius-sm` y los campos por tipo.
 - `.card`: `--surface`, `--radius-lg`, `--shadow`.
 - Aviso de vídeo no incrustable del editor de días (TAL-66,
   `.day-video-warning`): es un aviso, no un error, así que franja `--sun`

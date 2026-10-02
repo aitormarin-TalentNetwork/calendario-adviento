@@ -144,7 +144,7 @@ export async function GuestsSection({
                     describedBy={hintId}
                   />
                   <noscript>
-                    <button type="submit" disabled={person.isLastAdmin}>
+                    <button type="submit" className="btn" disabled={person.isLastAdmin}>
                       Cambiar
                     </button>
                   </noscript>
@@ -152,7 +152,7 @@ export async function GuestsSection({
                 <form action={removePersonAction.bind(null, calendarId, person.email)}>
                   <button
                     type="submit"
-                    className="people-remove"
+                    className="btn btn-danger people-remove"
                     disabled={person.isLastAdmin}
                     aria-describedby={hintId}
                   >
@@ -164,6 +164,7 @@ export async function GuestsSection({
                     <ConfirmSubmitButton
                       label="Borrar por completo"
                       confirmText={`¿Seguro que quieres borrar a ${person.email} por completo? Se le quita como invitado de TODOS sus calendarios, no solo de este — no se puede deshacer.`}
+                      variant="danger"
                     />
                   </form>
                 )}

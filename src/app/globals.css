@@ -948,13 +948,17 @@ a {
 /* TAL-65 — "Personas del calendario" (design/design-system.md § "Personas
    del calendario", design/propuesta-invitar-con-rol.html), con los tokens
    vigentes: el DS dice que, si se construye antes de la Onda 4, se usan
-   los mismos elementos con los tokens actuales. TAL-61 lo repintará con el
-   Estilo 2026. "Quitar" lleva el texto de peligro (`--coral-ink` en el
-   Estilo 2026; aquí, con respaldo al `--berry` vigente, `--berry-2` en
-   oscuro). A ~375px la fila se envuelve: el desplegable y los botones
-   bajan de línea, sin scroll horizontal. */
+   los mismos elementos con los tokens actuales. A ~375px la fila se
+   envuelve: el desplegable y los botones bajan de línea, sin scroll
+   horizontal.
+   TAL-61 — repintado con el Estilo 2026: segmentado con la opción marcada
+   en `--primary-btn` (texto blanco, 5,06:1 / 4,66:1), foco `--sun`;
+   "Quitar" es `.btn .btn-danger` (texto `--coral-ink`) y "Cambiar" (sin
+   JS) `.btn`; los radios del segmentado NO reciben el estilo base de
+   campos (solo los tipos de texto lo reciben). Mismos tamaños, `padding` y
+   radios que en TAL-65. */
 .people-sub {
-  color: var(--text-dim);
+  color: var(--ink-dim);
   margin-top: 0.25rem;
 }
 
@@ -973,8 +977,9 @@ a {
 
 .people-seg {
   display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   padding: 2px;
   margin: 0;
   min-width: 0;
@@ -996,24 +1001,24 @@ a {
 .people-seg span {
   display: inline-block;
   padding: 0.35rem 0.85rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.9rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .people-seg input:checked + span {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--primary-btn);
+  color: #ffffff;
   font-weight: 600;
 }
 
 .people-seg input:focus-visible + span {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--sun);
   outline-offset: 2px;
 }
 
 .people-error {
-  color: var(--coral-ink, var(--berry));
+  color: var(--coral-ink);
 }
 
 .people-list {
@@ -1028,7 +1033,7 @@ a {
   align-items: center;
   gap: 0.5rem 0.75rem;
   padding: 0.75rem 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 
 .people-avatar {
@@ -1038,8 +1043,8 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-sunken);
-  color: var(--text);
+  background: var(--primary-soft);
+  color: var(--ink);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -1056,21 +1061,12 @@ a {
 }
 
 .people-who small {
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .people-role-form {
   display: inline-flex;
   gap: 0.25rem;
-}
-
-.people-remove {
-  background: transparent;
-  border: none;
-  padding: 0.35rem 0.5rem;
-  color: var(--coral-ink, var(--berry));
-  font-weight: 600;
-  cursor: pointer;
 }
 
 .people-remove:disabled,
@@ -1083,25 +1079,13 @@ a {
   flex-basis: 100%;
   margin: 0;
   font-size: 0.85rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .people-link-note {
   margin-top: -0.5rem;
   font-size: 0.85rem;
-  color: var(--text-dim);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .people-remove,
-  :root:not([data-theme="light"]) .people-error {
-    color: var(--coral-ink, var(--berry-2));
-  }
-}
-
-:root[data-theme="dark"] .people-remove,
-:root[data-theme="dark"] .people-error {
-  color: var(--coral-ink, var(--berry-2));
+  color: var(--ink-dim);
 }
 
 .visually-hidden {
