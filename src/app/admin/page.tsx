@@ -88,6 +88,15 @@ export default async function AdminCalendarsPage() {
                     <Link href={`/admin/${calendar.id}`} style={{ textDecoration: "underline", color: "var(--accent)" }}>
                       {calendar.name}
                     </Link>
+                    {/* TAL-64 — el Super Admin ve TODOS los calendarios; los que
+                        no administra por membership llevan esta etiqueta (mismo
+                        estilo que la etiqueta "Admin" de "Tus calendarios",
+                        TAL-58). `isAdminMember` viene de Convex, calculado con
+                        `isSuperAdmin` leído en fresco — un Admin normal siempre
+                        lo tiene a `true`. */}
+                    {user.isSuperAdmin && !calendar.isAdminMember ? (
+                      <span className="calendar-card-tag admin-table-tag">Super Admin</span>
+                    ) : null}
                   </td>
                   <td style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>
                     {formatCalendarDate(calendar.startDate)} a {formatCalendarDate(calendar.endDate)}

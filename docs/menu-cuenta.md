@@ -68,3 +68,27 @@ Al pulsarla se abre el menú:
 rol, iconos y respaldo, teclado, pulsar fuera, cambio de modo, recordar el
 modo tras logout/login, prioridad de `callbackUrl`, invitado puro forzando el
 modo Admin, y 375px (avatar ≥ 44×44, menú dentro de pantalla, filas ≥ 44px).
+
+## TAL-64 — el Super Admin administra todos los calendarios
+
+- `convex/calendars.ts::listCalendarsForUserHandler` (detrás de
+  `listAdminCalendars`) carga el usuario por `userId` y lee `isSuperAdmin` en
+  fresco en la misma query: el Super Admin recibe **todos** los calendarios, el
+  resto solo los que administra por membership ADMIN. Nunca se acepta un
+  booleano del cliente.
+- Cada fila trae `isAdminMember` (membership ADMIN en ese calendario). En
+  "Mis calendarios" (`/admin`), los del Super Admin sin membership llevan la
+  etiqueta "Super Admin" (clase `.calendar-card-tag` de TAL-58).
+- Como `/admin`, el menú ("Administrar") y `canUseAdminMode` comparten
+  `listAdminCalendars`, el Super Admin ve todos en los tres sitios. El panel
+  del menú tiene `max-height` y scroll propio.
+- Las tarjetas de `/superadmin` son enlaces a `/admin/<id>`.
+- El acceso al editor y a sus Server Actions ya aceptaba al Super Admin sin
+  membership (`resolveCalendarAccess`, y en Convex `deleteCalendarAsUser` y
+  `removeGuestEverywhere`); no se tocó autorización, se cubre con
+  `e2e/tal64-superadmin-all-calendars.spec.ts`.
+- **Escala:** listar todos es un `collect()` sin límite (como `/superadmin`,
+  ver `docs/convex-diseno-tal15-panel-superadmin.md`), sin N+1 de días ni
+  vistas. Si algún día hay cientos de calendarios: paginar con `.paginate()`
+  e índice por creación, y en el menú mostrar los más recientes más un
+  "Ver todos" hacia `/admin`.

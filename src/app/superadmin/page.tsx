@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { SessionIndicator } from "@/components/session-indicator";
@@ -125,8 +126,13 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
         {calendars?.length === 0 && <p>Todavía no hay ningún calendario creado.</p>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
           {calendars?.map((calendar) => (
-            <div
+            // TAL-64 — la tarjeta entera abre el editor del calendario (el
+            // Super Admin ya puede administrar cualquiera, ver
+            // `resolveCalendarAccess`); antes no era clicable.
+            <Link
               key={calendar.id}
+              href={`/admin/${calendar.id}`}
+              className="superadmin-calendar-card"
               style={{ border: "1px solid var(--accent)", borderRadius: "0.75rem", padding: "1rem" }}
             >
               <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--accent)" }}>
@@ -145,7 +151,7 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
                 <span><strong>{calendar.invitedCount}</strong> invitados</span>
                 <span><strong>{calendar.viewedCount}</strong> vistos</span>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>

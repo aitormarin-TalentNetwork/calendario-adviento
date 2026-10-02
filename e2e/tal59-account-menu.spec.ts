@@ -353,14 +353,19 @@ test("7 · invitado puro: sin sección Modo; lista solo con >1; siempre modo Usu
   await onePage.context().close();
 });
 
-test("8 · Super Admin sin memberships: ve «Modo»; en modo Admin, sin lista", async ({ browser }) => {
+// TAL-64 cambió este caso a propósito: el Super Admin administra TODOS los
+// calendarios, así que aunque no tenga memberships su lista "Administrar"
+// incluye los del sistema (aquí, como mínimo, los de este run).
+test("8 · Super Admin sin memberships: ve «Modo»; en modo Admin, «Administrar» con todos (TAL-64)", async ({ browser }) => {
   const page = await (await newContext(browser)).newPage();
   await loginAs(page, SUPER_EMPTY_EMAIL);
   await page.goto("/admin");
   await openMenu(page);
   await expect(menu(page).getByRole("menuitemradio", { name: "Admin" })).toHaveAttribute("aria-checked", "true");
-  await expect(menu(page).getByText("Administrar")).toHaveCount(0);
-  await expect(menu(page).getByRole("menuitem")).toHaveCount(1);
+  await expect(menu(page).getByText("Administrar")).toBeVisible();
+  for (const key of ["A", "B", "C", "D", "E"] as const) {
+    await expect(menu(page).getByRole("menuitem", { name: NAME[key] })).toHaveAttribute("href", `/admin/${cal[key]}`);
+  }
   await page.context().close();
 });
 
