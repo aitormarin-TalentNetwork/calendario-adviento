@@ -113,7 +113,7 @@ restantes se retiran del catálogo.
 
 **Progreso, filtros y etiquetas de estado** (aprobados por Aitor el 2026-10-02, tal como
 aparecen en `design/propuesta-estilo-moderno.html`):
-- **"Tus calendarios"**: cada tarjeta lleva una barra de progreso (pista blanca 70 %,
+- **"Tus calendarios"**: cada tarjeta lleva una barra de progreso (pista `--surface-2` con borde `--line`,
   relleno `--ink`, altura `8px`, radio píldora) con "vistos/total" de esa persona a la
   derecha (`700`, `tabular-nums`). Los calendarios que aún no han empezado muestran
   "Empieza en N días" en lugar de la barra. Encima de la lista, chips de filtro **Todos /
