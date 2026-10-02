@@ -117,7 +117,7 @@ export async function GuestsSection({
       )}
 
       {people === null ? (
-        <p style={{ color: "var(--accent)" }}>Las personas del calendario no están disponibles ahora mismo.</p>
+        <p style={{ color: "var(--coral-ink)" }}>Las personas del calendario no están disponibles ahora mismo.</p>
       ) : people.length === 0 ? (
         <p>Todavía no hay nadie en este calendario.</p>
       ) : (
@@ -144,7 +144,7 @@ export async function GuestsSection({
                     describedBy={hintId}
                   />
                   <noscript>
-                    <button type="submit" disabled={person.isLastAdmin}>
+                    <button type="submit" className="btn" disabled={person.isLastAdmin}>
                       Cambiar
                     </button>
                   </noscript>
@@ -152,7 +152,7 @@ export async function GuestsSection({
                 <form action={removePersonAction.bind(null, calendarId, person.email)}>
                   <button
                     type="submit"
-                    className="people-remove"
+                    className="btn btn-danger people-remove"
                     disabled={person.isLastAdmin}
                     aria-describedby={hintId}
                   >
@@ -164,6 +164,7 @@ export async function GuestsSection({
                     <ConfirmSubmitButton
                       label="Borrar por completo"
                       confirmText={`¿Seguro que quieres borrar a ${person.email} por completo? Se le quita como invitado de TODOS sus calendarios, no solo de este — no se puede deshacer.`}
+                      variant="danger"
                     />
                   </form>
                 )}
@@ -184,7 +185,7 @@ export async function GuestsSection({
         <>
           <div className="invite-link-row">
             <span className="invite-link-label">Link de invitación</span>
-            <code className="invite-link-url">{link}</code>
+            <span className="invite-link-url num">{link}</span>
             <CopyLinkButton link={link} />
           </div>
           {/* TAL-65 — decisión del PM: el link no da acceso ni rol por sí
@@ -192,7 +193,7 @@ export async function GuestsSection({
           <p className="people-link-note">Cada persona entra con el rol con el que la invitaste (Visitante por defecto).</p>
         </>
       ) : (
-        <p style={{ color: "var(--accent)" }}>
+        <p style={{ color: "var(--ink-dim)" }}>
           Falta configurar la variable de entorno APP_URL para mostrar el link de invitación de
           forma segura en este entorno.
         </p>

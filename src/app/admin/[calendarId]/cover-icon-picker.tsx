@@ -24,10 +24,10 @@ type CoverIconPickerProps = {
  * (redundante: dos disparadores para la misma acción). El icono ya era un
  * `<div>` con las medidas/fondo del "swatch"; ahora es directamente el
  * `<button>` que abre el diálogo (`.cover-icon-trigger`, `globals.css` —
- * hover/focus con borde `--gold`, mismo criterio ya establecido para el
+ * hover/focus con borde `--primary` (TAL-61), mismo criterio ya establecido para el
  * resto de elementos clicables del sistema, p. ej. `.skin-swatch` TAL-37).
- * Fondo del icono ahora transparente (antes `--paper-2`/`--pine-2`
- * relleno) — sin la casilla rellena, solo el borde `--gold` en hover/foco
+ * Fondo del icono ahora transparente (antes relleno de superficie hundida
+ * ) — sin la casilla rellena, solo el borde de acento en hover/foco
  * indica que es clicable. Etiqueta del campo acortada dos veces seguidas
  * ("Icono de portada" → "Selecciona un icono" → simplemente "Icono",
  * `edit-calendar-form.tsx`) — se replica el texto final en `aria-label`/
@@ -136,8 +136,8 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
           <div
             onClick={(event) => event.stopPropagation()}
             style={{
-              background: "var(--bg-raised)",
-              border: "1px solid var(--border)",
+              background: "var(--surface)",
+              border: "1px solid var(--line)",
               borderRadius: "16px",
               maxWidth: "460px",
               width: "100%",
@@ -147,8 +147,8 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
-              <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem" }}>Elegir icono de portada</h4>
-              <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--text-dim)", cursor: "pointer", display: "flex", padding: "0.25rem" }}>
+              <h4 style={{ fontWeight: 800, fontSize: "1.05rem" }}>Elegir icono de portada</h4>
+              <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--ink-dim)", cursor: "pointer", display: "flex", padding: "0.25rem" }}>
                 <X size={20} strokeWidth={2} aria-hidden="true" />
               </button>
             </div>
@@ -158,7 +158,7 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                 size={16}
                 strokeWidth={2}
                 aria-hidden="true"
-                style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--text-dim)", pointerEvents: "none" }}
+                style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "var(--ink-dim)", pointerEvents: "none" }}
               />
               <input
                 type="text"
@@ -170,17 +170,16 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                   width: "100%",
                   padding: "8px 12px 8px 34px",
                   borderRadius: "999px",
-                  border: "1px solid var(--border)",
+                  border: "1px solid var(--line)",
                   background: "var(--bg)",
-                  color: "var(--text)",
-                  fontFamily: "var(--font-body)",
+                  color: "var(--ink)",
                   fontSize: "0.88rem",
                 }}
               />
             </div>
 
             {filteredCategories.length === 0 && (
-              <p style={{ fontSize: "0.85rem", color: "var(--text-dim)" }}>Ningún icono coincide con la búsqueda.</p>
+              <p style={{ fontSize: "0.85rem", color: "var(--ink-dim)" }}>Ningún icono coincide con la búsqueda.</p>
             )}
 
             {filteredCategories.map((category) => (
@@ -190,7 +189,7 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                     fontSize: "0.72rem",
                     textTransform: "uppercase",
                     letterSpacing: "0.05em",
-                    color: "var(--text-dim)",
+                    color: "var(--ink-dim)",
                     marginBottom: "8px",
                   }}
                 >
@@ -211,12 +210,12 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                         style={{
                           aspectRatio: "1",
                           borderRadius: "9px",
-                          border: `1px solid ${selected ? "var(--gold)" : "transparent"}`,
-                          // TAL-60 — token con tema (`--paper-2` es fijo y en
-                          // oscuro dejaba un icono claro sobre fondo claro: el
-                          // emoji traía su propio color, un icono de línea no).
-                          background: "var(--bg-sunken)",
-                          color: "var(--text)",
+                          border: `1px solid ${selected ? "var(--primary)" : "transparent"}`,
+                          // TAL-60 — token con tema: un icono de línea no trae
+                          // color propio como el emoji, así que necesita el
+                          // del tema para verse en claro y en oscuro.
+                          background: "var(--surface-2)",
+                          color: "var(--ink)",
                           boxShadow: selected ? "0 0 0 2px rgba(201,154,61,0.25)" : "none",
                           fontSize: "1.2rem",
                           cursor: "pointer",

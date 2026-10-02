@@ -1,144 +1,117 @@
 /* ============================================================
-   TOKENS DEL DESIGN SYSTEM — ver design/design-system.md § "Tokens"
-   (normativo) y design/mockup-mvp.html (fuente exacta de los valores de
-   cada token en modo oscuro, citada explícitamente por el documento
-   normativo para esto).
+   TOKENS DEL DESIGN SYSTEM — "Estilo 2026", paleta "Alegre" (TAL-61).
+   Normativo: design/design-system.md § "Estilo 2026" (Tipografía, Color,
+   Forma) y su tabla de tokens de texto con contraste AA. Fuera la paleta
+   anterior (pino/dorado/berry/papel): sin ocres, marrones ni verde pino.
 
-   La paleta cruda (pine/paper/gold/berry/ink/mist) NO cambia entre modo
-   claro/oscuro — son los colores base del catálogo. Los tokens
-   SEMÁNTICOS (--bg, --text, --accent, --border, etc.) sí cambian: son
-   los que debe usar el resto del código (nunca los crudos directamente
-   en un componente), así que solo estos se redefinen en los bloques de
-   modo oscuro más abajo.
+   Cada token tiene UN uso (decisión del PM, 2026-10-01):
+   - --primary / --coral: solo superficies y acentos, nunca texto sobre
+     --bg/--surface.
+   - --primary-ink: texto y enlaces violetas. --primary-btn: fondo del
+     botón primario (texto blanco). --on-sun: todo texto sobre --sun.
+   - --coral-ink: texto de peligro. --coral-btn: fondo de los botones de
+     peligro (texto blanco).
+   - --accent: el acento que un skin puede sobrescribir dentro del
+     calendario (inline en /c/[id] y en la vista previa); fuera vale
+     --primary.
+   Para renombrar tokens viejos en otras ramas: scripts/tal61-rename-tokens.mjs.
    ============================================================ */
 :root {
-  /* --- Color: paleta cruda (design-system.md § Tokens > Color) --- */
-  --pine: #1b3a2f;
-  --pine-2: #234a3b;
-  --paper: #f6f1e4;
-  --paper-2: #efe7d4;
-  --gold: #c99a3d;
-  --gold-2: #e3bb63;
-  --berry: #8c2f39;
-  --berry-2: #e08a92;
-  --ink: #16211c;
-  --mist: #d9e0d6;
+  /* --- Color (claro) --- */
+  --bg: #fff8ee;
+  --surface: #ffffff;
+  --surface-2: #f7f6f3;
+  --ink: #1d2320;
+  --ink-dim: #6b726e;
+  --line: #ebe8e1;
+  --primary: #7b61ff;
+  --sun: #ffd23f;
+  --coral: #ff5a5f;
+  --mint: #3ddc97;
+  --primary-soft: #e6e0ff;
+  --coral-soft: #ffd9d6;
+  --mint-soft: #cdf7e3;
+  /* Texto y botones con contraste AA (≥ 4,5:1, ver design-system.md). */
+  --primary-ink: #6b52f5;
+  --primary-btn: #6b52f5;
+  --on-sun: #1d2320;
+  --coral-ink: #d0353a;
+  --coral-btn: #d0353a;
+  --accent: var(--primary);
+  --shadow: 0 2px 6px rgba(29, 35, 32, 0.04), 0 12px 32px rgba(29, 35, 32, 0.08);
 
-  /* --- Color: tokens semánticos, valores de modo claro (por defecto) --- */
-  --bg: var(--paper);
-  --bg-raised: #ffffff;
-  --bg-sunken: var(--paper-2);
-  --text: var(--ink);
-  --text-dim: #57604f;
-  --accent: var(--gold);
-  --accent-ink: #3c2c0c;
-  --border: #ded3ba;
-  --nav-bg: var(--pine);
-  --nav-text: var(--paper);
-  --nav-text-dim: #b9c9bf;
-  --door-locked: linear-gradient(160deg, #26473a, #1b3a2f);
-  --door-open: linear-gradient(160deg, #2d5544, #234a3b);
-  --danger: var(--berry);
-  --shadow: 0 1px 2px rgba(20, 30, 20, 0.06), 0 8px 24px rgba(20, 30, 20, 0.08);
-  /* TAL-21 — casilla "abierto, sin ver" del grid de días (design-system.md
-     § "Grid de días": "fondo --paper-2 (claro) / --pine-2 (oscuro)").
-     --paper-2/--pine-2 son paleta cruda, no cambian de valor por modo — a
-     diferencia de --bg-sunken (que sí es semántico pero apunta a un tono
-     distinto, casi negro, pensado para otro uso), este token elige entre
-     los dos crudos según el modo, específicamente para el grid. */
-  --day-open-bg: var(--paper-2);
-  /* TAL-21 — fin de semana del grid de días en `--berry`, con la variante
-     más clara `--berry-2` (añadida por el PM tras esta misma tarea, mismo
-     criterio que --gold/--gold-2) para mantener contraste sobre fondo
-     oscuro. */
-  --weekend-text: var(--berry);
-  /* TAL-35 — mismo criterio que --day-open-bg: fondo "panel sutil" que
-     cambia de --paper-2 (claro) a --pine-2 (oscuro), aquí para la fila del
-     link de invitación y el hover del botón de copiar (design/propuesta-
-     editor-calendario.html § .invite-link-row/.btn-icon:hover). Token
-     propio en vez de reutilizar --day-open-bg (que es del grid de días,
-     un concepto distinto) o --bg-sunken (semántico pero de un tono
-     distinto, casi negro en oscuro). */
-  --invite-link-bg: var(--paper-2);
+  /* Recuadro de icono de portada (acordado con TAL-60): fondo pastel e
+     icono en el color de la app; dentro de un calendario, TAL-60 usa el
+     acento del skin si da ≥ 3:1. */
+  --icon-tile-bg: var(--primary-soft);
+  --icon-tile-fg: var(--primary);
 
-  /* --- Tipografía (design-system.md § Tokens > Tipografía) --- */
-  --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", Consolas, monospace;
+  /* --- Tipografía --- */
+  /* Una sola familia (design-system.md § "Estilo 2026 → Tipografía"):
+     Plus Jakarta Sans servida por la app con next/font (src/app/layout.tsx
+     define --font-jakarta). Sin serifa ni monoespaciada en ningún sitio;
+     jerarquía por peso y tamaño; números y fechas con .num (tabular-nums). */
+  --font: var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
-  /* --- Espaciado y forma (design-system.md § Tokens > Espaciado y forma)
-     — el documento da un rango para tarjetas/paneles (10-14px) sin fijar
-     un único valor por caso de uso; se nombran los dos extremos
-     realmente usados en mockup-mvp.html (10px botones, 14px
-     tarjetas/paneles) como tokens separados en vez de inventar un valor
-     intermedio sin fuente. --- */
-  --radius-sm: 8px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-pill: 999px;
+  /* --- Forma (design-system.md § "Estilo 2026 → Forma") --- */
+  --radius-xl: 28px; /* tarjetas grandes, bloques destacados */
+  --radius-lg: 20px; /* tarjetas, filas */
+  --radius-md: 14px; /* recuadros de icono, inputs */
+  --radius-sm: 12px; /* casillas del grid */
+  --radius-pill: 999px; /* botones, píldoras, etiquetas */
 
-  /* --- Compatibilidad con el esquema previo del MVP (--background/
-     --foreground/--accent, 3 variables, hallazgo de esta tarea) — se
-     mapean a los tokens SEMÁNTICOS nuevos (`--bg`/`--text`), no a los
-     crudos (`--paper`/`--ink`): los crudos no cambian en modo oscuro, así
-     que mapear ahí rompería el fondo casi negro que ya tenía este
-     esquema en dark mode. `--accent` no necesita una línea de mapeo
-     aparte — ya coincide 1:1 con el token semántico nuevo del mismo
-     nombre (mismo valor en claro y oscuro). Nada del resto del código
-     tiene que cambiar mientras cada página migra a los tokens nuevos por
-     su cuenta (fuera de esta tarea, ver brief). --- */
+  /* Mapeo de las variables que trae el esqueleto de Next. */
   --background: var(--bg);
-  --foreground: var(--text);
+  --foreground: var(--ink);
 }
 
-/* Modo oscuro por preferencia del sistema — mismo patrón que
-   mockup-mvp.html: el guard `:not([data-theme="light"])` deja que un
-   futuro selector manual de tema pueda forzar claro incluso con el
-   sistema en oscuro. Todavía no hay ningún componente que ponga
-   `data-theme` (fuera de alcance de esta tarea) — este bloque y el
-   siguiente quedan listos, sin efecto visible hasta que exista uno. */
+/* Modo oscuro: por preferencia del sistema (salvo que se fuerce claro con
+   data-theme="light") o forzado con data-theme="dark". Mismos valores en
+   los dos bloques. --sun, --mint, --on-sun y --coral-btn no cambian. */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0f1e17;
-    --bg-raised: #16281f;
-    --bg-sunken: #0b1712;
-    --text: #ece6d6;
-    --text-dim: #a9b6a9;
-    --accent: var(--gold-2);
-    --accent-ink: #2a1e07;
-    --border: #2a4436;
-    --nav-bg: #0b1712;
-    --nav-text: #ece6d6;
-    --nav-text-dim: #7f9186;
-    --door-locked: linear-gradient(160deg, #16281f, #0f1e17);
-    --door-open: linear-gradient(160deg, #234a3b, #16281f);
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
-    --day-open-bg: var(--pine-2);
-    --weekend-text: var(--berry-2);
-    --invite-link-bg: var(--pine-2);
+    --bg: #111513;
+    --surface: #1a201d;
+    --surface-2: #212825;
+    --ink: #f2f1ec;
+    --ink-dim: #a3aba6;
+    --line: #2a322e;
+    --primary: #8f7bff;
+    --sun: #ffd23f;
+    --coral: #ff7a7e;
+    --mint: #3ddc97;
+    --primary-soft: #2a2645;
+    --coral-soft: #3b2620;
+    --mint-soft: #1f3a2e;
+    --primary-ink: #8f7bff;
+    --primary-btn: #7157ff;
+    --on-sun: #1d2320;
+    --coral-ink: var(--coral);
+    --coral-btn: #d0353a;
+    --shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
   }
 }
 
-/* Modo oscuro forzado manualmente (`data-theme="dark"`) — mismos valores
-   que el bloque de arriba, para cuando exista un selector de tema real. */
 :root[data-theme="dark"] {
-  --bg: #0f1e17;
-  --bg-raised: #16281f;
-  --bg-sunken: #0b1712;
-  --text: #ece6d6;
-  --text-dim: #a9b6a9;
-  --accent: var(--gold-2);
-  --accent-ink: #2a1e07;
-  --border: #2a4436;
-  --nav-bg: #0b1712;
-  --nav-text: #ece6d6;
-  --nav-text-dim: #7f9186;
-  --door-locked: linear-gradient(160deg, #16281f, #0f1e17);
-  --door-open: linear-gradient(160deg, #234a3b, #16281f);
-  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 12px 28px rgba(0, 0, 0, 0.35);
-  --day-open-bg: var(--pine-2);
-  --weekend-text: var(--berry-2);
-  --invite-link-bg: var(--pine-2);
+  --bg: #111513;
+  --surface: #1a201d;
+  --surface-2: #212825;
+  --ink: #f2f1ec;
+  --ink-dim: #a3aba6;
+  --line: #2a322e;
+  --primary: #8f7bff;
+  --sun: #ffd23f;
+  --coral: #ff7a7e;
+  --mint: #3ddc97;
+  --primary-soft: #2a2645;
+  --coral-soft: #3b2620;
+  --mint-soft: #1f3a2e;
+  --primary-ink: #8f7bff;
+  --primary-btn: #7157ff;
+  --on-sun: #1d2320;
+  --coral-ink: var(--coral);
+  --coral-btn: #d0353a;
+  --shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
 }
 
 html {
@@ -151,13 +124,140 @@ body {
   overflow-x: hidden;
 }
 
+/* TAL-61 — los controles y <code> no heredan la FAMILIA por defecto (el
+   navegador les pone la del sistema). Solo la familia: el tamaño de letra
+   por defecto de cada control no cambia, así que su geometría tampoco (las
+   variantes .btn y los inputs de texto fijan su propio tamaño). */
+button,
+input,
+select,
+textarea,
+code {
+  font-family: inherit;
+}
+
+/* TAL-61 — cifras de ancho fijo para números y fechas (sin cambiar de
+   familia): cuenta atrás, número de día, rangos de fechas. */
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+h1 {
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* TAL-61 — botones de texto OPT-IN (design-system.md § "Estilo 2026 →
+   Forma"). No hay ninguna regla sobre el elemento `button` (salvo heredar
+   la familia): puertas, casillas, cierres ✕, muestras, segmentados y
+   botones de icono conservan su geometría. Inventario en
+   docs/estilo-2026.md. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-2);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--sun);
+  outline-offset: 2px;
+}
+
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.btn.btn-primary {
+  background: var(--primary-btn);
+  border-color: var(--primary-btn);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.btn.btn-primary:hover:not(:disabled) {
+  background: var(--primary-btn);
+  filter: brightness(1.08);
+}
+
+.btn.btn-danger {
+  background: transparent;
+  border-color: transparent;
+  color: var(--coral-ink);
+}
+
+.btn.btn-danger:hover:not(:disabled) {
+  background: var(--coral-soft);
+}
+
+.btn.btn-danger-solid {
+  background: var(--coral-btn);
+  border-color: var(--coral-btn);
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.btn.btn-danger-solid:hover:not(:disabled) {
+  background: var(--coral-btn);
+  filter: brightness(1.08);
+}
+
+/* TAL-61 — campos de texto: selector EXPLÍCITO por tipo (no hay regla
+   global sobre `input`). Radios, checkboxes, hidden, file, color y range
+   quedan fuera por construcción — p. ej. el segmentado Visitante |
+   Administrador de TAL-65, hecho con radios. */
+input:is([type="text"], [type="email"], [type="url"], [type="date"], [type="search"], [type="password"], [type="number"], [type="tel"]),
+select,
+textarea {
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.92rem;
+}
+
+input:is([type="text"], [type="email"], [type="url"], [type="date"], [type="search"], [type="password"], [type="number"], [type="tel"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--sun);
+  outline-offset: 1px;
+  border-color: var(--primary);
+}
+
+input[type="date"] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* TAL-61 — tarjeta base. */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+}
+
 body {
   min-height: 100%;
   display: flex;
   flex-direction: column;
   color: var(--foreground);
   background: var(--background);
-  font-family: var(--font-body);
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -225,7 +325,7 @@ a {
 }
 
 .account-menu-trigger:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--sun);
   outline-offset: 2px;
 }
 
@@ -233,12 +333,12 @@ a {
   width: 40px;
   height: 40px;
   border-radius: 50%;
-  background: var(--pine-2);
-  color: var(--paper);
+  background: var(--primary-btn);
+  color: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-display);
+  font-weight: 700;
   font-size: 1.1rem;
 }
 
@@ -248,12 +348,11 @@ a {
   right: 0;
   min-width: 220px;
   padding: 6px;
-  background: var(--bg-raised);
-  color: var(--text);
-  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: var(--shadow);
-  font-family: var(--font-body);
   font-size: 0.9rem;
   text-align: left;
 }
@@ -268,7 +367,7 @@ a {
 .account-menu-email {
   padding: 8px 10px;
   font-size: 0.8rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   overflow-wrap: anywhere;
 }
 
@@ -277,13 +376,13 @@ a {
   font-size: 0.7rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .account-menu-divider {
   height: 1px;
   margin: 6px 0;
-  background: var(--border);
+  background: var(--line);
 }
 
 .account-menu-item {
@@ -296,7 +395,7 @@ a {
   border: none;
   border-radius: 8px;
   background: transparent;
-  color: var(--text);
+  color: var(--ink);
   font: inherit;
   text-align: left;
   text-decoration: none;
@@ -305,12 +404,12 @@ a {
 
 .account-menu-item:hover,
 .account-menu-item:focus-visible {
-  background: var(--bg-sunken);
+  background: var(--surface-2);
   outline: none;
 }
 
 .account-menu-item:focus-visible {
-  box-shadow: inset 0 0 0 2px var(--gold);
+  box-shadow: inset 0 0 0 2px var(--sun);
 }
 
 .account-menu-mode {
@@ -325,12 +424,12 @@ a {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--gold);
+  background: var(--primary);
 }
 
 .account-menu-calendar.is-current {
   font-weight: 700;
-  background: var(--bg-sunken);
+  background: var(--surface-2);
 }
 
 .account-menu-calendar-icon {
@@ -341,7 +440,7 @@ a {
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  background: var(--bg-sunken);
+  background: var(--surface-2);
   font-size: 1rem;
 }
 
@@ -352,7 +451,7 @@ a {
 }
 
 .account-menu-logout {
-  color: var(--berry);
+  color: var(--coral-ink);
 }
 
 @media (max-width: 640px) {
@@ -422,20 +521,19 @@ a {
   font-size: 0.78rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   text-align: right;
 }
 
 .editor-field > input,
 .editor-field > select {
   flex: 1;
-  font-family: var(--font-body);
   font-size: 0.92rem;
   padding: 8px 10px;
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--bg);
-  color: var(--text);
+  color: var(--ink);
 }
 
 /* TAL-37 — la fila "Skin" reemplaza `align-items: center` de
@@ -483,7 +581,7 @@ a {
 .editor-danger-zone {
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
   display: flex;
   justify-content: flex-end;
 }
@@ -516,8 +614,8 @@ a {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--invite-link-bg);
-  border: 1px solid var(--border);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
   border-radius: 10px;
   padding: 10px 14px;
   margin-bottom: 16px;
@@ -527,15 +625,15 @@ a {
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   flex-shrink: 0;
 }
 
 .invite-link-url {
   flex: 1;
-  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
   font-size: 0.82rem;
-  color: var(--text);
+  color: var(--ink);
   overflow-x: auto;
   white-space: nowrap;
 }
@@ -550,19 +648,19 @@ a {
   border-radius: 999px;
   background: transparent;
   border: 1px solid transparent;
-  color: var(--text-dim);
+  color: var(--ink-dim);
   flex-shrink: 0;
   cursor: pointer;
 }
 
 .copy-icon-button:hover {
-  background: var(--invite-link-bg);
-  color: var(--text);
-  border-color: var(--border);
+  background: var(--surface-2);
+  color: var(--ink);
+  border-color: var(--line);
 }
 
 .copy-icon-button:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--sun);
   outline-offset: 1px;
 }
 
@@ -591,8 +689,8 @@ a {
   bottom: 24px;
   left: 50%;
   transform: translateX(-50%) translateY(0);
-  background: var(--pine);
-  color: var(--paper);
+  background: var(--ink);
+  color: var(--bg);
   padding: 9px 18px;
   border-radius: 999px;
   font-size: 0.85rem;
@@ -627,17 +725,17 @@ a {
   display: flex;
   padding: 3px;
   border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  background: var(--surface);
   cursor: pointer;
 }
 
 .skin-swatch:hover {
-  border-color: var(--gold);
+  border-color: var(--primary);
 }
 
 .skin-swatch:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--sun);
   outline-offset: 1px;
 }
 
@@ -653,18 +751,18 @@ a {
    disparador del diálogo de galería (antes, un botón de texto "Cambiar
    icono" aparte). Necesita `:hover`/`:focus-visible`, que un `style`
    inline de React no puede expresar — mismo criterio y mismos valores que
-   `.skin-swatch` (borde `--gold` en hover, outline `--gold` en foco). */
+   `.skin-swatch` (borde `--primary` en hover, anillo `--sun` en foco; TAL-61). */
 .cover-icon-trigger {
-  border: 1px solid var(--border);
+  border: 1px solid var(--line);
   cursor: pointer;
 }
 
 .cover-icon-trigger:hover {
-  border-color: var(--gold);
+  border-color: var(--primary);
 }
 
 .cover-icon-trigger:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--sun);
   outline-offset: 1px;
 }
 
@@ -685,12 +783,13 @@ a {
 }
 
 .user-calendars-title {
-  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 .user-calendars-sub {
   margin-top: 0.5rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .user-calendars-grid {
@@ -707,18 +806,18 @@ a {
   height: 100%;
   border-radius: var(--radius-lg);
   overflow: hidden;
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
+  border: 1px solid var(--line);
+  background: var(--surface);
   box-shadow: var(--shadow);
-  color: var(--text);
+  color: var(--ink);
 }
 
 .calendar-card:hover {
-  border-color: var(--gold);
+  border-color: var(--primary);
 }
 
 .calendar-card:focus-visible {
-  outline: 2px solid var(--gold);
+  outline: 2px solid var(--sun);
   outline-offset: 2px;
 }
 
@@ -737,26 +836,29 @@ a {
 }
 
 .calendar-card-name {
-  font-family: var(--font-display);
+  font-weight: 800;
   font-size: 1.15rem;
   overflow-wrap: anywhere;
 }
 
 .calendar-card-meta {
   font-size: 0.8rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
+/* Píldora "Admin" (TAL-58) y "Super Admin" (TAL-64). TAL-61 — fondo pastel
+   --primary-soft con texto --ink (12,5:1 claro / 12,7:1 oscuro; el violeta
+   sobre el pastel no llega a 4,5:1). */
 .calendar-card-tag {
   align-self: flex-start;
   font-size: 0.7rem;
+  font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: var(--radius-pill);
-  background: var(--bg-sunken);
-  color: var(--text-dim);
-  border: 1px solid var(--border);
+  background: var(--primary-soft);
+  color: var(--ink);
 }
 
 @media (max-width: 640px) {
@@ -782,12 +884,12 @@ a {
 
 .superadmin-calendar-card:hover,
 .superadmin-calendar-card:focus-visible {
-  background: var(--bg-sunken);
+  background: var(--surface-2);
   outline: none;
 }
 
 .superadmin-calendar-card:focus-visible {
-  box-shadow: 0 0 0 2px var(--gold);
+  box-shadow: 0 0 0 2px var(--sun);
 }
 
 /* TAL-60 — iconos (Lucide en vez de emojis; design/design-system.md §
@@ -795,34 +897,16 @@ a {
    (solape con TAL-61, que reescribe los tokens base).
 
    Contrato de nombres acordado con T1 (TAL-61): `--icon-tile-bg` (fondo
-   pastel del recuadro) y `--icon-tile-fg` (color del icono sin skin). La
-   que publique segunda solo cambia VALORES, nunca nombres. Provisionales
-   aquí: `--icon-tile-bg` = valores de `--primary-soft` del Design System
-   (#e6e0ff / #2a2645 — también en `ICON_TILE_BG`,
-   src/lib/cover-icon-colors.ts); `--icon-tile-fg` = la tinta del tema
-   (`--primary` todavía no existe; TAL-61 lo dejará en `var(--primary)`).
+   pastel del recuadro) y `--icon-tile-fg` (color del icono sin skin).
+   TAL-61 (publicada después) los define con sus valores definitivos en el
+   bloque de tokens del principio del fichero: `--icon-tile-bg:
+   var(--primary-soft)` y `--icon-tile-fg: var(--primary)`; aquí ya no se
+   redefinen (los provisionales de TAL-60 se retiraron al rebasar).
 
    `--icon-tile-fg-light`/`--icon-tile-fg-dark` NO son tokens: los pone
    inline `<CoverIcon>` con el accent del skin cuando da ≥ 3:1 contra el
    fondo de ese tema (`resolveCoverIconColors`); si no, cae a
    `--icon-tile-fg`. */
-:root {
-  --icon-tile-bg: #e6e0ff;
-  --icon-tile-fg: #16211c;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --icon-tile-bg: #2a2645;
-    --icon-tile-fg: #ece6d6;
-  }
-}
-
-:root[data-theme="dark"] {
-  --icon-tile-bg: #2a2645;
-  --icon-tile-fg: #ece6d6;
-}
-
 .cover-icon-box {
   display: inline-grid;
   place-items: center;
@@ -844,17 +928,18 @@ a {
 
 /* TAL-66 — aviso del editor de días al guardar un vídeo que no se puede
    incrustar (texto literal del PM en `NON_EMBEDDABLE_VIDEO_WARNING`). Es
-   un aviso, no un error: el día se guardó. Solo tokens semánticos que
-   sobreviven a TAL-61 (`--bg-sunken`/`--text` los renombra su script;
-   `--accent` se mantiene). `overflow-wrap` para que el texto largo no
-   provoque scroll horizontal a 375px. */
+   un aviso, no un error: el día se guardó. `overflow-wrap` para que el
+   texto largo no provoque scroll horizontal a 375px.
+   TAL-61 — tokens Alegre: franja `--sun` (atención, no peligro: no es
+   `--coral`), fondo `--surface-2`, texto `--ink` (14,8:1 claro / 13,3:1
+   oscuro). Radio `--radius-md` como los campos. */
 .day-video-warning {
   margin: 0;
   padding: 0.6rem 0.75rem;
-  border-left: 3px solid var(--accent);
-  border-radius: 0.5rem;
-  background: var(--bg-sunken);
-  color: var(--text);
+  border-left: 3px solid var(--sun);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--ink);
   font-size: 0.85rem;
   line-height: 1.4;
   overflow-wrap: anywhere;
@@ -863,13 +948,17 @@ a {
 /* TAL-65 — "Personas del calendario" (design/design-system.md § "Personas
    del calendario", design/propuesta-invitar-con-rol.html), con los tokens
    vigentes: el DS dice que, si se construye antes de la Onda 4, se usan
-   los mismos elementos con los tokens actuales. TAL-61 lo repintará con el
-   Estilo 2026. "Quitar" lleva el texto de peligro (`--coral-ink` en el
-   Estilo 2026; aquí, con respaldo al `--berry` vigente, `--berry-2` en
-   oscuro). A ~375px la fila se envuelve: el desplegable y los botones
-   bajan de línea, sin scroll horizontal. */
+   los mismos elementos con los tokens actuales. A ~375px la fila se
+   envuelve: el desplegable y los botones bajan de línea, sin scroll
+   horizontal.
+   TAL-61 — repintado con el Estilo 2026: segmentado con la opción marcada
+   en `--primary-btn` (texto blanco, 5,06:1 / 4,66:1), foco `--sun`;
+   "Quitar" es `.btn .btn-danger` (texto `--coral-ink`) y "Cambiar" (sin
+   JS) `.btn`; los radios del segmentado NO reciben el estilo base de
+   campos (solo los tipos de texto lo reciben). Mismos tamaños, `padding` y
+   radios que en TAL-65. */
 .people-sub {
-  color: var(--text-dim);
+  color: var(--ink-dim);
   margin-top: 0.25rem;
 }
 
@@ -888,8 +977,9 @@ a {
 
 .people-seg {
   display: inline-flex;
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   padding: 2px;
   margin: 0;
   min-width: 0;
@@ -911,24 +1001,24 @@ a {
 .people-seg span {
   display: inline-block;
   padding: 0.35rem 0.85rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.9rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .people-seg input:checked + span {
-  background: var(--accent);
-  color: var(--accent-ink);
+  background: var(--primary-btn);
+  color: #ffffff;
   font-weight: 600;
 }
 
 .people-seg input:focus-visible + span {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--sun);
   outline-offset: 2px;
 }
 
 .people-error {
-  color: var(--coral-ink, var(--berry));
+  color: var(--coral-ink);
 }
 
 .people-list {
@@ -943,7 +1033,7 @@ a {
   align-items: center;
   gap: 0.5rem 0.75rem;
   padding: 0.75rem 0;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--line);
 }
 
 .people-avatar {
@@ -953,8 +1043,8 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--bg-sunken);
-  color: var(--text);
+  background: var(--primary-soft);
+  color: var(--ink);
   font-weight: 700;
   flex-shrink: 0;
 }
@@ -971,21 +1061,12 @@ a {
 }
 
 .people-who small {
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .people-role-form {
   display: inline-flex;
   gap: 0.25rem;
-}
-
-.people-remove {
-  background: transparent;
-  border: none;
-  padding: 0.35rem 0.5rem;
-  color: var(--coral-ink, var(--berry));
-  font-weight: 600;
-  cursor: pointer;
 }
 
 .people-remove:disabled,
@@ -998,25 +1079,13 @@ a {
   flex-basis: 100%;
   margin: 0;
   font-size: 0.85rem;
-  color: var(--text-dim);
+  color: var(--ink-dim);
 }
 
 .people-link-note {
   margin-top: -0.5rem;
   font-size: 0.85rem;
-  color: var(--text-dim);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .people-remove,
-  :root:not([data-theme="light"]) .people-error {
-    color: var(--coral-ink, var(--berry-2));
-  }
-}
-
-:root[data-theme="dark"] .people-remove,
-:root[data-theme="dark"] .people-error {
-  color: var(--coral-ink, var(--berry-2));
+  color: var(--ink-dim);
 }
 
 .visually-hidden {

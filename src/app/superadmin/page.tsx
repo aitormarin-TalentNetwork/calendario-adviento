@@ -139,11 +139,11 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
       <SessionIndicator user={user} mode="admin" />
       <div>
         <h1>Todos los calendarios</h1>
-        <p style={{ color: "var(--accent)" }}>Visión global, cualquier calendario de cualquier Admin.</p>
+        <p style={{ color: "var(--ink-dim)" }}>Visión global, cualquier calendario de cualquier Admin.</p>
       </div>
 
       <section style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-        {calendars === null && <p style={{ color: "var(--accent)" }}>Los calendarios no están disponibles ahora mismo.</p>}
+        {calendars === null && <p style={{ color: "var(--coral-ink)" }}>Los calendarios no están disponibles ahora mismo.</p>}
         {calendars?.length === 0 && <p>Todavía no hay ningún calendario creado.</p>}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: "1rem" }}>
           {calendars?.map((calendar) => (
@@ -153,19 +153,21 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
             <Link
               key={calendar.id}
               href={`/admin/${calendar.id}`}
-              className="superadmin-calendar-card"
-              style={{ border: "1px solid var(--accent)", borderRadius: "0.75rem", padding: "1rem" }}
+              className="card superadmin-calendar-card"
+              style={{ padding: "1rem" }}
             >
-              <span style={{ fontSize: "0.75rem", textTransform: "uppercase", color: "var(--accent)" }}>
+              <span style={{ fontSize: "0.75rem", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--ink-dim)" }}>
                 {STATUS_LABEL[calendar.status]}
               </span>
               <h3 style={{ margin: "0.25rem 0" }}>{calendar.name}</h3>
-              <div style={{ fontSize: "0.85rem", color: "var(--accent)" }}>
+              <div style={{ fontSize: "0.85rem", color: "var(--ink-dim)" }}>
                 Admin: {calendar.admins.length > 0
                   ? calendar.admins.map((admin) => admin.name ?? admin.email).join(", ")
                   : "— sin Admin asignado"}
                 {" · "}
-                {formatDate(calendar.startDate)} – {formatDate(calendar.endDate)}
+                <span className="num">
+                  {formatDate(calendar.startDate)} – {formatDate(calendar.endDate)}
+                </span>
               </div>
               <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", fontSize: "0.9rem" }}>
                 <span><strong>{calendar.daysCount}</strong> días</span>
@@ -180,7 +182,7 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
       <section>
         <h2 style={{ fontSize: "1.1rem", marginBottom: "0.75rem" }}>Admins</h2>
 
-        {errorMessage && <p style={{ color: "crimson" }}>{errorMessage}</p>}
+        {errorMessage && <p style={{ color: "var(--coral-ink)" }}>{errorMessage}</p>}
 
         <form
           action={addAdminAction}
@@ -197,22 +199,22 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
             ))}
           </select>
           <input name="email" type="email" placeholder="email@ejemplo.com" required />
-          <button type="submit" disabled={!calendarOptions || calendarOptions.length === 0}>
+          <button type="submit" className="btn btn-primary" disabled={!calendarOptions || calendarOptions.length === 0}>
             + Nuevo Admin
           </button>
         </form>
         {calendarOptions === null && (
-          <p style={{ fontSize: "0.85rem", color: "var(--accent)" }}>Los calendarios no están disponibles ahora mismo.</p>
+          <p style={{ fontSize: "0.85rem", color: "var(--coral-ink)" }}>Los calendarios no están disponibles ahora mismo.</p>
         )}
         {calendarOptions?.length === 0 && (
-          <p style={{ fontSize: "0.85rem", color: "var(--accent)" }}>
+          <p style={{ fontSize: "0.85rem", color: "var(--ink-dim)" }}>
             No hay ningún calendario todavía — crea uno antes de asignarle un Admin.
           </p>
         )}
 
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--accent)" }}>
+            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
               <th>Persona</th>
               <th>Calendarios a cargo</th>
               <th>Creado</th>
@@ -221,24 +223,24 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
           </thead>
           <tbody>
             {admins?.map((admin) => (
-              <tr key={admin.userId} style={{ borderBottom: "1px solid color-mix(in srgb, var(--accent) 30%, transparent)" }}>
+              <tr key={admin.userId} style={{ borderBottom: "1px solid var(--line)" }}>
                 <td>
                   <strong>{admin.name ?? admin.email}</strong>
-                  {admin.name && <div style={{ fontSize: "0.85rem", color: "var(--accent)" }}>{admin.email}</div>}
+                  {admin.name && <div style={{ fontSize: "0.85rem", color: "var(--ink-dim)" }}>{admin.email}</div>}
                 </td>
                 <td>{admin.calendarsCount}</td>
-                <td>{formatDate(admin.createdAt)}</td>
+                <td className="num">{formatDate(admin.createdAt)}</td>
                 <td style={{ textAlign: "right" }}>
                   <form action={removeAdminAction}>
                     <input type="hidden" name="userId" value={admin.userId} />
-                    <button type="submit">Quitar</button>
+                    <button type="submit" className="btn btn-danger">Quitar</button>
                   </form>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
-        {admins === null && <p style={{ color: "var(--accent)" }}>Los Admins no están disponibles ahora mismo.</p>}
+        {admins === null && <p style={{ color: "var(--coral-ink)" }}>Los Admins no están disponibles ahora mismo.</p>}
         {admins?.length === 0 && <p>Todavía no hay ningún Admin.</p>}
       </section>
     </main>

@@ -54,7 +54,7 @@ export function NewCalendarSubmit() {
   return (
     <form action={formAction} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
       {state.error ? (
-        <p role="alert" style={{ color: "#c00" }}>
+        <p role="alert" style={{ color: "var(--coral-ink)" }}>
           {state.error}
         </p>
       ) : null}
@@ -96,7 +96,7 @@ function NewCalendarFields({ name, setName }: NewCalendarFieldsProps) {
 function SubmitButton({ disabled }: { disabled: boolean }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" disabled={pending || disabled}>
+    <button type="submit" disabled={pending || disabled} className="btn btn-primary">
       {pending ? "…" : "+ Nuevo calendario"}
     </button>
   );

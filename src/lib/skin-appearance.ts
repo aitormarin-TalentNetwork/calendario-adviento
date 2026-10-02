@@ -41,16 +41,16 @@ export type SkinLike = {
  * tiene `background`/`accent`/`textColor` (`v.optional` desde TAL-22/
  * TAL-47, mientras el catálogo compartido no se confirme migrado del
  * todo — ver `docs/skins.md` § "Migración segura"). Los tokens del
- * Design System (`--pine`/`--gold`/`--paper`) en vez de un hex fijo: si
- * algún día cambian de valor, este respaldo los sigue automáticamente
- * sin tocar código. `textPill: false` — el respaldo es un fondo oscuro
- * (`--pine`) con texto claro (`--paper`), combinación que ya tiene
- * contraste de sobra sin necesitar píldora.
+ * Design System en vez de un hex fijo: si algún día cambian de valor, este
+ * respaldo los sigue automáticamente sin tocar código. TAL-61 — el
+ * respaldo es el skin "Alegre" (nº 1 del DS "Estilo 2026"): fondo `--bg`
+ * (crema), acento `--primary` y texto `--ink`, contraste de sobra sin
+ * píldora (`textPill: false`). El catálogo de skins es de TAL-62.
  */
 export const DEFAULT_SKIN_APPEARANCE: SkinAppearance = {
-  background: "var(--pine)",
-  accent: "var(--gold)",
-  textColor: "var(--paper)",
+  background: "var(--bg)",
+  accent: "var(--primary)",
+  textColor: "var(--ink)",
   textPill: false,
 };
 

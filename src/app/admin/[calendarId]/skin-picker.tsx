@@ -34,7 +34,7 @@ type SkinPickerProps = {
  * Convex — mismo criterio que `door-grid.tsx`/`days-grid-editor.tsx`, que
  * ya aplican este mismo string de skin directo en CSS sin parsearlo) +
  * el nombre visible junto al swatch (no solo en `title`, que además se
- * añade como redundancia accesible) + anillo `--gold` en el seleccionado.
+ * añade como redundancia accesible) + anillo `--primary` en el seleccionado (TAL-61).
  *
  * Sigue siendo dinámico — `skins` viene tal cual de `skins.listAllPublic()`
  * (vía `page.tsx`/`edit-calendar-form.tsx`), cero catálogo fijo aquí; con
@@ -63,7 +63,7 @@ export function SkinPicker({ value, onChange, skins, disabled }: SkinPickerProps
             onClick={() => onChange(skin.id)}
             style={
               selected
-                ? { borderColor: "var(--gold)", boxShadow: "0 0 0 2px rgba(201,154,61,0.25)" }
+                ? { borderColor: "var(--primary)", boxShadow: "0 0 0 2px var(--primary-soft)" }
                 : undefined
             }
           >

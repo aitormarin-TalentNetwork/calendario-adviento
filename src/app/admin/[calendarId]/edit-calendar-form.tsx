@@ -339,11 +339,11 @@ export function EditCalendarForm({ calendar, skins }: EditCalendarFormProps) {
       style={{ display: "flex", flexDirection: "column", gap: "0.75rem", marginTop: "1.5rem" }}
     >
       {state.error ? (
-        <p role="alert" style={{ color: "#c00" }}>
+        <p role="alert" style={{ color: "var(--coral-ink)" }}>
           {state.error}
         </p>
       ) : null}
-      <div style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--text-dim)" }}>
+      <div style={{ fontSize: "0.78rem", textTransform: "uppercase", letterSpacing: "0.08em", color: "var(--ink-dim)" }}>
         Datos del calendario
       </div>
       <EditCalendarFields fieldValues={fieldValues} setField={setField} skins={skins} />

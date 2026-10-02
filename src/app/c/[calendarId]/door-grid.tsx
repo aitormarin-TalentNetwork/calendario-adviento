@@ -31,7 +31,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
   if (door.isToday) {
     // Ajuste 2026-08-17 (design-system.md § "Grid de días"): "hoy" tiene
     // que notarse claramente de un vistazo, no solo al fijarse — borde
-    // más grueso (2px, antes 1.5px) + fondo sutil en --gold al 10% de
+    // más grueso (2px, antes 1.5px) + fondo sutil en --sun al 10% de
     // opacidad (token fijo, no --accent: "hoy" es una marca universal,
     // no depende del skin elegido). `boxShadow` inset con spread grande
     // en vez de `background`/`backgroundImage`: esta celda puede
@@ -39,7 +39,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
     // visto-con-miniatura) que ya ocupa esas dos propiedades más abajo —
     // el box-shadow se pinta como una capa aparte encima, sin pisarlas.
     base.border = "2px dashed var(--accent)";
-    base.boxShadow = "inset 0 0 0 999px color-mix(in srgb, var(--gold) 10%, transparent)";
+    base.boxShadow = "inset 0 0 0 999px color-mix(in srgb, var(--sun) 10%, transparent)";
   }
   if (door.state === "locked") {
     // TAL-41 — antes `cursor: "default"` (día bloqueado = no interactivo);
@@ -52,7 +52,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
     return { ...base, cursor: "pointer" };
   }
   // unseen ("abierto, sin ver")
-  return { ...base, cursor: "pointer", background: "var(--day-open-bg)" };
+  return { ...base, cursor: "pointer", background: "var(--surface-2)" };
 }
 
 /**
@@ -67,7 +67,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
  * futuro), es un día que no pertenece a este calendario en absoluto.
  *
  * TAL-44 — segunda vuelta, pedido explícito de Aitor: el fondo pasa de
- * `--bg` (bloque propio, destacaba) a `--bg-raised` — el mismo que usa el
+ * `--bg` (bloque propio, destacaba) a `--surface` — el mismo que usa el
  * relleno de alineación de semana (`padding`, más abajo) — para que se
  * funda con la tarjeta en vez de marcar un bloque aparte. El tachado
  * diagonal (`.dg-out-of-range::after`, en el `<style jsx>` de más abajo)
@@ -76,7 +76,7 @@ function cellStyle(door: DoorInfo): React.CSSProperties {
  */
 const outOfRangeCellStyle: React.CSSProperties = {
   aspectRatio: "1",
-  background: "var(--bg-raised)",
+  background: "var(--surface)",
   position: "relative",
   display: "flex",
   alignItems: "center",
@@ -84,9 +84,9 @@ const outOfRangeCellStyle: React.CSSProperties = {
 };
 
 const outOfRangeNumStyle: React.CSSProperties = {
-  fontFamily: "var(--font-body)",
+  fontVariantNumeric: "tabular-nums",
   fontWeight: 800,
-  color: "var(--text)",
+  color: "var(--ink)",
   // Ajustado a 0.15 para encajar con el borrador en vivo de
   // design-system.md § "Responsive / Mobile" (opacity baja, ejemplo
   // explícito 0.15) confirmado por la Directora — no venía de ningún
@@ -117,16 +117,16 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
       // que aplicarse SIEMPRE, se combine con el estado que se combine —
       // antes esta rama ignoraba `isToday` por completo, así que abrir el
       // vídeo de hoy mismo (unseen → watched, cambio optimista) apagaba el
-      // número dorado a --paper en el propio clic.
-      color: door.isToday ? "var(--accent)" : "var(--paper)",
+      // número de acento a blanco en el propio clic.
+      color: door.isToday ? "var(--accent)" : "#ffffff",
       borderRadius: "999px",
-      fontFamily: "var(--font-mono)",
+      fontVariantNumeric: "tabular-nums",
     };
   }
   return {
-    fontFamily: "var(--font-body)",
+    fontVariantNumeric: "tabular-nums",
     fontWeight: 800,
-    color: door.isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--text)",
+    color: door.isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)",
   };
 }
 
@@ -140,12 +140,12 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
  * TAL-21 — grid rediseñado como "calendario de pared" real (design/
  * design-system.md § "Grid de días"): filas de 7 (lunes a domingo)
  * agrupadas por mes, cabecera de mes sticky, número grande sans-serif
- * (`--font-body`, nunca `--font-display` — decisión explícita del Design
- * System), fin de semana en `--berry`.
+ * (TAL-61: la única familia de la app, `--font`, con `tabular-nums`), fin
+ * de semana en `--coral-ink`.
  *
  * TAL-24 — `background` (el `background` real del skin del calendario,
  * `src/lib/skin-appearance.ts`) se aplica SOLO a la cabecera sticky de
- * cada mes (antes un `--pine` fijo) — decisión deliberada de NO tocar el
+ * cada mes (antes un color fijo del DS anterior) — decisión deliberada de NO tocar el
  * fondo de las casillas individuales (`cellStyle`, más abajo): esas ya
  * codifican los 4 estados (bloqueado/abierto/visto/hoy) que TAL-21 acaba
  * de auditar, y aplicar un degradado arbitrario del skin ahí arriesgaba
@@ -388,7 +388,7 @@ export function DoorGrid({
    * TAL-41 — efecto de "impaciencia" (design-system.md § "Grid de días"):
    * al pinchar un día bloqueado (futuro, dentro del rango, todavía sin
    * abrir) no pasa nada funcionalmente (el vídeo sigue bloqueado), pero
-   * la casilla da un pulso corto en `--berry` (nunca `--gold` — a
+   * la casilla da un pulso corto en `--coral` (nunca `--sun` — a
    * propósito distinto del pop dorado de TAL-40, "primera apertura") y
    * aparece un letrero centrado con la cuenta atrás real hasta ese día
    * concreto.
@@ -512,7 +512,7 @@ export function DoorGrid({
           right: 14%;
           top: 50%;
           height: 1px;
-          background: var(--text-dim);
+          background: var(--ink-dim);
           opacity: 0.4;
           transform: rotate(-18deg);
           pointer-events: none;
@@ -547,16 +547,16 @@ export function DoorGrid({
         .dg-bursting {
           animation: dg-reveal-pop 0.62s cubic-bezier(0.34, 1.56, 0.64, 1) both;
           z-index: 3;
-          box-shadow: 0 0 0 3px var(--gold), 0 8px 26px rgba(201, 154, 61, 0.55);
+          box-shadow: 0 0 0 3px var(--sun), 0 8px 26px rgba(255, 210, 63, 0.55);
         }
         .dg-bursting .dg-num {
           opacity: 0;
           transition: opacity 0.15s;
         }
-        /* TAL-41 — efecto de "impaciencia": pulso corto en --berry al
+        /* TAL-41 — efecto de "impaciencia": pulso corto en --coral al
            pinchar un día bloqueado, portado de
            design/propuesta-grid-calendario.html — deliberadamente en
-           --berry, nunca --gold, para que se note de un vistazo que es
+           --coral, nunca --sun, para que se note de un vistazo que es
            un "todavía no" distinto del pop dorado de "primera apertura"
            (TAL-40). */
         @keyframes dg-impatience-pulse {
@@ -579,7 +579,7 @@ export function DoorGrid({
         .dg-pulsing {
           animation: dg-impatience-pulse 0.45s ease both;
           z-index: 3;
-          box-shadow: 0 0 0 3px var(--berry), 0 6px 18px rgba(140, 47, 57, 0.4);
+          box-shadow: 0 0 0 3px var(--coral), 0 6px 18px rgba(255, 90, 95, 0.4);
         }
         @media (max-width: 640px) {
           .dg-month-header {
@@ -624,14 +624,14 @@ export function DoorGrid({
         }
       `}</style>
       {/* TAL-50 — esta tarjeta ya NO pinta el fondo del skin por su cuenta
-          (antes: `background: "var(--bg-raised)"` aquí) — deja pasar la
+          (antes: `background: "var(--surface)"` aquí) — deja pasar la
           ÚNICA capa de fondo real, la de `<main>` (`mainBackgroundStyle`,
           `page.tsx`). Segura de dejar transparente porque no es
           `position: sticky` — nada se desplaza "por debajo" de ella en un
           sentido que pueda filtrarse. */}
       <div
         style={{
-          border: "1px solid var(--border)",
+          border: "1px solid var(--line)",
           borderRadius: "16px",
           boxShadow: "var(--shadow)",
           overflow: "hidden",
@@ -669,7 +669,7 @@ export function DoorGrid({
                   // un glitch real de contenido superpuesto durante el
                   // scroll. Ver `src/lib/skin-appearance.ts`.
                   ...skinBackgroundStyle(background, backgroundImageUrl),
-                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
                 }}
               >
                 <CoverText treatment={textTreatment}>{month.label}</CoverText>
@@ -680,21 +680,21 @@ export function DoorGrid({
                   display: "grid",
                   gridTemplateColumns: "repeat(7, 1fr)",
                   gap: "1px",
-                  background: "var(--border)",
-                  fontFamily: "var(--font-mono)",
+                  background: "var(--line)",
+                  fontVariantNumeric: "tabular-nums",
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
-                  color: "var(--text-dim)",
+                  color: "var(--ink-dim)",
                 }}
               >
                 {WEEKDAY_INITIALS.map((initial, i) => (
                   <span
                     key={initial}
                     style={{
-                      background: "var(--bg-raised)",
+                      background: "var(--surface)",
                       textAlign: "center",
                       padding: "6px 0",
-                      color: i >= 5 ? "var(--weekend-text)" : undefined,
+                      color: i >= 5 ? "var(--coral-ink)" : undefined,
                       fontWeight: i >= 5 ? 700 : undefined,
                     }}
                   >
@@ -709,12 +709,12 @@ export function DoorGrid({
                     display: "grid",
                     gridTemplateColumns: "repeat(7, 1fr)",
                     gap: "1px",
-                    background: "var(--border)",
+                    background: "var(--line)",
                   }}
                 >
                   {week.map((cell, dayIdx) => {
                     if (cell.kind === "padding") {
-                      return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--bg-raised)" }} />;
+                      return <div key={dayIdx} style={{ aspectRatio: "1", background: "var(--surface)" }} />;
                     }
                     if (cell.kind === "out-of-range") {
                       return (
@@ -735,9 +735,13 @@ export function DoorGrid({
                         : null;
                     const style = cellStyle(door);
                     if (door.state === "watched") {
+                      // TAL-61 — respaldo del "visto" sin miniatura: el fondo
+                      // "visto" del skin (`--skin-seen-bg`, lo define TAL-62;
+                      // TAL-67 pinta su imagen encima) y, mientras no exista,
+                      // `--primary` (el respaldo de la paleta anterior desaparece).
                       style.backgroundImage = thumbnailUrl
                         ? `linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), url("${thumbnailUrl}")`
-                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--pine)";
+                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--skin-seen-bg, var(--primary))";
                       style.backgroundSize = "cover";
                       style.backgroundPosition = "center";
                     }
@@ -800,14 +804,14 @@ export function DoorGrid({
           top: "50%",
           left: "50%",
           zIndex: 70,
-          background: "var(--pine)",
-          color: "var(--paper)",
+          background: "var(--ink)",
+          color: "var(--bg)",
           padding: "18px 26px",
           borderRadius: "14px",
           boxShadow: "0 20px 50px rgba(10,16,12,0.45)",
           maxWidth: "min(360px, 84vw)",
           textAlign: "center",
-          fontFamily: "var(--font-display)",
+          fontWeight: 800,
           fontSize: "1.08rem",
           lineHeight: 1.4,
           opacity: patienceVisible ? 1 : 0,
@@ -821,7 +825,7 @@ export function DoorGrid({
             ¡Respira!
             <br />
             Te {patienceInfo.days === 1 ? "queda" : "quedan"}{" "}
-            <strong style={{ color: "var(--gold-2)" }}>{patienceInfo.days}</strong>{" "}
+            <strong className="num">{patienceInfo.days}</strong>{" "}
             {patienceInfo.days === 1 ? "día" : "días"} para abrir este regalo.
           </>
         )}

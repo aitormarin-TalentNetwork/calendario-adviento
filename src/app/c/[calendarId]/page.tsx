@@ -234,7 +234,7 @@ export default async function GuestCalendarPage({
         countdown={(treatment) =>
           countdownMessage ? (
             <p style={{ marginTop: "0.5rem" }}>
-              <CoverText treatment={treatment} style={{ fontFamily: "var(--font-display)", fontSize: "1.5rem", fontWeight: 700 }}>
+              <CoverText treatment={treatment} style={{ fontSize: "1.5rem", fontWeight: 800, fontVariantNumeric: "tabular-nums" }}>
                 {countdownMessage}
               </CoverText>
             </p>
