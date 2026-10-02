@@ -21,6 +21,9 @@
 //
 // Defensas (copiadas de scripts/verify-tal62-skin-migration.mjs):
 //   - aborta ANTES de crear ningún fichero si CONVEX_DEPLOYMENT no es `dev:`;
+//   - aborta ANTES de cualquier escritura si el host de NEXT_PUBLIC_CONVEX_URL
+//     no es exactamente `<slug>.convex.cloud` del CONVEX_DEPLOYMENT dev:<slug>
+//     (las escrituras por HTTP no pasan por la CLI; NO-GO loop 1);
 //   - un único wrapper `cli()` para todos los comandos de Convex, que
 //     rechaza `--prod`;
 //   - limpieza completa en el finally (fichero, deploy, verificación, y la
@@ -45,6 +48,24 @@ if (!deployment.startsWith("dev:")) {
 }
 if (!secret || !url) {
   console.error("Faltan CONVEX_APP_SERVER_SECRET y/o NEXT_PUBLIC_CONVEX_URL en el entorno.");
+  process.exit(1);
+}
+// La CLI usa CONVEX_DEPLOYMENT, pero el ConvexHttpClient de abajo usa
+// NEXT_PUBLIC_CONVEX_URL: si estuvieran cruzadas (dev: + URL de producción),
+// las escrituras por HTTP irían a producción. Antes de cualquier escritura,
+// la URL tiene que ser EXACTAMENTE la del deployment de desarrollo.
+const devSlug = deployment.slice("dev:".length).trim().split(/\s+/)[0];
+let urlHost = null;
+try {
+  urlHost = new URL(url).hostname;
+} catch {
+  urlHost = null;
+}
+if (!devSlug || urlHost !== `${devSlug}.convex.cloud`) {
+  console.error(
+    `ABORTADO: NEXT_PUBLIC_CONVEX_URL="${url}" (host ${urlHost ?? "no válido"}) no es el deployment de desarrollo ` +
+      `${devSlug || "(vacío)"}.convex.cloud indicado por CONVEX_DEPLOYMENT="${deployment}".`
+  );
   process.exit(1);
 }
 
