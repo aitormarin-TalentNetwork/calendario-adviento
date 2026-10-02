@@ -40,7 +40,7 @@ function toDateInputValue(date: Date) {
   return date.toISOString().slice(0, 10);
 }
 
-type DayRow = { date: Date; videoUrl: string; message: string | null };
+type DayRow = { date: Date; videoUrl: string; message: string | null; imageUrl: string | null; uploadedImageUrl: string | null };
 
 /**
  * `parseUtcDateOnly` sobre un string "YYYY-MM-DD" que ya viene de Convex
@@ -139,6 +139,8 @@ export async function DaysSection({
     date: requireDate(day.date),
     videoUrl: day.videoUrl,
     message: day.message ?? null,
+    imageUrl: day.imageUrl,
+    uploadedImageUrl: day.uploadedImageUrl,
   }));
 
   const span = daySpan(startDate, endDate);
@@ -173,6 +175,10 @@ export async function DaysSection({
       label: formatCalendarDate(date),
       videoUrl: day?.videoUrl ?? null,
       message: day?.message ?? null,
+      // TAL-67 — subida > copia propia (Convex) y, para la vista previa del
+      // diálogo, solo la subida.
+      imageUrl: day?.imageUrl ?? null,
+      uploadedImageUrl: day?.uploadedImageUrl ?? null,
     };
   });
 

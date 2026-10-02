@@ -125,8 +125,24 @@ export default defineSchema({
     videoUrl: v.string(),
     message: v.optional(v.string()),
     calendarId: v.id("calendars"),
+    // TAL-67 — imagen de la casilla "Visto" (docs/dias.md § "Imagen de la
+    // casilla Visto (TAL-67)"). Los tres opcionales y aditivos: los días de
+    // antes de TAL-67 no los tienen (respaldo: miniatura directa de YouTube
+    // o color del skin) y el push a un deployment con filas viejas no falla.
+    // `imageStorageId`: imagen subida por el Admin (prioridad 1).
+    imageStorageId: v.optional(v.id("_storage")),
+    // `thumbnailStorageId`: copia propia de la miniatura del vídeo
+    // (prioridad 2), obtenida en el servidor al guardar el día.
+    thumbnailStorageId: v.optional(v.id("_storage")),
+    // URL del vídeo para la que se INTENTÓ la copia. Con
+    // `thumbnailStorageId` → copia válida para esa URL; sin él → falló.
+    thumbnailVideoUrl: v.optional(v.string()),
   })
-    .index("by_calendar_and_date", ["calendarId", "date"]),
+    .index("by_calendar_and_date", ["calendarId", "date"])
+    // TAL-67 — "¿algún día referencia este fichero?" sin recorrer la tabla
+    // (limpiador de `dayFiles.ts` y auditoría).
+    .index("by_image_storage", ["imageStorageId"])
+    .index("by_thumbnail_storage", ["thumbnailStorageId"]),
 
   dayViews: defineTable({
     dayId: v.id("days"),
@@ -304,4 +320,66 @@ export default defineSchema({
   })
     .index("by_migration", ["migrationId"])
     .index("by_migration_and_calendar", ["migrationId", "calendarId"]),
+
+  // TAL-67 — registro de cargas pendientes de ficheros de la casilla "Visto"
+  // (docs/dias.md § "Ficheros de TAL-67"). Una intención se crea ANTES de
+  // guardar el fichero y se le escribe el `storageId` justo después: el
+  // limpiador (`dayFiles.ts`) solo borra `storageId` registrados aquí.
+  // Nunca deduce la propiedad por contenido ni por fecha.
+  dayFileIntents: defineTable({
+    owner: v.literal("TAL-67"),
+    kind: v.union(v.literal("upload"), v.literal("thumbnail")),
+    calendarId: v.id("calendars"),
+    dayId: v.id("days"),
+    actorUserId: v.optional(v.id("users")),
+    expiresAt: v.number(),
+    storageId: v.optional(v.id("_storage")),
+    // Tombstone: el día o el calendario se borró con la operación en curso.
+    dayGone: v.optional(v.boolean()),
+  })
+    .index("by_expires", ["expiresAt"])
+    .index("by_storage", ["storageId"])
+    .index("by_day", ["dayId"]),
+
+  // TAL-67 — registro DURADERO de operaciones que murieron antes de
+  // registrar su fichero (antes de `store` o entre `store` y el registro).
+  // Nunca se borra solo; se cierra a mano con `closeUnresolvedWindow`, que
+  // NO borra nada de `_storage` (docs/dias.md).
+  dayFileUnresolvedWindows: defineTable({
+    status: v.union(v.literal("unresolved-window"), v.literal("resolved")),
+    kind: v.union(v.literal("upload"), v.literal("thumbnail")),
+    calendarId: v.id("calendars"),
+    dayId: v.id("days"),
+    dayGone: v.boolean(),
+    actorUserId: v.optional(v.id("users")),
+    windowStart: v.number(),
+    windowEnd: v.number(),
+    intentId: v.string(),
+    resolvedAt: v.optional(v.number()),
+    resolvedBy: v.optional(v.string()),
+    resolution: v.optional(v.string()),
+  }).index("by_status", ["status"]),
+
+  // TAL-67 — lease del drenaje del limpiador (un único documento): evita
+  // dos drenajes a la vez; el token para una continuación obsoleta.
+  dayFileReconcileLease: defineTable({
+    token: v.string(),
+    expiresAt: v.number(),
+    // Nº de relevos del watchdog en este drenaje (diagnóstico; también lo
+    // usa el gancho de fallo de dev `drain-after-first-batch`).
+    takeovers: v.optional(v.number()),
+  }),
+
+  // TAL-67 — log de la migración única de miniaturas (patrón de
+  // `coverIconMigrationLog`, TAL-60).
+  dayThumbnailMigrationLog: defineTable({
+    migrationId: v.string(),
+    dayId: v.id("days"),
+    videoUrl: v.string(),
+    result: v.union(v.literal("stored"), v.literal("failed"), v.literal("skipped")),
+    storageId: v.optional(v.id("_storage")),
+    reason: v.optional(v.string()),
+  })
+    .index("by_migration_and_day", ["migrationId", "dayId"])
+    .index("by_migration", ["migrationId"]),
 });

@@ -8,6 +8,7 @@ import { createConfettiEngine, type ConfettiEngine } from "@/lib/confetti-canvas
 import { daysUntil } from "@/lib/countdown";
 import { playRewardSound } from "@/lib/reward-sound";
 import { parseEmbeddableVideo } from "@/lib/video-embed";
+import { dayCellBackground, dayCellImageUrl } from "@/lib/day-image";
 import type { DoorInfo } from "@/lib/guest-calendar";
 import type { CoverTextTreatment } from "@/lib/skin-appearance";
 import { CoverText } from "@/components/cover-text";
@@ -707,21 +708,12 @@ export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: stri
                     const date = parseDateOnlyUTC(door.dateStr);
                     const isWeekend = isWeekendUTC(date);
                     const dayNum = date.getUTCDate();
-                    const thumbnailUrl =
-                      door.state === "watched" && door.videoUrl
-                        ? parseEmbeddableVideo(door.videoUrl)?.thumbnailUrl ?? null
-                        : null;
                     const style = cellStyle(door);
                     if (door.state === "watched") {
-                      // TAL-61 — respaldo del "visto" sin miniatura: el fondo
-                      // "visto" del skin (`--skin-seen-bg`, lo define TAL-62;
-                      // TAL-67 pinta su imagen encima) y, mientras no exista,
-                      // `--primary` (el respaldo de la paleta anterior desaparece).
-                      style.backgroundImage = thumbnailUrl
-                        ? `linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), url("${thumbnailUrl}")`
-                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--skin-seen-bg, var(--primary))";
-                      style.backgroundSize = "cover";
-                      style.backgroundPosition = "center";
+                      // TAL-67 — subida > copia propia > miniatura directa de
+                      // YouTube (solo sin copia) > fondo "visto" del skin
+                      // (`src/lib/day-image.ts`). Nunca una casilla rota.
+                      style.background = dayCellBackground(dayCellImageUrl(door.imageUrl, door.videoUrl));
                     }
                     const numClassName =
                       door.state === "watched" ? "dg-num-pill" : door.state === "locked" ? "dg-num-locked" : "dg-num";

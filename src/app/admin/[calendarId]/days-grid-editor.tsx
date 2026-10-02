@@ -2,19 +2,30 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
-import { deleteDayAction, saveDayAction, type SaveDayState } from "@/app/admin/[calendarId]/days-actions";
+import {
+  deleteDayAction,
+  removeDayImageAction,
+  saveDayAction,
+  uploadDayImageAction,
+  type DayImageState,
+  type SaveDayState,
+} from "@/app/admin/[calendarId]/days-actions";
 import { EditorWarning } from "@/components/editor-warning";
 import { SubmitButton } from "@/components/submit-button";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
 import { resolveCoverTextTreatment, skinBackgroundStyle } from "@/lib/skin-appearance";
 import { CoverText } from "@/components/cover-text";
-import { parseEmbeddableVideo } from "@/lib/video-embed";
+import { dayCellBackground, dayCellImageUrl } from "@/lib/day-image";
 
 export type DayInfo = {
   dateStr: string;
   label: string;
   videoUrl: string | null;
   message: string | null;
+  // TAL-67 — lo que pinta la casilla (subida > copia propia) y la vista
+  // previa del diálogo (solo la subida).
+  imageUrl: string | null;
+  uploadedImageUrl: string | null;
 };
 
 const WEEKDAY_INITIALS = ["L", "M", "X", "J", "V", "S", "D"];
@@ -308,15 +319,12 @@ export function DaysGridEditor({
                     const isWeekend = isWeekendUTC(date);
                     const dayNum = date.getUTCDate();
                     const isToday = day.dateStr === todayStr;
-                    const thumbnailUrl = day.videoUrl ? parseEmbeddableVideo(day.videoUrl)?.thumbnailUrl ?? null : null;
                     const isOpen = day.dateStr === openDate;
                     const style = cellStyle(day, isToday, isOpen);
                     if (day.videoUrl) {
-                      style.backgroundImage = thumbnailUrl
-                        ? `linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), url("${thumbnailUrl}")`
-                        : "linear-gradient(to top, rgba(10,16,12,0.55), transparent 60%), var(--primary)";
-                      style.backgroundSize = "cover";
-                      style.backgroundPosition = "center";
+                      // TAL-67 — mismo orden de fuentes que la casilla "Visto"
+                      // del invitado (`src/lib/day-image.ts`).
+                      style.background = dayCellBackground(dayCellImageUrl(day.imageUrl, day.videoUrl));
                     }
                     return (
                       <button
@@ -381,6 +389,8 @@ export function DaysGridEditor({
                 estado inicial en cada apertura (TAL-45) — nunca arranca ya
                 con el resultado de un guardado anterior. */}
             <DayDialogForm key={openDay.dateStr} calendarId={calendarId} day={openDay} onSaveSuccess={closeDialog} />
+            {/* TAL-67 — formulario aparte: la subida no viaja con cada guardado del vídeo ni toca su cierre automático. */}
+            <DayImageField key={`image-${openDay.dateStr}`} calendarId={calendarId} day={openDay} />
           </div>
         </div>
       )}
@@ -562,5 +572,70 @@ function DayDialogForm({
         )}
       </div>
     </form>
+  );
+}
+
+/**
+ * TAL-67 — "Imagen del día (opcional)" (design/design-system.md § "Imagen de
+ * la casilla Visto"): etiqueta a la izquierda (`.editor-field`, TAL-61), vista
+ * previa con `--radius-sm`, "Quitar" con `.btn .btn-danger` y el texto de
+ * ayuda literal del DS. Solo en días ya guardados (con vídeo): la imagen va
+ * ligada al día (decisión del PM). La validación real está en el servidor
+ * (`uploadDayImageAction` y el `httpAction` de Convex); `accept` es solo una
+ * ayuda de UI.
+ */
+function DayImageField({ calendarId, day }: { calendarId: string; day: DayInfo }) {
+  const initialState: DayImageState = { status: "idle", error: null };
+  const [state, formAction] = useActionState(uploadDayImageAction.bind(null, calendarId, day.dateStr), initialState);
+
+  if (!day.videoUrl) {
+    return (
+      <p className="day-image-field-help" style={{ marginTop: "0.75rem" }}>
+        Guarda primero el vídeo del día para poder añadirle una imagen.
+      </p>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: "1rem", borderTop: "1px solid var(--line)", paddingTop: "0.75rem" }}>
+      <form action={formAction} className="editor-field">
+        <label htmlFor={`day-image-${day.dateStr}`}>Imagen del día (opcional)</label>
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.4rem", minWidth: 0 }}>
+          {day.uploadedImageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element -- URL de Convex storage; next/image necesitaría configurar ese dominio remoto.
+            <img src={day.uploadedImageUrl} alt="Imagen del día" className="day-image-preview" />
+          ) : null}
+          <input
+            id={`day-image-${day.dateStr}`}
+            name="image"
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            required
+          />
+          {state.status === "error" && state.error ? (
+            <p role="alert" style={{ color: "var(--coral-ink)", margin: 0 }}>
+              {state.error}
+            </p>
+          ) : null}
+          <p className="day-image-field-help">
+            Se mostrará en la casilla del día cuando el invitado ya haya visto el vídeo. Si no subes ninguna, usamos la
+            miniatura del vídeo.
+          </p>
+          <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+            <SubmitButton>{day.uploadedImageUrl ? "Sustituir imagen" : "Subir imagen"}</SubmitButton>
+            {day.uploadedImageUrl ? (
+              <button
+                type="submit"
+                formNoValidate
+                className="btn btn-danger"
+                formAction={removeDayImageAction.bind(null, calendarId, day.dateStr)}
+              >
+                Quitar
+              </button>
+            ) : null}
+          </div>
+        </div>
+      </form>
+    </div>
   );
 }
