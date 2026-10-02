@@ -96,11 +96,13 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
       right: "8px",
       fontSize: "0.82rem",
       fontWeight: 600,
-      background: "rgba(15,24,18,0.6)",
-      // Hallazgo de auditoría, ronda 1: el color de "hoy" (--accent) tiene
-      // que aplicarse SIEMPRE, se combine con el estado que se combine —
-      // antes esta rama ignoraba "hoy" por completo.
-      color: isToday ? "var(--accent)" : "#ffffff",
+      // TAL-62 (NO-GO M3 del loop2): sobre una miniatura de vídeo (una foto
+      // arbitraria) el número va en una píldora OPACA de par fijo — --bg
+      // sobre --ink (15,2:1 claro / 16,3:1 oscuro, caso 4 de TAL-61) —, sea
+      // o no "hoy"; "hoy" ya se marca con el borde discontinuo --accent de
+      // la casilla (cellStyle).
+      background: "var(--ink)",
+      color: "var(--bg)",
       padding: "1px 6px",
       borderRadius: "999px",
       fontVariantNumeric: "tabular-nums",

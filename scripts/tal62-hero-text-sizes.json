@@ -1,0 +1,7 @@
+{
+  "_comment": "TAL-62 — tamaño y peso MÍNIMOS de cada texto del bloque de la cuenta atrás (portada del invitado y diálogo de la vista previa). La puerta de contraste (scripts/verify-tal62-skin-contrast.mjs) decide con ellos si cada texto es TEXTO GRANDE (umbral 3:1: >= 24px, o >= 18.66px con peso >= 700) o normal (4,5:1); e2e/tal-62-skins.spec.ts comprueba que los valores computados reales no bajan de estos. La miniatura compacta de la vista previa no tiene texto (barras decorativas).",
+  "label": { "selector": ".skin-hero-label", "fg": "heroInk", "px": 19.2, "weight": 700 },
+  "big": { "selector": ".skin-hero-big", "fg": "heroInk", "px": 35.2, "weight": 800 },
+  "num": { "selector": ".skin-hero-num", "fg": "heroNum", "px": 35.2, "weight": 800 },
+  "for": { "selector": ".skin-hero-for", "fg": "heroInk", "px": 19.2, "weight": 700 }
+}

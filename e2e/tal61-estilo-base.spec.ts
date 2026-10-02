@@ -79,13 +79,18 @@ const TOKENS = {
 // cambia 1-14px solo por las métricas de la nueva familia. Tras los
 // cambios de color y forma, todo debe seguir igual que la medida
 // post-tipografía (± 1px).
+// TAL-62: la rejilla de puertas del invitado pasa a `gap: 5px` (mockup
+// normativo design/propuesta-skins-modernos.html, `.days`), así que en
+// escritorio la puerta mide 112px en vez de 118px, y en móvil 38px en vez
+// de 43px; además lleva radio 10px (`.d` del mockup). Cambio deliberado de
+// TAL-62, no de TAL-61.
 const PRE_TAL61 = {
-  desktop: { door: [118, 118], cell: [118, 118], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
-  mobile: { door: [43, 43], cell: [64, 64], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
+  desktop: { door: [112, 112], cell: [118, 118], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
+  mobile: { door: [38, 38], cell: [64, 64], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
 } as const;
 const REFERENCE: Record<"desktop" | "mobile", Geometry> = {
   desktop: {
-    door: { w: 118, h: 118, padding: "0px", radius: "0px" },
+    door: { w: 112, h: 112, padding: "0px", radius: "10px" },
     doorColumns: 7,
     doorModalClose: { w: 20, h: 20, padding: "0px", radius: "0px" },
     cell: { w: 118, h: 118, padding: "0px", radius: "0px" },
@@ -99,7 +104,7 @@ const REFERENCE: Record<"desktop" | "mobile", Geometry> = {
     skinSwatch: { w: 34, h: 34, padding: "3px", radius: "8px" },
   },
   mobile: {
-    door: { w: 43, h: 43, padding: "0px", radius: "0px" },
+    door: { w: 38, h: 38, padding: "0px", radius: "10px" },
     doorColumns: 7,
     doorModalClose: { w: 20, h: 20, padding: "0px", radius: "0px" },
     cell: { w: 64, h: 64, padding: "0px", radius: "0px" },
@@ -593,6 +598,10 @@ const SRC = path.resolve(__dirname, "..", "src");
 const AA_TEXT_TOKENS = new Set(["ink", "ink-dim", "primary-ink", "coral-ink", "on-sun"]);
 const SKIN = "superficie del calendario: el color lo pone el skin (--accent o su tratamiento de texto); su contraste lo cubre TAL-62";
 const TYPE = "anotación de tipo de TypeScript, no un valor de color";
+// TAL-62 (NO-GO M2 del loop2): los tokens de texto del skin NO cuentan como
+// AA en general — cada uso va aquí con su fondo REAL y el par que verifica,
+// en los 8 skins, scripts/verify-tal62-skin-contrast.mjs.
+const GATE = "par verificado en los 8 skins por scripts/verify-tal62-skin-contrast.mjs";
 type ColorException = { value: string; reason: string };
 const EXCEPTIONS: Record<string, ColorException> = {
   // globals.css
@@ -607,22 +616,31 @@ const EXCEPTIONS: Record<string, ColorException> = {
   "app/globals.css:921": { value: "var(--icon-tile-fg-dark, var(--icon-tile-fg))", reason: ".cover-icon-box (oscuro): ídem, solo <svg>" },
   "app/globals.css:926": { value: "var(--icon-tile-fg-dark, var(--icon-tile-fg))", reason: ".cover-icon-box (data-theme=dark): ídem, solo <svg>" },
   "app/globals.css:1011": { value: "#ffffff", reason: "opción marcada del segmentado de TAL-65: blanco sobre --primary-btn (5,06 / 4,66)" },
+  "app/globals.css:1124": { value: "var(--skin-hero-ink)", reason: ".skin-hero: textos del bloque (portada y diálogo de la vista previa, TEXTO GRANDE según scripts/tal62-hero-text-sizes.json) sobre --skin-hero, o sobre píldora blanca en Rojiblanco; la miniatura compacta no tiene texto (NO-GO M1); " + GATE },
+  "app/globals.css:1156": { value: "var(--skin-hero-num)", reason: ".skin-hero-num: número de la cuenta atrás (texto grande) sobre --skin-hero o píldora blanca; " + GATE },
+  "app/globals.css:1204": { value: "var(--skin-ink)", reason: ".skin-month-card: fondo --skin-card en la misma regla: ink/card, " + GATE },
+  "app/globals.css:1214": { value: "var(--skin-ink)", reason: ".skin-notice (avisos del invitado, NO-GO M2): fondo --skin-card opaco en la misma regla, haya o no imagen debajo: ink/card, " + GATE },
   // Editor (fuera del calendario)
-  "app/admin/[calendarId]/days-grid-editor.tsx:512": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
-  "app/admin/[calendarId]/calendar-preview.tsx:232": { value: '"#ffffff"', reason: "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin" },
+  "app/admin/[calendarId]/days-grid-editor.tsx:514": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
+  "app/admin/[calendarId]/calendar-preview.tsx:221": { value: '"#ffffff"', reason: "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin" },
   // Superficie del calendario: grid del editor dentro de la sección de días (days-section.tsx fija --accent con el del skin) y /c/[id]
   "app/admin/[calendarId]/days-grid-editor.tsx:48": { value: '"inherit"', reason: "casilla del grid: hereda; " + SKIN },
-  "app/admin/[calendarId]/days-grid-editor.tsx:103": { value: 'isToday ? "var(--accent)" : "#ffffff"', reason: "número sobre miniatura de vídeo (blanco) o de hoy (--accent del skin); " + SKIN },
-  "app/admin/[calendarId]/days-grid-editor.tsx:113": { value: 'isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
-  "app/admin/[calendarId]/days-grid-editor.tsx:266": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:29": { value: '"inherit"', reason: "puerta: hereda; " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:121": { value: 'door.isToday ? "var(--accent)" : "#ffffff"', reason: "número sobre miniatura (blanco) o de hoy (--accent del skin); " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:129": { value: 'door.isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:697": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
-  "app/c/[calendarId]/door-grid.tsx:808": { value: '"var(--bg)"', reason: "burbuja de paciencia invertida: --bg sobre --ink (15,2 / 16,3)" },
-  "app/c/[calendarId]/door-grid-loader.tsx:59": { value: '"var(--accent)"', reason: "«Cargando calendario…» en --accent del skin; " + SKIN },
-  "app/c/[calendarId]/door-grid-loader.tsx:63": { value: '"var(--accent)"', reason: "aviso de carga en --accent del skin; " + SKIN },
-  "app/c/[calendarId]/page.tsx:299": { value: '"var(--accent)"', reason: "aviso de rango demasiado largo en --accent del skin; " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:105": { value: '"var(--bg)"', reason: "número sobre miniatura de vídeo (foto arbitraria), «hoy» o no: píldora OPACA --bg sobre --ink (15,2 / 16,3, caso 4) — TAL-62, NO-GO M3 del loop2" },
+  "app/admin/[calendarId]/days-grid-editor.tsx:115": { value: 'isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:268": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
+  "app/c/[calendarId]/door-grid.tsx:36": { value: '"var(--skin-ink)"', reason: "número de casilla abierta sobre --skin-cell: ink/cell, " + GATE },
+  "app/c/[calendarId]/door-grid.tsx:40": { value: '"var(--skin-dim)"', reason: "casilla bloqueada: fondo transparente dentro de la tarjeta del mes (--skin-card): dim/card, " + GATE },
+  "app/c/[calendarId]/door-grid.tsx:49": { value: '"var(--skin-today-ink)"', reason: "casilla de hoy sobre --skin-today: todayInk/today, " + GATE },
+  "app/c/[calendarId]/door-grid.tsx:93": { value: '"var(--skin-dim)"', reason: "número de casilla FUERA de rango: decorativo, aria-hidden y a opacidad 0.3 (no es contenido; lo comprueba tal-62-skins test 1)" },
+  "app/c/[calendarId]/door-grid.tsx:164": { value: '"var(--skin-ink)"', reason: "textTreatment de la cabecera del mes y del modal, ambos sobre --skin-card: ink/card, " + GATE },
+  "app/c/[calendarId]/door-grid.tsx:117": { value: '"#ffffff"', reason: "número del día «visto» en blanco sobre su píldora rgba(15,24,18,0.6) compuesta sobre --skin-seen-bg: ≥ 4,5 en los 8 skins (puerta de TAL-62, regla aprobada por el PM)" },
+  "app/c/[calendarId]/door-grid.tsx:133": { value: "numColor", reason: "número de día: --skin-dim (bloqueada), --skin-today-ink (hoy), --skin-weekend (fin de semana) o --skin-ink — los cuatro, tokens de texto del skin verificados por la puerta de TAL-62" },
+  "app/c/[calendarId]/door-grid.tsx:651": { value: '"var(--skin-ink)"', reason: "cabecera sticky del mes con fondo --skin-card: ink/card, " + GATE },
+  "app/c/[calendarId]/door-grid.tsx:666": { value: '"var(--skin-dim)"', reason: "iniciales L–V dentro de la tarjeta del mes (--skin-card): dim/card, " + GATE },
+  "app/c/[calendarId]/door-grid.tsx:675": { value: 'i >= 5 ? "var(--skin-weekend)" : undefined', reason: "inicial S/D en --skin-weekend (verificado por la puerta de TAL-62), resto heredado de --skin-dim" },
+  "app/c/[calendarId]/door-grid.tsx:854": { value: '"var(--skin-ink)"', reason: "modal del día con fondo --skin-card: ink/card, " + GATE },
+  "app/c/[calendarId]/page.tsx:198": { value: '"var(--skin-ink)"', reason: "color heredado del <main> (fondo --skin-bg, o la imagen de fondo): ningún texto lo usa directamente sobre el fondo — el título fija el suyo (TAL-47: ink/bg, o «photo» con imagen), y bloque, tarjeta del mes y avisos (.skin-notice) llevan fondo opaco propio; ink/bg, " + GATE },
+  "app/c/[calendarId]/door-grid.tsx:789": { value: '"var(--bg)"', reason: "burbuja de paciencia invertida: --bg sobre --ink (15,2 / 16,3)" },
   "components/cover-text.tsx:37": { value: "treatment.color", reason: "texto de portada: el color lo da el tratamiento del skin (resolveCoverTextTreatment, TAL-47); " + SKIN },
   "components/cover-text.tsx:51": { value: "treatment.color", reason: "ídem (variante píldora); " + SKIN },
   // .ts (desde el loop 4)

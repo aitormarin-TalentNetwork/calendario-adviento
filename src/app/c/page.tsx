@@ -5,6 +5,8 @@ import { SessionIndicator } from "@/components/session-indicator";
 import { listUserModeCalendars } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { skinBackgroundStyle } from "@/lib/skin-appearance";
+import { loadSkinCatalog } from "@/lib/skin-catalog";
+import { resolveSkinStyle, skinStyleVars, skinTreatmentClass } from "@/lib/skin-style";
 
 /**
  * TAL-58 — "Tus calendarios", la pantalla del modo Usuario
@@ -21,6 +23,11 @@ import { skinBackgroundStyle } from "@/lib/skin-appearance";
  * `src/app/admin/page.tsx`). El selector Usuario | Admin y el menú del
  * avatar son de TAL-59, fuera de esta tarea — de momento solo el
  * `SessionIndicator` de siempre (avatar + cerrar sesión).
+ *
+ * TAL-62 — la portada de cada tarjeta se pinta como la pantalla del
+ * invitado: fondo del skin (o la imagen de fondo) y recuadro del icono con
+ * su par `tile`/`tileInk`, vía las mismas variables `--skin-*`; skin fuera
+ * del catálogo o modo degradado → respaldo Alegre (`data-skin-style`).
  */
 export default async function UserCalendarsPage() {
   const user = await getAuthorizedUser();
@@ -28,6 +35,7 @@ export default async function UserCalendarsPage() {
 
   const calendars = await listUserModeCalendars(user.id);
   if (calendars.length === 1) redirect(`/c/${calendars[0].id}`);
+  const { catalog } = calendars.length > 0 ? await loadSkinCatalog() : { catalog: [] };
 
   return (
     <main className="session-page-main user-calendars-main">
@@ -42,25 +50,29 @@ export default async function UserCalendarsPage() {
         <>
           <p className="user-calendars-sub">Elige cuál quieres abrir.</p>
           <ul className="user-calendars-grid">
-            {calendars.map((calendar) => (
-              <li key={calendar.id}>
-                <Link href={`/c/${calendar.id}`} className="calendar-card">
-                  <div
-                    className="calendar-card-cover"
-                    aria-hidden="true"
-                    style={skinBackgroundStyle(calendar.appearance.background, calendar.backgroundImageUrl)}
-                  >
-                    {/* TAL-60 — icono Lucide en su recuadro pastel (antes, emoji suelto). */}
-                    <CoverIcon value={calendar.icon} size={26} box={52} accent={calendar.appearance.accent} />
-                  </div>
-                  <div className="calendar-card-body">
-                    <span className="calendar-card-name">{calendar.title}</span>
-                    <span className="calendar-card-meta num">{calendar.subtitle}</span>
-                    {calendar.isAdmin && <span className="calendar-card-tag">Admin</span>}
-                  </div>
-                </Link>
-              </li>
-            ))}
+            {calendars.map((calendar) => {
+              const skinStyle = resolveSkinStyle(calendar.skinId ?? "", catalog);
+              return (
+                <li key={calendar.id}>
+                  <Link href={`/c/${calendar.id}`} className="calendar-card">
+                    <div
+                      className={["calendar-card-cover", skinTreatmentClass(skinStyle)].filter(Boolean).join(" ")}
+                      aria-hidden="true"
+                      data-skin-style={skinStyle.key}
+                      style={{ ...skinBackgroundStyle(skinStyle.palette.bg, calendar.backgroundImageUrl), ...skinStyleVars(skinStyle) }}
+                    >
+                      {/* TAL-60 — icono Lucide en su recuadro; TAL-62 — colores del skin (--icon-tile-*). */}
+                      <CoverIcon value={calendar.icon} size={26} box={52} />
+                    </div>
+                    <div className="calendar-card-body">
+                      <span className="calendar-card-name">{calendar.title}</span>
+                      <span className="calendar-card-meta num">{calendar.subtitle}</span>
+                      {calendar.isAdmin && <span className="calendar-card-tag">Admin</span>}
+                    </div>
+                  </Link>
+                </li>
+              );
+            })}
           </ul>
         </>
       )}

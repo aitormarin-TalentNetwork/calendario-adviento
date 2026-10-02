@@ -1099,3 +1099,163 @@ a {
   white-space: nowrap;
   border: 0;
 }
+
+/* TAL-62 — skins del Estilo 2026 en la pantalla del invitado y la vista
+   previa (design/propuesta-skins-modernos.html, normativo con los colores
+   finales aprobados por el PM y Aitor). Los colores llegan como variables
+   `--skin-*` puestas inline en el contenedor (`skinStyleVars`,
+   src/lib/skin-style.ts) desde la tabla `skinStyles` de Convex; aquí solo
+   la forma y los tratamientos. Un skin nunca cambia la fuente. */
+
+/* Bloque de la cuenta atrás. Contraste (aprobado por el PM): todos sus
+   textos son TEXTO GRANDE (≥ 18.66px en negrita), sin opacidad, y el halo
+   es decorativo — el contenido deja libre su esquina (`max-width`), así que
+   nunca queda bajo texto. */
+.skin-hero {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  border-radius: 24px;
+  padding: 16px 18px;
+  background: var(--skin-hero);
+  color: var(--skin-hero-ink);
+  margin-bottom: 12px;
+}
+.skin-hero::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -30px;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: var(--skin-glow);
+  pointer-events: none;
+}
+.skin-hero > * {
+  position: relative;
+  z-index: 1;
+  max-width: calc(100% - 92px);
+}
+.skin-hero-label,
+.skin-hero-for {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+.skin-hero-big {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  margin: 4px 0 2px;
+}
+.skin-hero-num {
+  color: var(--skin-hero-num);
+}
+/* Vista previa del editor (miniatura): misma pieza a escala, SIN texto
+   (NO-GO M1 del loop2, decisión del PM): barras decorativas con los colores
+   del skin en el sitio de cada línea. Selectores con `.skin-hero.skin-hero-compact`
+   para imponerse a la píldora blanca de Rojiblanco (`.skin-stripes-pill .skin-hero > *`). */
+.skin-hero-compact {
+  align-self: stretch;
+  border-radius: 10px;
+  padding: 5px 7px;
+  margin-bottom: 0;
+  gap: 0;
+}
+.skin-hero-compact::after {
+  width: 40px;
+  height: 40px;
+  right: -12px;
+  top: -12px;
+}
+.skin-hero-compact > * {
+  max-width: calc(100% - 30px);
+}
+.skin-hero.skin-hero-compact {
+  gap: 3px;
+}
+.skin-hero.skin-hero-compact > .skin-hero-bar {
+  display: block;
+  height: 4px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--skin-hero-ink);
+}
+.skin-hero.skin-hero-compact > .skin-hero-bar-label {
+  width: 38%;
+}
+.skin-hero.skin-hero-compact > .skin-hero-bar-num {
+  width: 26%;
+  height: 8px;
+  background: var(--skin-hero-num);
+}
+.skin-hero.skin-hero-compact > .skin-hero-bar-for {
+  width: 50%;
+}
+
+/* Tarjeta del mes y casillas (los colores, inline en door-grid.tsx desde las
+   mismas variables). */
+.skin-month-card {
+  background: var(--skin-card);
+  color: var(--skin-ink);
+  border-radius: 22px;
+  padding: 12px;
+}
+
+/* Avisos de la pantalla del invitado (cargando, error, rango demasiado
+   largo): tarjeta opaca del skin (NO-GO M2 del loop2) — su contraste es el
+   par ink/card que verifica la puerta, haya o no imagen de fondo debajo. */
+.skin-notice {
+  background: var(--skin-card);
+  color: var(--skin-ink);
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+/* Tira Cómica: contorno negro 2.5px + sombra dura 3px 3px 0 en el bloque de
+   la cuenta atrás, la tarjeta del mes, el recuadro del icono y las
+   casillas (no las bloqueadas ni las de fuera de rango), como el mockup. */
+.skin-comic .skin-hero,
+.skin-comic .skin-month-card,
+.skin-comic .cover-icon-box {
+  border: 2.5px solid #1a1a1a;
+  box-shadow: 3px 3px 0 #1a1a1a;
+}
+/* Las casillas llevan su forma en estilos inline (door-grid.tsx): el
+   tratamiento de cómic tiene que imponerse a esos `border`/`box-shadow`
+   (incluida la sombra de "hoy", que en Tira Cómica es transparente). */
+.skin-comic .dg-door:not(.dg-door-locked) {
+  border: 2.5px solid #1a1a1a !important;
+  box-shadow: 3px 3px 0 #1a1a1a !important;
+}
+.skin-comic .dg-door-locked {
+  border-color: #1a1a1a !important;
+}
+/* Hueco para que la sombra dura de la última columna/fila no se recorte
+   contra el borde del contenedor con scroll. */
+.skin-comic .dg-scroll {
+  padding: 0 4px 4px 0;
+}
+
+/* Rojiblanco: rayas SOLO en el bloque de la cuenta atrás (`--skin-hero`) y
+   cada texto del bloque sobre una píldora blanca. */
+.skin-stripes-pill .skin-hero > * {
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 2px 10px;
+  max-width: none;
+}
+.skin-stripes-pill .skin-hero-big {
+  padding: 4px 14px;
+}
+
+@media (max-width: 640px) {
+  .skin-month-card {
+    padding: 8px;
+    border-radius: 18px;
+  }
+}

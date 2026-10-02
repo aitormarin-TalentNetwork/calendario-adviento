@@ -14,7 +14,8 @@ import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COUNTDOWN_LABEL } from "@/lib/countdown";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
-import { resolveSkinAppearance } from "@/lib/skin-appearance";
+import { loadSkinCatalog } from "@/lib/skin-catalog";
+import { resolveSkinStyle, skinStyleVars, type SkinStyle } from "@/lib/skin-style";
 
 type AdminCalendar = {
   id: string;
@@ -41,63 +42,54 @@ type AdminCalendar = {
 async function getCalendarForAdminPage(calendarId: string): Promise<{
   calendar: AdminCalendar;
   skins: SkinOption[];
-  skinAccent: string;
-  skinBackground: string;
-  skinTextColor: string;
-  skinTextPill: boolean;
+  skinStyle: SkinStyle;
 } | null> {
   const serverSecret = convexAppServerSecret();
-  const [calendar, skins] = await Promise.all([
+  // TAL-62 — el selector ofrece el catálogo 2026 (8, en su orden) con sus
+  // muestras; en modo degradado (Convex anterior a TAL-62), las filas
+  // antiguas como antes. Si el calendario todavía apunta a un skin fuera del
+  // catálogo, el formulario parte de Alegre (su destino de migración; la
+  // barrera de escritura de Convex lo guardaría así de todos modos).
+  const [calendar, skinCatalog] = await Promise.all([
     fetchQuery(api.calendars.getPublic, { serverSecret, calendarId: calendarId as Id<"calendars"> }),
-    fetchQuery(api.skins.listAllPublic, { serverSecret }),
+    loadSkinCatalog(),
   ]);
   if (!calendar) return null;
 
-  const appearance = resolveSkinAppearance(calendar.skinId, skins);
+  const skinStyle = resolveSkinStyle(calendar.skinId, skinCatalog.catalog);
+  let skins: SkinOption[];
+  let skinId: string = calendar.skinId;
+  if (skinCatalog.mode === "full") {
+    skins = skinCatalog.catalog.map((skin) => ({
+      id: skin._id,
+      name: skin.name,
+      swatches: skin.swatches,
+      skinStyle: resolveSkinStyle(skin._id, skinCatalog.catalog),
+    }));
+    if (!skins.some((skin) => skin.id === skinId)) {
+      skinId = skinCatalog.catalog.find((skin) => skin.key === "alegre")?._id ?? skins[0]?.id ?? skinId;
+    }
+  } else {
+    skins = skinCatalog.allSkins
+      .map((skin) => ({ id: skin._id, name: skin.name, background: skin.background, accent: skin.accent }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
 
   return {
     calendar: {
       id: calendar._id,
       name: calendar.name,
       coverTitle: calendar.coverTitle,
-      // TAL-60 — valor crudo; el formulario lo normaliza al nombre Lucide
-      // (`normalizeCoverIcon`, edit-calendar-form.tsx).
       coverIcon: calendar.coverIcon ?? null,
-      // Respaldo para calendarios creados antes de TAL-27 — ver
-      // convex/schema.ts § countdownLabel.
       countdownLabel: calendar.countdownLabel ?? DEFAULT_COUNTDOWN_LABEL,
       startDate: parseUtcDateOnly(calendar.startDate)!,
       endDate: parseUtcDateOnly(calendar.endDate)!,
-      skinId: calendar.skinId,
+      skinId,
       coverImageUrl: calendar.coverImageUrl ?? null,
       backgroundImageUrl: calendar.backgroundImageUrl ?? null,
     },
-    // TAL-37 — `background`/`accent` se propagan tal cual (pueden venir
-    // `undefined`, `v.optional` en el schema) para que `SkinPicker` pinte
-    // cada muestra con su color real; el respaldo de ambos vive en el
-    // propio `SkinPicker`/`DEFAULT_SKIN_APPEARANCE`, no aquí. TAL-47
-    // (reconciliación, ronda 3) — `textColor`/`textPill` viajan igual:
-    // `SkinPicker` no los usa, pero `edit-calendar-form.tsx` sí, para la
-    // vista previa en vivo del skin seleccionado (`CalendarPreview`).
-    skins: skins
-      .map((skin) => ({
-        id: skin._id,
-        name: skin.name,
-        background: skin.background,
-        accent: skin.accent,
-        textColor: skin.textColor,
-        textPill: skin.textPill,
-      }))
-      .sort((a, b) => a.name.localeCompare(b.name)),
-    // TAL-24 — a diferencia de la portada de Invitado, esta página es un
-    // formulario de edición (no una "portada"), así que el brief solo
-    // pide que el GRID de días refleje el skin, no toda la página — ver
-    // `DaysSection`/`DaysGridEditor` más abajo, donde se escopan
-    // `--accent`/`background` solo a esa sección.
-    skinAccent: appearance.accent,
-    skinBackground: appearance.background,
-    skinTextColor: appearance.textColor,
-    skinTextPill: appearance.textPill,
+    skins,
+    skinStyle,
   };
 }
 
@@ -118,7 +110,7 @@ export default async function AdminCalendarPage({
 
   const data = await getCalendarForAdminPage(calendarId);
   if (!data) notFound();
-  const { calendar, skins, skinAccent, skinBackground, skinTextColor, skinTextPill } = data;
+  const { calendar, skins, skinStyle } = data;
 
   return (
     <main
@@ -132,11 +124,17 @@ export default async function AdminCalendarPage({
 
       <DaysSection
         calendarId={calendar.id}
-        skinAccent={skinAccent}
-        skinBackground={skinBackground}
+        // TAL-62 — el grid del editor está sobre el fondo del TEMA (--bg /
+        // --surface-2), no sobre el del skin: su --accent (número y borde
+        // de "hoy") es --primary-ink, AA en claro y oscuro (tal61 caso 4).
+        // El `tileInk` del skin solo está verificado sobre su `tile` (en
+        // Minimal/Rojiblanco es blanco: invisible sobre el crema del tema).
+        skinAccent="var(--primary-ink)"
+        skinBackground={skinStyle.palette.bg}
         backgroundImageUrl={calendar.backgroundImageUrl}
-        skinTextColor={skinTextColor}
-        skinTextPill={skinTextPill}
+        skinTextColor={skinStyle.palette.ink}
+        skinTextPill={false}
+        skinVars={skinStyleVars(skinStyle)}
       />
 
       <GuestsSection

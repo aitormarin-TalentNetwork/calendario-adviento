@@ -47,19 +47,18 @@ relleno, `currentColor`. Ningún emoji en la UI (salvo el texto que escribe el A
 4. Tests.
 
 `COMPAT_SHA` = SHA del commit **1b** (el que completa la capa de compatibilidad; está
-encima del 1, así que un build que lo contiene contiene los dos) **tal como queda en main
-tras el merge**. Lo confirma el Integrador aquí y en TAL-60 al publicar.
+encima del 1, así que un build que lo contiene contiene los dos) tal como queda en main.
+TAL-60 entró con un merge (`f80542c`) que conserva los SHA de la rama.
 
-| Dato | Valor (rama rebasada sobre main `2d43fff`) | Estado |
+| Dato | Valor | Estado |
 |---|---|---|
-| Commit 1 | `c2ce2fc` (patch-id `5a146f23…`) | a confirmar tras el merge |
-| Commit 1b = `COMPAT_SHA` | `903ffee` (patch-id `1c93073c…`) | a confirmar tras el merge |
-| Rama `aitormarin/tal-60-rollback-compat` | `2d43fff` + cherry-pick de 1 y 1b → punta `7535c6a` = `COMPAT_SHA_ALT` | a confirmar tras el merge |
-
-La rama de rollback de emergencia es main antes de TAL-60 + cherry-pick de **1 y 1b**, y
-se valida comparando cada uno con `git patch-id --stable` (ver § "Rollback"). Si el merge
-a main reescribe los SHA (rebase o squash), se vuelven a calcular con el mismo
-procedimiento: los patch-id no cambian.
+| Commit 1 | `c2ce2fc` (patch-id `5a146f23…`) | confirmado en main |
+| Commit 1b = `COMPAT_SHA` | `903ffee` (patch-id `1c93073c…`) | confirmado en main |
+| Commit 2 — UI | `c468997` + `b918abc` (candado en móvil) | en main |
+| Commit 3 — migración | `214d67c` | en main |
+| Rama `aitormarin/tal-60-rollback-compat` (punta `7535c6a`, sobre `2d43fff`) | **RETIRADA** tras TAL-65: no tiene el schema actual (`invitations.role`), su `convex deploy` fallaría | no usar |
+| `ROLLBACK_DEPLOY_ID` (Railway) | `d53f0ff2` | vigente |
+| Deploys de Railway `239ac541` y `35a338d0` | anteriores al schema de TAL-65 | **no usar tras TAL-65** |
 
 ## Runbook de producción
 
@@ -111,6 +110,16 @@ calendarios del log en la UI:
   pinta cualquier mezcla de emojis y nombres. Si falla otra parte de TAL-60, se revierten
   solo los commits de UI/migración en una rama de hotfix desde main, conservando el de
   compatibilidad, y se publica hacia delante por el pipeline normal.
+- **Regla general — un "Redeploy" de Railway solo es válido si su commit contiene el
+  schema actual de Convex** (`convex/schema.ts` de main). Railway ejecuta
+  `npx convex deploy` en cada build, y Convex valida todos los documentos existentes
+  contra el schema que se despliega: con un commit anterior a un cambio de schema (p. ej.
+  TAL-65, `invitations.role`), los documentos que ya usan el campo nuevo no validan y el
+  deploy falla. Comprobación, además de la de `COMPAT_SHA`:
+  ```
+  git diff --quiet "$DEPLOY_SHA" origin/main -- convex/schema.ts && echo "SCHEMA ACTUAL" || echo "SCHEMA DISTINTO — PROHIBIDO REDEPLOY"
+  ```
+  Si el schema es distinto, ese candidato no se usa: se arregla hacia delante sobre main.
 - **"Redeploy" de un deploy anterior en Railway — se valida por commit, nunca por
   HTTP:**
   1. sacar el commit fuente del deploy candidato (el dashboard de Railway lo muestra en
@@ -119,23 +128,32 @@ calendarios del log en la UI:
      git fetch origin main
      git merge-base --is-ancestor "$COMPAT_SHA" "$DEPLOY_SHA" && echo COMPATIBLE || echo "NO COMPATIBLE — PROHIBIDO REDEPLOY"
      ```
-     Solo con `COMPATIBLE`. Si no se puede averiguar el SHA del candidato, no se usa.
+     Solo con `COMPATIBLE` **y** `SCHEMA ACTUAL` (regla general de arriba). Si no se
+     puede averiguar el SHA del candidato, no se usa.
   3. **Prohibido** validar un deploy histórico con `curl …/login | grep data-cover-icon`:
      ese marcador solo dice qué sirve **ahora**. Vale para la fase (b) y para confirmar
      después de un redeploy ya validado por commit.
 - **Destinos de rollback preparados:**
-  - Principal: el propio deploy de producción de TAL-60 (`ROLLBACK_DEPLOY_ID`, fase c).
-  - Emergencia, si el problema es de TAL-60: rama `aitormarin/tal-60-rollback-compat` =
-    main antes de TAL-60 + cherry-pick de **los dos** commits de compatibilidad, **1 y
-    1b** (y nada más), construida y probada en dev. El cherry-pick cambia los SHA, así que
-    se valida comparando **cada uno** con su original con `git patch-id --stable`:
+  - Principal: `ROLLBACK_DEPLOY_ID` = `d53f0ff2` (vigente), validado como cualquier
+    redeploy (`COMPAT_SHA` y schema actual). Cuando un deploy posterior cambie el schema,
+    deja de valer y se apunta uno nuevo.
+  - **No usar tras TAL-65:** los deploys `239ac541` y `35a338d0` (schema anterior).
+  - Emergencia, si el problema es de TAL-60: **arreglar hacia delante sobre main**. Rama
+    de hotfix desde main que revierte solo los commits de UI y/o migración de TAL-60 y
+    **conserva 1 (`c2ce2fc`) y 1b (`903ffee`)**:
     ```
-    git show <SHA_1>  | git patch-id --stable    # = git diff <rama>~2 <rama>~1 | git patch-id --stable
-    git show <SHA_1b> | git patch-id --stable    # = git diff <rama>~1 <rama>   | git patch-id --stable
+    git switch -c hotfix/tal-60-revert origin/main
+    git revert --no-edit b918abc c468997    # UI (candado y cierres) — si falla la UI
+    git revert --no-edit 214d67c            # migración — solo si el problema está ahí
+    git merge-base --is-ancestor 903ffee HEAD && echo "compatibilidad conservada"
     ```
-    El SHA de la punta de la rama se apunta como `COMPAT_SHA_ALT` y un deploy desde esa
-    rama se valida con `is-ancestor COMPAT_SHA_ALT`. Se publica por el pipeline normal,
-    nunca con "Redeploy".
+    Los commits posteriores (p. ej. TAL-62 movió el candado) pueden dar conflictos: se
+    resuelven conservando lo posterior que no sea de TAL-60. Revertir `214d67c` quita
+    `coverIconMigrationLog` del schema: Convex borra sus índices y conserva sus filas
+    (comprobado en dev), y al volver a TAL-60 se recrean. Se publica por el pipeline
+    normal (auditoría incluida), nunca con "Redeploy".
+  - **Retirada:** la rama `aitormarin/tal-60-rollback-compat` (`7535c6a`, sobre
+    `2d43fff`) — anterior al schema de TAL-65, su `convex deploy` fallaría.
 - **Rollback de Convex:** seguro en cualquier fase — todo nombre del catálogo tiene
   ≤ 16 caracteres, así que la validación anterior a TAL-60 lo acepta; el render lo decide
   el Next (≥ TAL-60). Solo se pierden temporalmente las funciones de migración.

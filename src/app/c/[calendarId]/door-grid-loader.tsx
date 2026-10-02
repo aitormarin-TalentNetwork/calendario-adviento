@@ -18,19 +18,7 @@ const COOKIE_NAME = "tz";
  * puertas ya resueltas correctamente — nada de contenido de días se manda
  * hasta este punto.
  */
-export function DoorGridLoader({
-  calendarId,
-  background,
-  backgroundImageUrl,
-  textColor,
-  textPill,
-}: {
-  calendarId: string;
-  background: string;
-  backgroundImageUrl: string | null;
-  textColor: string;
-  textPill: boolean;
-}) {
+export function DoorGridLoader({ calendarId }: { calendarId: string }) {
   const [result, setResult] = useState<GetDoorsResult | null>(null);
 
   useEffect(() => {
@@ -56,11 +44,11 @@ export function DoorGridLoader({
   }, [calendarId]);
 
   if (!result) {
-    return <p style={{ color: "var(--accent)" }}>Cargando calendario…</p>;
+    return <p className="skin-notice">Cargando calendario…</p>;
   }
   if (!result.ok) {
     return (
-      <p style={{ color: "var(--accent)" }}>
+      <p className="skin-notice">
         {result.reason === "range-too-long"
           ? `Este calendario tiene un rango de fechas demasiado largo (${result.span} días) para mostrarlo aquí — contacta con quien lo administra.`
           : "No se ha podido cargar el calendario. Recarga la página."}
@@ -71,10 +59,6 @@ export function DoorGridLoader({
     <DoorGrid
       calendarId={calendarId}
       doors={result.doors}
-      background={background}
-      backgroundImageUrl={backgroundImageUrl}
-      textColor={textColor}
-      textPill={textPill}
     />
   );
 }

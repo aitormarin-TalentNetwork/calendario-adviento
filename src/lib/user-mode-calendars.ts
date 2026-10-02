@@ -1,5 +1,5 @@
 import { normalizeCoverIcon, type CoverIconName } from "../../convex/coverIconCatalog";
-import { DEFAULT_SKIN_APPEARANCE, resolveSkinAppearance, type SkinAppearance, type SkinLike } from "@/lib/skin-appearance";
+import type { SkinLike } from "@/lib/skin-appearance";
 
 /**
  * TAL-58 — normalización de las tarjetas de "Tus calendarios" (modo
@@ -10,17 +10,6 @@ import { DEFAULT_SKIN_APPEARANCE, resolveSkinAppearance, type SkinAppearance, ty
  * `calendars.listUserModeCalendarsPublic`, así que la página nunca ve un
  * campo opcional.
  */
-
-/**
- * Skin inexistente/roto (`null`) → `DEFAULT_SKIN_APPEARANCE`. Si existe,
- * `resolveSkinAppearance` ya cae al mismo respaldo cuando falta
- * `background`/`accent`/`textColor` (`v.optional` en `convex/schema.ts`,
- * TAL-22/TAL-47) y aplica `textPill ?? false`.
- */
-export function normalizeCardAppearance(skin: SkinLike | null): SkinAppearance {
-  if (!skin) return DEFAULT_SKIN_APPEARANCE;
-  return resolveSkinAppearance(skin._id, [skin]);
-}
 
 /**
  * Decisión del PM (2026-10-01): `coverTitle` (lo que ve el invitado), con
@@ -76,7 +65,12 @@ export type UserModeCard = {
   id: string;
   title: string;
   icon: CoverIconName;
-  appearance: SkinAppearance;
+  /**
+   * TAL-62 — el estilo de la portada lo resuelve la página con el catálogo
+   * 2026 (`resolveSkinStyle`), igual que la del invitado: un skin
+   * inexistente/roto (`null`) o fuera del catálogo cae al respaldo Alegre.
+   */
+  skinId: string | null;
   backgroundImageUrl: string | null;
   subtitle: string;
   isAdmin: boolean;
@@ -89,7 +83,7 @@ export function toUserModeCard(row: UserModeCardInput): UserModeCard {
     // TAL-60 — nombre Lucide normalizado (emoji antiguo sin migrar → su
     // equivalente; ausente → árbol por defecto).
     icon: normalizeCoverIcon(row.coverIcon),
-    appearance: normalizeCardAppearance(row.skin),
+    skinId: row.skin?._id ?? null,
     backgroundImageUrl: row.backgroundImageUrl ?? null,
     subtitle: cardSubtitle(row.isAdmin, row.startDate, row.endDate),
     isAdmin: row.isAdmin,
