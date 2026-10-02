@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { expect, test, type Browser, type Page } from "@playwright/test";
+import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
 import type { SkinPalette } from "../convex/skinCatalog2026";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
@@ -70,17 +70,27 @@ async function css(page: Page, selector: string, prop: string): Promise<string> 
 /**
  * Los textos del bloque no bajan del tamaño/peso con el que la puerta de
  * contraste decide su umbral (scripts/tal62-hero-text-sizes.json).
+ *
+ * Sin cookie `tz` (1ª visita, diálogo de la vista previa) la cuenta atrás se
+ * calcula en el navegador tras montar: primero se pinta un "…" provisional y
+ * React lo SUSTITUYE por el número. Medir en ese instante daba NaN (elemento
+ * recién reemplazado, intermitente). Por eso: se espera a que el número
+ * esté visible y cada medida va en `expect.poll`, que reintenta hasta tener
+ * un estilo computado válido que cumpla — sin bajar ningún umbral.
  */
-async function expectHeroTextSizes(page: Page, where: string) {
+async function expectHeroTextSizes(hero: Locator, where: string) {
+  await expect(hero.locator(".skin-hero-num"), `${where}: número de la cuenta atrás`).toBeVisible();
   for (const [key, usage] of Object.entries(HERO_TEXT)) {
     if (key.startsWith("_")) continue;
     const { selector, px, weight } = usage as { selector: string; px: number; weight: number };
-    const computed = await page.locator(`[data-skin-hero] ${selector}`).first().evaluate((el) => {
-      const cs = getComputedStyle(el);
-      return { px: parseFloat(cs.fontSize), weight: parseInt(cs.fontWeight, 10) };
-    });
-    expect(computed.px, `${where} ${key} tamaño`).toBeGreaterThanOrEqual(px - 0.01);
-    expect(computed.weight, `${where} ${key} peso`).toBeGreaterThanOrEqual(weight);
+    const el = hero.locator(selector).first();
+    await expect(el, `${where} ${key}`).toBeVisible();
+    await expect
+      .poll(async () => await el.evaluate((node) => parseFloat(getComputedStyle(node).fontSize)), { message: `${where} ${key} tamaño` })
+      .toBeGreaterThanOrEqual(px - 0.01);
+    await expect
+      .poll(async () => await el.evaluate((node) => parseInt(getComputedStyle(node).fontWeight, 10)), { message: `${where} ${key} peso` })
+      .toBeGreaterThanOrEqual(weight);
   }
 }
 
@@ -283,13 +293,7 @@ test("6 · editor: el selector ofrece exactamente los 8 en orden; la vista previ
   await preview.click();
   const dialogHero = page.getByRole("dialog").locator("[data-skin-hero]");
   await expect(dialogHero.locator(".skin-hero-label")).toHaveText("Cuenta atrás");
-  for (const [key, usage] of Object.entries(HERO_TEXT)) {
-    if (key.startsWith("_")) continue;
-    const { selector, px, weight } = usage as { selector: string; px: number; weight: number };
-    const computed = await dialogHero.locator(selector).first().evaluate((el) => ({ px: parseFloat(getComputedStyle(el).fontSize), weight: parseInt(getComputedStyle(el).fontWeight, 10) }));
-    expect(computed.px, `diálogo ${key}`).toBeGreaterThanOrEqual(px - 0.01);
-    expect(computed.weight, `diálogo ${key}`).toBeGreaterThanOrEqual(weight);
-  }
+  await expectHeroTextSizes(dialogHero, "diálogo");
   await page.getByRole("dialog").getByRole("button", { name: "Cerrar" }).click();
   await page.screenshot({ path: path.join(EVIDENCE_DIR, "6-editor-selector-preview.png"), fullPage: true });
   await page.getByRole("button", { name: "Guardar cambios" }).click();
@@ -392,7 +396,7 @@ test("7 · capturas de los 8 skins: 375px y escritorio, claro y oscuro (los colo
         expect(await css(page, "main[data-skin-style]", "background-color"), `${skin.key} ${colorScheme}`).toBe(rgb(skin.palette.bg));
         const { scrollWidth, clientWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));
         expect(scrollWidth, `${skin.key} sin scroll horizontal`).toBeLessThanOrEqual(clientWidth);
-        await expectHeroTextSizes(page, `${skin.key} ${viewport.width}px`);
+        await expectHeroTextSizes(page.locator("main [data-skin-hero]"), `${skin.key} ${viewport.width}px`);
         await page.screenshot({ path: path.join(EVIDENCE_DIR, `7-${skin.key}-${colorScheme}-${viewport.width}.png`), fullPage: viewport.width === 375 });
       }
       await page.context().close();
