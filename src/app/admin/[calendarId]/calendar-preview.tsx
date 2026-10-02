@@ -154,12 +154,12 @@ export function CalendarPreview({
             WebkitBoxOrient: "vertical",
             overflow: "hidden",
           }}
-          titleStyle={{ fontFamily: "var(--font-display)", fontSize: "0.58rem", lineHeight: 1.15, textWrap: "balance" }}
+          titleStyle={{ fontWeight: 800, fontSize: "0.58rem", lineHeight: 1.15, textWrap: "balance" }}
           title={coverTitle}
           countdown={(treatment) => (
             <CoverText
               treatment={treatment}
-              style={{ fontFamily: "var(--font-mono)", fontSize: "0.46rem", letterSpacing: "0.02em", whiteSpace: "nowrap" }}
+              style={{ fontVariantNumeric: "tabular-nums", fontSize: "0.46rem", letterSpacing: "0.02em", whiteSpace: "nowrap" }}
             >
               {countdownText}
             </CoverText>
@@ -206,10 +206,10 @@ export function CalendarPreview({
                 padding: "40px 32px",
                 gap: "22px",
               }}
-              titleStyle={{ fontFamily: "var(--font-display)", fontSize: "1.9rem", lineHeight: 1.25, textWrap: "balance" }}
+              titleStyle={{ fontWeight: 800, fontSize: "1.9rem", lineHeight: 1.25, textWrap: "balance" }}
               title={coverTitle}
               countdown={(treatment) => (
-                <CoverText treatment={treatment} style={{ fontFamily: "var(--font-mono)", fontSize: "1rem", letterSpacing: "0.03em" }}>
+                <CoverText treatment={treatment} style={{ fontVariantNumeric: "tabular-nums", fontSize: "1rem", letterSpacing: "0.03em" }}>
                   {countdownText}
                 </CoverText>
               )}

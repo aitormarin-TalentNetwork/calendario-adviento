@@ -105,7 +105,7 @@ export function DeleteCalendarButton({ calendarName }: { calendarName: string })
               padding: "22px 24px",
             }}
           >
-            <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem", marginBottom: "8px" }}>
+            <h4 style={{ fontWeight: 800, fontSize: "1.05rem", marginBottom: "8px" }}>
               ¿Eliminar &quot;{calendarName}&quot;?
             </h4>
             <p style={{ color: "var(--ink-dim)", fontSize: "0.88rem" }}>

@@ -165,7 +165,9 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
                   ? calendar.admins.map((admin) => admin.name ?? admin.email).join(", ")
                   : "— sin Admin asignado"}
                 {" · "}
-                {formatDate(calendar.startDate)} – {formatDate(calendar.endDate)}
+                <span className="num">
+                  {formatDate(calendar.startDate)} – {formatDate(calendar.endDate)}
+                </span>
               </div>
               <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", fontSize: "0.9rem" }}>
                 <span><strong>{calendar.daysCount}</strong> días</span>
@@ -227,7 +229,7 @@ export default async function SuperAdminPage({ searchParams }: PageProps<"/super
                   {admin.name && <div style={{ fontSize: "0.85rem", color: "var(--accent)" }}>{admin.email}</div>}
                 </td>
                 <td>{admin.calendarsCount}</td>
-                <td>{formatDate(admin.createdAt)}</td>
+                <td className="num">{formatDate(admin.createdAt)}</td>
                 <td style={{ textAlign: "right" }}>
                   <form action={removeAdminAction}>
                     <input type="hidden" name="userId" value={admin.userId} />

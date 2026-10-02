@@ -98,7 +98,7 @@ export default async function AdminCalendarsPage() {
                       <span className="calendar-card-tag admin-table-tag">Super Admin</span>
                     ) : null}
                   </td>
-                  <td style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>
+                  <td className="num" style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>
                     {formatCalendarDate(calendar.startDate)} a {formatCalendarDate(calendar.endDate)}
                   </td>
                   <td style={{ padding: "0.5rem 0 0.5rem 0.75rem", whiteSpace: "nowrap" }}>{calendar.skin.name}</td>

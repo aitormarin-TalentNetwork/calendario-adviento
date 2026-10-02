@@ -84,7 +84,7 @@ const outOfRangeCellStyle: React.CSSProperties = {
 };
 
 const outOfRangeNumStyle: React.CSSProperties = {
-  fontFamily: "var(--font-body)",
+  fontVariantNumeric: "tabular-nums",
   fontWeight: 800,
   color: "var(--ink)",
   // Ajustado a 0.15 para encajar con el borrador en vivo de
@@ -120,11 +120,11 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
       // número dorado a --paper en el propio clic.
       color: door.isToday ? "var(--accent)" : "var(--paper)",
       borderRadius: "999px",
-      fontFamily: "var(--font-mono)",
+      fontVariantNumeric: "tabular-nums",
     };
   }
   return {
-    fontFamily: "var(--font-body)",
+    fontVariantNumeric: "tabular-nums",
     fontWeight: 800,
     color: door.isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--ink)",
   };
@@ -140,8 +140,8 @@ function numStyle(door: DoorInfo, isWeekend: boolean): React.CSSProperties {
  * TAL-21 — grid rediseñado como "calendario de pared" real (design/
  * design-system.md § "Grid de días"): filas de 7 (lunes a domingo)
  * agrupadas por mes, cabecera de mes sticky, número grande sans-serif
- * (`--font-body`, nunca `--font-display` — decisión explícita del Design
- * System), fin de semana en `--berry`.
+ * (TAL-61: la única familia de la app, `--font`, con `tabular-nums`), fin
+ * de semana en `--berry`.
  *
  * TAL-24 — `background` (el `background` real del skin del calendario,
  * `src/lib/skin-appearance.ts`) se aplica SOLO a la cabecera sticky de
@@ -669,7 +669,7 @@ export function DoorGrid({
                   // un glitch real de contenido superpuesto durante el
                   // scroll. Ver `src/lib/skin-appearance.ts`.
                   ...skinBackgroundStyle(background, backgroundImageUrl),
-                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
                 }}
               >
                 <CoverText treatment={textTreatment}>{month.label}</CoverText>
@@ -681,7 +681,7 @@ export function DoorGrid({
                   gridTemplateColumns: "repeat(7, 1fr)",
                   gap: "1px",
                   background: "var(--line)",
-                  fontFamily: "var(--font-mono)",
+                  fontVariantNumeric: "tabular-nums",
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
                   color: "var(--ink-dim)",
@@ -807,7 +807,7 @@ export function DoorGrid({
           boxShadow: "0 20px 50px rgba(10,16,12,0.45)",
           maxWidth: "min(360px, 84vw)",
           textAlign: "center",
-          fontFamily: "var(--font-display)",
+          fontWeight: 800,
           fontSize: "1.08rem",
           lineHeight: 1.4,
           opacity: patienceVisible ? 1 : 0,

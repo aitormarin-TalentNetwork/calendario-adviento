@@ -55,7 +55,7 @@ export default async function UserCalendarsPage() {
                   </div>
                   <div className="calendar-card-body">
                     <span className="calendar-card-name">{calendar.title}</span>
-                    <span className="calendar-card-meta">{calendar.subtitle}</span>
+                    <span className="calendar-card-meta num">{calendar.subtitle}</span>
                     {calendar.isAdmin && <span className="calendar-card-tag">Admin</span>}
                   </div>
                 </Link>

@@ -147,7 +147,7 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
-              <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem" }}>Elegir icono de portada</h4>
+              <h4 style={{ fontWeight: 800, fontSize: "1.05rem" }}>Elegir icono de portada</h4>
               <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--ink-dim)", cursor: "pointer", display: "flex", padding: "0.25rem" }}>
                 <X size={20} strokeWidth={2} aria-hidden="true" />
               </button>
@@ -173,7 +173,6 @@ export function CoverIconPicker({ value, onChange, disabled }: CoverIconPickerPr
                   border: "1px solid var(--line)",
                   background: "var(--bg)",
                   color: "var(--ink)",
-                  fontFamily: "var(--font-body)",
                   fontSize: "0.88rem",
                 }}
               />

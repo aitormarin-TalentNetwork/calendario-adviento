@@ -81,7 +81,7 @@ const outOfRangeCellStyle: React.CSSProperties = {
 };
 
 const outOfRangeNumStyle: React.CSSProperties = {
-  fontFamily: "var(--font-body)",
+  fontVariantNumeric: "tabular-nums",
   fontWeight: 800,
   color: "var(--ink)",
   fontSize: "1.9rem",
@@ -103,11 +103,11 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
       color: isToday ? "var(--accent)" : "var(--paper)",
       padding: "1px 6px",
       borderRadius: "999px",
-      fontFamily: "var(--font-mono)",
+      fontVariantNumeric: "tabular-nums",
     };
   }
   return {
-    fontFamily: "var(--font-body)",
+    fontVariantNumeric: "tabular-nums",
     fontSize: "1.9rem",
     fontWeight: 800,
     color: isToday ? "var(--accent)" : isWeekend ? "var(--weekend-text)" : "var(--ink)",
@@ -236,7 +236,7 @@ export function DaysGridEditor({
                   // ver el comentario completo en `door-grid.tsx`, mismo
                   // motivo/mecanismo.
                   ...skinBackgroundStyle(background, backgroundImageUrl),
-                  fontFamily: "var(--font-display)",
+                  fontWeight: 800,
                   fontSize: "1.15rem",
                   padding: "10px 20px",
                 }}
@@ -249,7 +249,7 @@ export function DaysGridEditor({
                   gridTemplateColumns: "repeat(7, minmax(64px, 1fr))",
                   gap: "1px",
                   background: "var(--line)",
-                  fontFamily: "var(--font-mono)",
+                  fontVariantNumeric: "tabular-nums",
                   fontSize: "0.68rem",
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
@@ -366,7 +366,7 @@ export function DaysGridEditor({
             }}
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: "4px" }}>
-              <h4 style={{ fontFamily: "var(--font-display)", fontSize: "1.05rem" }}>{openDay.label}</h4>
+              <h4 style={{ fontWeight: 800, fontSize: "1.05rem" }}>{openDay.label}</h4>
               <button ref={closeButtonRef} type="button" onClick={closeDialog} aria-label="Cerrar" style={{ background: "none", border: "none", color: "var(--ink-dim)", cursor: "pointer", display: "flex", padding: "0.25rem" }}>
                 <X size={20} strokeWidth={2} aria-hidden="true" />
               </button>
@@ -507,7 +507,6 @@ function DayDialogForm({
               border: "none",
               padding: "6px 16px",
               fontSize: "0.82rem",
-              fontFamily: "var(--font-body)",
               cursor: "pointer",
               background: videoSource === value ? "var(--gold)" : "transparent",
               color: videoSource === value ? "#241a06" : "var(--ink-dim)",

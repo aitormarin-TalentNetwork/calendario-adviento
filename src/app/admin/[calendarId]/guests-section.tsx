@@ -184,7 +184,7 @@ export async function GuestsSection({
         <>
           <div className="invite-link-row">
             <span className="invite-link-label">Link de invitación</span>
-            <code className="invite-link-url">{link}</code>
+            <span className="invite-link-url num">{link}</span>
             <CopyLinkButton link={link} />
           </div>
           {/* TAL-65 — decisión del PM: el link no da acceso ni rol por sí
