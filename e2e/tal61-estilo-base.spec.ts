@@ -70,45 +70,46 @@ const TOKENS = {
 } as const;
 
 // --- Geometría de referencia ---
-// Medida con e2e/helpers/tal61-geometry.ts ANTES de TAL-61 (sobre TAL-64,
-// 1339e52) y otra vez tras el commit solo de tipografía (899bdeb + la
-// corrección de heredar solo la familia). Lo que no lleva texto (puertas,
-// casillas, muestras, cierre redondo de la vista previa) es idéntico en las
-// dos; lo que lleva texto (✕ en texto, segmentados, la columna de la vista
-// previa) cambia unos px solo por las métricas de la nueva familia. Tras
-// los cambios de color y forma, todo debe seguir igual que la medida
+// Medida con e2e/helpers/tal61-geometry.ts sobre main 941e8b2 (con TAL-60:
+// los cierres ✕ ya son iconos Lucide), es decir, ANTES de TAL-61, y otra vez
+// tras los commits solo de tipografía de TAL-61 (familia heredada, no
+// tamaño). Lo que no lleva texto (puertas, casillas, muestras, cierres) es
+// idéntico al píxel en las dos medidas; lo que lleva texto (segmentados
+// URL/Subir y la columna en la que vive la miniatura de la vista previa)
+// cambia 1-14px solo por las métricas de la nueva familia. Tras los
+// cambios de color y forma, todo debe seguir igual que la medida
 // post-tipografía (± 1px).
 const PRE_TAL61 = {
-  desktop: { door: [118, 118], cell: [118, 118], skinSwatch: [34, 34], previewDialogClose: [30, 30] },
-  mobile: { door: [43, 43], cell: [64, 64], skinSwatch: [34, 34], previewDialogClose: [30, 30] },
+  desktop: { door: [118, 118], cell: [118, 118], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
+  mobile: { door: [43, 43], cell: [64, 64], skinSwatch: [34, 34], previewDialogClose: [30, 30], doorModalClose: [20, 20], dayDialogClose: [28, 28], iconPickerClose: [28, 28] },
 } as const;
 const REFERENCE: Record<"desktop" | "mobile", Geometry> = {
   desktop: {
     door: { w: 118, h: 118, padding: "0px", radius: "0px" },
     doorColumns: 7,
-    doorModalClose: { w: 10, h: 17, padding: "0px", radius: "0px" },
+    doorModalClose: { w: 20, h: 20, padding: "0px", radius: "0px" },
     cell: { w: 118, h: 118, padding: "0px", radius: "0px" },
     cellColumns: 7,
-    dayDialogClose: { w: 13, h: 22, padding: "0px", radius: "0px" },
+    dayDialogClose: { w: 28, h: 28, padding: "4px", radius: "0px" },
     segmentedLink: { w: 109, h: 29, padding: "6px 16px", radius: "0px" },
     segmentedUpload: { w: 112, h: 29, padding: "6px 16px", radius: "0px" },
     previewThumbnail: { w: 306, h: 172, padding: "0px", radius: "12px" },
     previewDialogClose: { w: 30, h: 30, padding: "0px", radius: "999px" },
-    iconPickerClose: { w: 13, h: 22, padding: "0px", radius: "0px" },
+    iconPickerClose: { w: 28, h: 28, padding: "4px", radius: "0px" },
     skinSwatch: { w: 34, h: 34, padding: "3px", radius: "8px" },
   },
   mobile: {
     door: { w: 43, h: 43, padding: "0px", radius: "0px" },
     doorColumns: 7,
-    doorModalClose: { w: 10, h: 17, padding: "0px", radius: "0px" },
+    doorModalClose: { w: 20, h: 20, padding: "0px", radius: "0px" },
     cell: { w: 64, h: 64, padding: "0px", radius: "0px" },
     cellColumns: 7,
-    dayDialogClose: { w: 13, h: 22, padding: "0px", radius: "0px" },
+    dayDialogClose: { w: 28, h: 28, padding: "4px", radius: "0px" },
     segmentedLink: { w: 109, h: 29, padding: "6px 16px", radius: "0px" },
     segmentedUpload: { w: 112, h: 29, padding: "6px 16px", radius: "0px" },
     previewThumbnail: { w: 311, h: 175, padding: "0px", radius: "12px" },
     previewDialogClose: { w: 30, h: 30, padding: "0px", radius: "999px" },
-    iconPickerClose: { w: 13, h: 22, padding: "0px", radius: "0px" },
+    iconPickerClose: { w: 28, h: 28, padding: "4px", radius: "0px" },
     skinSwatch: { w: 34, h: 34, padding: "3px", radius: "8px" },
   },
 };
