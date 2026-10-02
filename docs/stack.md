@@ -6,7 +6,7 @@ Decisión tomada como parte de TAL-1 (setup del proyecto y despliegue).
 
 - **Framework**: [Next.js](https://nextjs.org/) 16 (App Router) + TypeScript, con
   `src/`.
-- **Runtime**: Node.js (>=20.9.0, mínimo exigido por `next@16.3.1`; en desarrollo
+- **Runtime**: Node.js (>=20.9.0, mínimo exigido por `next@16.3.8`; en desarrollo
   se ha usado Node 26).
 - **Gestor de paquetes**: npm (el que trae el runtime, sin añadir dependencias extra
   de tooling).
@@ -167,3 +167,46 @@ src/app/       — App Router de Next.js (páginas, layout, estilos globales)
 public/        — estáticos servidos tal cual
 docs/          — este documento y futuras decisiones técnicas
 ```
+
+## Auditoría de dependencias (TAL-63, 2026-10-01)
+
+`npm audit` sobre el lock de main (e158e07) daba **4 vulnerabilidades (3 altas,
+1 crítica)**, todas heredadas del lock inicial. Se corrigieron con parches de la
+misma versión menor, **sin ningún salto de versión mayor** y sin
+`npm audit fix --force`:
+
+| Paquete | Sev. | Antes → después | Cómo llega | ¿Producción? |
+|---|---|---|---|---|
+| `next` | crítica | 16.3.1 → 16.3.8 | directa | **Sí**: GHSA-2xp9-vwfh-vxw4 (RCE en el optimizador de imágenes con AVIF; `/_next/image` existe aunque no usemos `next/image`). GHSA-vcvr-r3jv-pc5j (`next/og`, no se usa) y GHSA-p293-qw3h-jr36 (solo servidores Windows; Railway es Linux) quedan cubiertas igual. |
+| `sharp` | alta | 0.35.3 → 0.35.5 | transitiva (`optionalDependency` de `next`) | **Sí**: motor del optimizador de imágenes. GHSA-rgj7-g3m4-5g8c (libheif, `<0.35.4`) y GHSA-wq5f-xc86-pv6w (ver abajo). |
+| `brace-expansion` | alta | 1.1.18 → 1.1.21 y 5.0.9 → 5.0.12 | transitiva (`eslint`, `typescript-eslint` → `minimatch`) | No: solo lint. |
+| `js-yaml` | alta | 4.3.1 → 4.3.2 | transitiva (`eslint` → `@eslint/eslintrc`) | No: solo lint. |
+
+`eslint-config-next` sube también a 16.3.8 para ir en tándem con `next` (su
+plugin se publica con la misma versión). Al resolverlo de nuevo, npm sube
+también `fastq` 1.20.1 → 1.20.3 (transitiva de lint vía `fast-glob`, sin
+advisory).
+
+### sharp: GHSA-wq5f-xc86-pv6w / CVE-2026-96889 (librsvg), invisible para `npm audit`
+
+- Advisory del propio repositorio de sharp, publicado el 2026-09-30, severidad
+  alta: https://github.com/lovell/sharp/security/advisories/GHSA-wq5f-xc86-pv6w
+- Afecta a `sharp <0.35.5` y se corrige en `>=0.35.5` (trae librsvg 2.63.2).
+- Impacto: fallo de memoria en librsvg al decodificar SVG, con **posible RCE en
+  Linux con glibc** (es el caso de Railway).
+- **`npm audit` no lo detecta**: a 2026-10-01 está publicado como
+  *repository security advisory*, pero aún no está indexado en la GitHub
+  Advisory Database global (`api.github.com/advisories/GHSA-wq5f-xc86-pv6w` da
+  404), que es de donde se alimentan `npm audit` y OSV. Sí aparece en
+  `api.github.com/repos/lovell/sharp/security-advisories`.
+- Queda corregido porque `next@16.3.8` resuelve `sharp@0.35.5`
+  (`@img/sharp-*@0.35.5`, `@img/sharp-libvips-*@1.3.4`).
+
+### Pauta
+
+- `npm audit` antes de cerrar cada onda. Nunca `npm audit fix --force` a
+  ciegas: cualquier salto mayor se justifica y se prueba.
+- `npm audit` no basta para las dependencias con binarios nativos (sharp y
+  similares), que publican avisos en su repo antes de que lleguen a la base
+  global. Para esas, revisar también
+  `api.github.com/repos/<owner>/<repo>/security-advisories`.
