@@ -117,7 +117,7 @@ export async function GuestsSection({
       )}
 
       {people === null ? (
-        <p style={{ color: "var(--accent)" }}>Las personas del calendario no están disponibles ahora mismo.</p>
+        <p style={{ color: "var(--coral-ink)" }}>Las personas del calendario no están disponibles ahora mismo.</p>
       ) : people.length === 0 ? (
         <p>Todavía no hay nadie en este calendario.</p>
       ) : (

@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, statSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Browser, type Page } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
@@ -561,3 +561,55 @@ for (const [vp, viewport] of [
     await page.context().close();
   });
 }
+
+// --- Barrido de colores de TEXTO en el código (NO-GO loop 1) ---
+// Cubre también estados que el E2E no puede provocar fácilmente (p. ej.
+// `people === null`, "no disponible"): cada `color:` de texto fuera del
+// calendario tiene que usar un token con contraste AA comprobado en el
+// caso 4. `--accent`, `--primary` y `--coral` como color de TEXTO solo se
+// admiten dentro de la superficie del calendario, donde el skin sobrescribe
+// `--accent` (TAL-62): /c/[id] y la sección de días del editor
+// (`days-section.tsx` fija `--accent` con el acento del skin).
+const SRC = path.resolve(__dirname, "..", "src");
+const SKIN_SCOPED = [
+  "app/c/[calendarId]/door-grid.tsx",
+  "app/c/[calendarId]/door-grid-loader.tsx",
+  "app/c/[calendarId]/page.tsx",
+  "app/c/[calendarId]/countdown-marker-loader.tsx",
+  "app/admin/[calendarId]/days-grid-editor.tsx",
+];
+const AA_TEXT_TOKENS = new Set(["ink", "ink-dim", "primary-ink", "coral-ink", "on-sun", "bg", "foreground"]);
+// Iconos (gráfico, ≥ 3:1 en el caso 4), no texto.
+const ICON_TOKENS = new Set(["icon-tile-fg", "icon-tile-fg-light", "icon-tile-fg-dark"]);
+
+function* walk(dir: string): Generator<string> {
+  for (const entry of readdirSync(dir)) {
+    const full = path.join(dir, entry);
+    if (statSync(full).isDirectory()) yield* walk(full);
+    else if (/\.(tsx|css)$/.test(entry)) yield full;
+  }
+}
+
+test("10 · ningún color de texto fuera del calendario usa un token sin AA (barrido del código, incluido people === null)", () => {
+  const offenders: string[] = [];
+  for (const file of walk(SRC)) {
+    const rel = path.relative(SRC, file);
+    const lines = readFileSync(file, "utf8").split("\n");
+    lines.forEach((line, i) => {
+      // `color:` de texto (no backgroundColor/borderColor/background/border…).
+      const match = line.match(/(?:^|[\s{,])color:\s*(.+)$/);
+      if (!match) return;
+      for (const [, token] of match[1].matchAll(/var\(--([a-z0-9-]+)/g)) {
+        if (AA_TEXT_TOKENS.has(token) || ICON_TOKENS.has(token)) continue;
+        if (token === "accent" && SKIN_SCOPED.includes(rel)) continue;
+        offenders.push(`${rel}:${i + 1} → --${token}: ${line.trim()}`);
+      }
+    });
+  }
+  expect(offenders, offenders.join("\n")).toEqual([]);
+
+  // El estado concreto del NO-GO: "Las personas del calendario no están
+  // disponibles ahora mismo" usa --coral-ink (AA en claro y oscuro, caso 4).
+  const guests = readFileSync(path.join(SRC, "app/admin/[calendarId]/guests-section.tsx"), "utf8");
+  expect(guests).toMatch(/color: "var\(--coral-ink\)" \}\}>Las personas del calendario no están disponibles ahora mismo\./);
+});

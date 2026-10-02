@@ -12,12 +12,11 @@ export function ConfirmSubmitButton({
    * botón rojo RELLENO (design/design-system.md § "Editor de calendario"
    * — excepción explícita al estilo "solo texto" que describe § "Botones"
    * → "Peligro" para el resto de acciones de borrar de la app, que no
-   * cambian en esta tarea). `variant` por defecto (`undefined`) mantiene
-   * el estilo nativo sin tocar, para no afectar a otros botones que ya
-   * usan este mismo componente.
+   * cambian en esta tarea).
    *
-   * TAL-61 — clases opt-in de `globals.css`: `.btn` siempre; `danger`
-   * añade `.btn-danger` (texto `--coral-ink`, AA).
+   * TAL-61 — ya no hay estilo nativo: clases opt-in de `globals.css`.
+   * Sin `variant` → `.btn` (secundario); `variant="danger"` →
+   * `.btn .btn-danger` (texto `--coral-ink`, AA).
    */
   variant?: "danger";
 }) {
