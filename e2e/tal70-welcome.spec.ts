@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { deflateSync } from "node:zlib";
 import { ConvexHttpClient } from "convex/browser";
-import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { expect, request as playwrightRequest, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
 import { seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
@@ -390,6 +390,55 @@ test("6 · autorización: sin secreto, secreto incorrecto, sin acceso o calendar
   await expect(page).toHaveURL(/\/unauthorized/);
   await context.close();
   expect(countRows([calendarId, other])).toBe(0);
+});
+
+test("6b · markWelcomeSeenAction directa: sin sesión, sin cookie tz y con el acceso revocado → rechazo y nada marcado", async ({ browser }) => {
+  const calendarId = await createCalendar("accion", { coverImageUrl: WHITE_PHOTO });
+  const page = await guestPage(browser, TZ_A);
+  // La llamada real de la bienvenida (Server Action): se captura para repetirla por HTTP.
+  const actionRequest = page.waitForRequest((r) => r.method() === "POST" && !!r.headers()["next-action"]);
+  await page.goto(`/c/${calendarId}`);
+  const captured = await actionRequest;
+  await expect.poll(() => hasSeen(gId, calendarId, todayIn(TZ_A))).toBe(true);
+  const headers = await captured.allHeaders();
+  const replayHeaders = {
+    "next-action": headers["next-action"],
+    "content-type": headers["content-type"],
+    accept: "text/x-component",
+    ...(headers["next-router-state-tree"] ? { "next-router-state-tree": headers["next-router-state-tree"] } : {}),
+  };
+  const body = captured.postData() ?? "";
+  const replay = async (ctx: { post: BrowserContext["request"]["post"] }) => (await ctx.post(captured.url(), { headers: replayHeaders, data: body, maxRedirects: 0 })).text();
+  const base = `http://localhost:${process.env.E2E_PORT ?? 3000}`;
+
+  // Control positivo: la misma llamada con sesión y cookie responde ok.
+  expect(await replay(page.context().request)).toContain('{"ok":true}');
+
+  // a) Sin sesión (solo la cookie tz de otro día): el proxy de /c/* corta
+  // antes de ejecutar la acción (redirección a /login); y si llegara a
+  // ejecutarse, la acción responde not-authorized (getAuthorizedUser → null).
+  const anon = await playwrightRequest.newContext({ baseURL: base, storageState: { cookies: [{ name: "tz", value: TZ_B, domain: "localhost", path: "/", expires: -1, httpOnly: false, secure: false, sameSite: "Lax" }], origins: [] } });
+  const anonResponse = await anon.post(captured.url(), { headers: replayHeaders, data: body, maxRedirects: 0 });
+  expect(anonResponse.status()).toBe(307);
+  expect(anonResponse.headers()["location"]).toMatch(/\/login\?callbackUrl=/);
+  await anon.dispose();
+
+  // b) Con sesión pero sin cookie tz.
+  const state = await page.context().storageState();
+  const noTz = await playwrightRequest.newContext({ baseURL: base, storageState: { ...state, cookies: state.cookies.filter((c) => c.name !== "tz") } });
+  expect(await replay(noTz)).toContain('"error":"no-timezone"');
+  await noTz.dispose();
+
+  // c) Acceso revocado (sin membership), con la cookie tz de otro día aún sin marcar.
+  await convex.mutation(api.guests.removeGuestFromCalendarPublic, { serverSecret: serverSecret(), calendarId, email: G_EMAIL });
+  const revoked = await playwrightRequest.newContext({ baseURL: base, storageState: { ...state, cookies: state.cookies.map((c) => (c.name === "tz" ? { ...c, value: TZ_B } : c)) } });
+  expect(await replay(revoked)).toContain('"error":"not-authorized"');
+  await revoked.dispose();
+
+  expect(await hasSeen(sId, calendarId, todayIn(TZ_B))).toBe(false);
+  // Solo la marca legítima (TZ_A): 1 fila.
+  expect(countRows([calendarId])).toBe(1);
+  await page.context().close();
 });
 
 test("7 · concurrencia: 5 marcas simultáneas, N=10 → exactamente 1 fila cada vez", async () => {
