@@ -616,6 +616,7 @@ const EXCEPTIONS: Record<string, ColorException> = {
   "app/globals.css:921": { value: "var(--icon-tile-fg-dark, var(--icon-tile-fg))", reason: ".cover-icon-box (oscuro): ídem, solo <svg>" },
   "app/globals.css:926": { value: "var(--icon-tile-fg-dark, var(--icon-tile-fg))", reason: ".cover-icon-box (data-theme=dark): ídem, solo <svg>" },
   "app/globals.css:1011": { value: "#ffffff", reason: "opción marcada del segmentado de TAL-65: blanco sobre --primary-btn (5,06 / 4,66)" },
+  "app/globals.css:1307": { value: "var(--bg)", reason: "chip de filtro activo de «Tus calendarios» (TAL-73): --bg sobre --ink (15,2 / 16,3, caso 4)" },
   "app/globals.css:1124": { value: "var(--skin-hero-ink)", reason: ".skin-hero: textos del bloque (portada y diálogo de la vista previa, TEXTO GRANDE según scripts/tal62-hero-text-sizes.json) sobre --skin-hero, o sobre píldora blanca en Rojiblanco; la miniatura compacta no tiene texto (NO-GO M1); " + GATE },
   "app/globals.css:1156": { value: "var(--skin-hero-num)", reason: ".skin-hero-num: número de la cuenta atrás (texto grande) sobre --skin-hero o píldora blanca; " + GATE },
   "app/globals.css:1204": { value: "var(--skin-ink)", reason: ".skin-month-card: fondo --skin-card en la misma regla: ink/card, " + GATE },

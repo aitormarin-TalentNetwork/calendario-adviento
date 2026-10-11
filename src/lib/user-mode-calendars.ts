@@ -49,6 +49,26 @@ export function cardSubtitle(isAdmin: boolean, start: Date, end: Date): string {
   return isAdmin ? "Lo administras tú" : formatDateRangeShort(start, end);
 }
 
+/**
+ * TAL-73 — estado según las fechas, mismo criterio que
+ * `convex/superadmin.ts::calendarStatus`: antes del inicio → "upcoming";
+ * después del fin → "finished"; si no, "live". Fechas a medianoche UTC.
+ */
+export type CalendarStatus = "live" | "upcoming" | "finished";
+
+export function calendarStatusFor(start: Date, end: Date, today: Date): CalendarStatus {
+  if (today.getTime() < start.getTime()) return "upcoming";
+  if (today.getTime() > end.getTime()) return "finished";
+  return "live";
+}
+
+const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+/** "Empieza mañana" / "Empieza en N días" (solo para calendarios próximos, N ≥ 1). */
+export function startsInText(days: number): string {
+  return days === 1 ? "Empieza mañana" : `Empieza en ${days} días`;
+}
+
 export type UserModeCardInput = {
   id: string;
   name: string;
@@ -59,6 +79,9 @@ export type UserModeCardInput = {
   endDate: Date;
   isAdmin: boolean;
   skin: SkinLike | null;
+  /** TAL-73 — opcionales: faltan a partir del calendario 51 y con un Convex anterior. */
+  totalDays?: number;
+  viewedDays?: number;
 };
 
 export type UserModeCard = {
@@ -74,9 +97,17 @@ export type UserModeCard = {
   backgroundImageUrl: string | null;
   subtitle: string;
   isAdmin: boolean;
+  status: CalendarStatus;
+  /** Barra "vistos/total": solo si no es próximo, hay días y Convex trae los campos. */
+  progress: { viewed: number; total: number } | null;
+  /** Días hasta el inicio (solo próximos). */
+  startsInDays: number | null;
 };
 
-export function toUserModeCard(row: UserModeCardInput): UserModeCard {
+export function toUserModeCard(row: UserModeCardInput, today: Date): UserModeCard {
+  const status = calendarStatusFor(row.startDate, row.endDate, today);
+  const hasProgress =
+    status !== "upcoming" && typeof row.totalDays === "number" && typeof row.viewedDays === "number" && row.totalDays > 0;
   return {
     id: row.id,
     title: cardTitle(row.coverTitle, row.name),
@@ -87,5 +118,8 @@ export function toUserModeCard(row: UserModeCardInput): UserModeCard {
     backgroundImageUrl: row.backgroundImageUrl ?? null,
     subtitle: cardSubtitle(row.isAdmin, row.startDate, row.endDate),
     isAdmin: row.isAdmin,
+    status,
+    progress: hasProgress ? { viewed: Math.min(row.viewedDays!, row.totalDays!), total: row.totalDays! } : null,
+    startsInDays: status === "upcoming" ? Math.round((row.startDate.getTime() - today.getTime()) / ONE_DAY_MS) : null,
   };
 }

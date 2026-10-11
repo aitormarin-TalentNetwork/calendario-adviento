@@ -1277,3 +1277,64 @@ a {
   font-size: 0.8rem;
   color: var(--ink-dim);
 }
+
+/* TAL-73 — "Tus calendarios": chips de filtro y barra de progreso
+   (design/design-system.md § "Estilo 2026 → Progreso, filtros y etiquetas
+   de estado"). Pista en --surface-2 con borde --line (aprobado por el PM:
+   el cuerpo de la tarjeta ya es --surface); relleno --ink, gráfico ≥ 3:1
+   sobre la pista en claro y oscuro. */
+.user-calendars-chips {
+  display: flex;
+  gap: 8px;
+  margin: 10px 0 16px;
+  overflow-x: auto;
+}
+.user-calendars-chip {
+  flex: none;
+  font-family: inherit;
+  font-size: 0.82rem;
+  font-weight: 700;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+.user-calendars-chip[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--bg);
+}
+.user-calendars-chip:focus-visible {
+  outline: 2px solid var(--sun);
+  outline-offset: 2px;
+}
+.calendar-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.calendar-card-progress-track {
+  flex: 1;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.calendar-card-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+}
+.calendar-card-starts {
+  margin-top: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+}

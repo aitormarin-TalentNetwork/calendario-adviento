@@ -639,7 +639,24 @@ export type UserModeCalendarRow = {
   endDate: string;
   isAdmin: boolean;
   skin: { _id: Id<"skins">; background?: string; accent?: string; textColor?: string; textPill?: boolean } | null;
+  /**
+   * TAL-73 — progreso de ESTA persona: días del calendario (todo día lleva
+   * vídeo) y cuántos ha visto. OPCIONALES: faltan a partir del calendario
+   * `MAX_PROGRESS_CALENDARS + 1` y en un Convex anterior (rollback); sin
+   * ellos, la tarjeta sale sin barra.
+   */
+  totalDays?: number;
+  viewedDays?: number;
 };
+
+/**
+ * TAL-73 — tope de calendarios con progreso por petición. Coste: 1 lectura
+ * de `dayViews` (`by_user`) + 1 de `days` por calendario
+ * (`by_calendar_and_date`, ≤ 366 filas), sin `group by` en Convex. Un
+ * contador desnormalizado evitaría el N+1 pero exige migración: descartado
+ * por ahora (docs/calendarios.md § "TAL-73").
+ */
+export const MAX_PROGRESS_CALENDARS = 50;
 
 /**
  * TAL-58 — calendarios de la pantalla "Tus calendarios" (modo Usuario):
@@ -664,12 +681,19 @@ export type UserModeCalendarRow = {
  *
  * Lista blanca explícita de campos (no el documento entero, mismo
  * criterio que `getPublicCoverInfoForLogin`); los campos del skin van
- * crudos — el respaldo (`DEFAULT_SKIN_APPEARANCE`) se aplica en Next,
- * `src/lib/user-mode-calendars.ts::normalizeCardAppearance`.
+ * crudos — el estilo de la tarjeta lo resuelve Next con el catálogo 2026
+ * (TAL-62, `src/app/c/page.tsx`).
+ *
+ * TAL-73 — además, `totalDays`/`viewedDays` (progreso de esta persona) en
+ * los primeros `MAX_PROGRESS_CALENDARS`; ver ese tope más arriba.
  */
 async function listUserModeCalendarsHandler(
   ctx: QueryCtx,
-  args: { userId: Id<"users"> }
+  args: { userId: Id<"users"> },
+  // TAL-73 — solo la pantalla "Tus calendarios" pide el progreso; el menú de
+  // la cuenta (en todas las páginas) usa la consulta sin él y no paga las
+  // lecturas de `days`.
+  options: { withProgress: boolean } = { withProgress: false }
 ): Promise<UserModeCalendarRow[]> {
   const user = await ctx.db.get(args.userId);
   if (!user) return [];
@@ -729,10 +753,31 @@ async function listUserModeCalendarsHandler(
   );
 
   // Mismo orden que `listCalendarsForUserHandler`: más reciente primero.
-  return rows
+  const sorted: UserModeCalendarRow[] = rows
     .filter((r) => r !== null)
     .sort((a, b) => b.creationTime - a.creationTime)
     .map((r) => r.row);
+
+  // TAL-73 — progreso de los primeros MAX_PROGRESS_CALENDARS (los demás, sin campos).
+  const withProgress = options.withProgress ? sorted.slice(0, MAX_PROGRESS_CALENDARS) : [];
+  if (withProgress.length > 0) {
+    const views = await ctx.db
+      .query("dayViews")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    const viewedDayIds = new Set(views.map((view) => view.dayId));
+    await Promise.all(
+      withProgress.map(async (row) => {
+        const days = await ctx.db
+          .query("days")
+          .withIndex("by_calendar_and_date", (q) => q.eq("calendarId", row.id))
+          .collect();
+        row.totalDays = days.length;
+        row.viewedDays = days.filter((day) => viewedDayIds.has(day._id)).length;
+      })
+    );
+  }
+  return sorted;
 }
 
 // TAL-23, hallazgo de auditoría ronda 1: los calendarios creados ANTES de
@@ -979,5 +1024,20 @@ export const listUserModeCalendarsPublic = query({
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
     return await listUserModeCalendarsHandler(ctx, { userId: args.userId });
+  },
+});
+
+/**
+ * TAL-73 — la misma lista CON progreso (`totalDays`/`viewedDays`), solo
+ * para "Tus calendarios" (`/c`). Función aparte (no un argumento nuevo de
+ * la de arriba) para que un Next anterior y uno nuevo convivan con
+ * cualquier Convex: un Convex anterior no la tiene y `/c` cae a la de
+ * arriba, sin barra (`src/lib/calendars.ts::listUserModeCalendars`).
+ */
+export const listUserModeCalendarsWithProgressPublic = query({
+  args: { serverSecret: v.string(), userId: v.id("users") },
+  handler: async (ctx, args) => {
+    await requireServerSecret(args.serverSecret);
+    return await listUserModeCalendarsHandler(ctx, { userId: args.userId }, { withProgress: true });
   },
 });

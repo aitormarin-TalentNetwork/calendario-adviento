@@ -1195,3 +1195,38 @@ global y plazo de 3 s con `Promise.race`; ante cualquier error o sin permiso, de
 
 **Seguimiento.** Las guardas de TAL-67 (`convex/dayFileGuards.ts`, de lista cerrada de
 hosts) y estas (host arbitrario) podrían unificarse en un solo módulo de "fetch seguro".
+
+## TAL-73 — "Tus calendarios": progreso y filtros
+
+**Progreso.** En cada tarjeta de `/c` aparece "vistos/total" **de esa persona**.
+- `total` = filas de `days` del calendario (todo día lleva vídeo); `vistos` = sus
+  `dayViews` sobre esos días.
+- Lo calcula `convex/calendars.ts::listUserModeCalendarsHandler`, **solo** a través de
+  `listUserModeCalendarsWithProgressPublic`, que únicamente llama `/c`. El menú de la
+  cuenta (en todas las páginas) usa `listUserModeCalendarsPublic`, sin progreso, y no
+  paga las lecturas de `days`. Con un Convex anterior que no tiene la consulta nueva,
+  `/c` cae a la de siempre, sin barra (`isMissingProgressFunctionError`).
+- Coste: 1 lectura de `dayViews` (`by_user`) + 1 de `days` por calendario
+  (`by_calendar_and_date`, ≤ 366 filas).
+- Tope: `MAX_PROGRESS_CALENDARS = 50`. Los demás salen sin campos y sin barra, nunca con
+  error.
+- `totalDays`/`viewedDays` son **opcionales** también por la ventana de Railway: con un
+  Convex anterior, la tarjeta sale sin barra.
+- **Descartado por ahora:** un contador desnormalizado en `calendars` y por usuario
+  quitaría la lectura por calendario, pero exige migración de datos y mantenerlo en
+  cada alta y baja de día. Mejora si la escala lo pide.
+
+**Estado** (`src/lib/user-mode-calendars.ts::calendarStatusFor`):
+- mismo criterio que `convex/superadmin.ts::calendarStatus`;
+- "hoy" sale de la cookie `tz`; sin ella, la fecha UTC del servidor;
+- los próximos muestran "Empieza en N días" ("Empieza mañana" si N = 1) en lugar de la
+  barra.
+
+**Filtros** (`src/app/c/user-calendars-list.tsx`, cliente):
+- chips Todos / En marcha / Próximos, solo con más de un calendario;
+- los terminados solo salen en "Todos";
+- botones nativos con `aria-pressed` y foco visible `--sun`;
+- con un solo calendario sigue el redirect directo.
+
+**Estilo:** pista `--surface-2` con borde `--line` (aprobada por el PM) y relleno
+`--ink`. El chip activo va con `--bg` sobre `--ink`.
