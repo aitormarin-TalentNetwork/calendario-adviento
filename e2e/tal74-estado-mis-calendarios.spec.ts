@@ -36,6 +36,7 @@ test.describe("«Mis calendarios» (E2E)", () => {
   const runId = uniqueRunId();
   const SA_EMAIL = `e2e-tal74-superadmin-${runId}@example.com`;
   const ACTOR_EMAIL = `e2e-tal74-actor-${runId}@example.com`;
+  const ADMIN_EMAIL = `e2e-tal74-admin-${runId}@example.com`;
   const EVIDENCE_DIR = path.resolve(__dirname, "..", "docs", "evidence", "tal74");
   const TOKENS = {
     light: { ink: "#1d2320", live: "#cdf7e3", upcoming: "#e6e0ff", finished: "#f7f6f3" },
@@ -50,9 +51,9 @@ test.describe("«Mis calendarios» (E2E)", () => {
 
   const rgbToHex = (rgb: string) => "#" + rgb.match(/\d+/g)!.slice(0, 3).map((n) => Number(n).toString(16).padStart(2, "0")).join("");
   const row = (page: Page, name: string) => page.getByRole("row").filter({ has: page.getByRole("link", { name, exact: true }) });
-  async function pageAs(browser: Browser, opts: Parameters<Browser["newContext"]>[0] = {}) {
+  async function pageAs(browser: Browser, opts: Parameters<Browser["newContext"]>[0] = {}, email = SA_EMAIL) {
     const page = await (await browser.newContext(opts)).newPage();
-    await loginAs(page, SA_EMAIL);
+    await loginAs(page, email);
     await page.goto("/admin");
     return page;
   }
@@ -77,6 +78,12 @@ test.describe("«Mis calendarios» (E2E)", () => {
     await create("live", saId, day(-3), day(3));
     await create("upcoming", saId, day(5), day(20));
     await create("foreign", actorId, day(-1), day(1)); // ajeno para SA → píldora «Super Admin»
+    // Admin normal (no Super Admin), ADMIN de «en marcha» y «próximo».
+    await seedUser({ email: ADMIN_EMAIL });
+    for (const id of [created[1].id, created[2].id]) {
+      const added = await convex.mutation(api.superadmin.addAdminPublic, { serverSecret: serverSecret(), actorUserId: saId, calendarId: id, email: ADMIN_EMAIL });
+      expect(added).toMatchObject({ ok: true });
+    }
   });
 
   test.afterAll(async () => {
@@ -102,6 +109,18 @@ test.describe("«Mis calendarios» (E2E)", () => {
     await page.context().close();
   });
 
+  test("1b · Admin normal (no Super Admin): solo sus calendarios, cada uno con su estado y sin «Super Admin»", async ({ browser }) => {
+    const page = await pageAs(browser, {}, ADMIN_EMAIL);
+    const links = page.getByRole("table").getByRole("link");
+    // Exactamente sus dos calendarios, en el orden de la lista (creación descendente: «próximo» se creó después).
+    await expect(links).toHaveText([NAME.upcoming, NAME.live]);
+    await expect(row(page, NAME.live).locator(".status-pill")).toHaveText("En marcha");
+    await expect(row(page, NAME.upcoming).locator(".status-pill")).toHaveText("Próximo");
+    await expect(page.getByText("Super Admin", { exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: NAME.finished })).toHaveCount(0);
+    await page.context().close();
+  });
+
   for (const scheme of ["light", "dark"] as const) {
     test(`2 · colores computados en ${scheme === "light" ? "claro" : "oscuro"}: fondo de su token y texto --ink`, async ({ browser }) => {
       const page = await pageAs(browser, { colorScheme: scheme });
@@ -116,11 +135,26 @@ test.describe("«Mis calendarios» (E2E)", () => {
       await page.context().close();
     });
 
-    test(`3 · 375px (${scheme === "light" ? "claro" : "oscuro"}): sin scroll horizontal de página`, async ({ browser }) => {
+    test(`3 · 375px (${scheme === "light" ? "claro" : "oscuro"}): sin scroll de página; la tabla desborda por dentro y la píldora queda entera tras desplazar`, async ({ browser }) => {
       const page = await pageAs(browser, { colorScheme: scheme, viewport: { width: 375, height: 812 } });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
-      // La tabla se desplaza dentro de su contenedor (DS § Responsive); se lleva la fila a la vista para la captura.
-      await row(page, NAME.foreign).locator(".status-pill").scrollIntoViewIfNeeded();
+      // La tabla desborda DENTRO de su contenedor (DS § Responsive: overflow-x
+      // propio), no la página.
+      const container = page.getByRole("table").locator("..");
+      const inner = await container.evaluate((el) => ({ scrollWidth: el.scrollWidth, clientWidth: el.clientWidth, overflowX: getComputedStyle(el).overflowX }));
+      expect(inner.overflowX).toBe("auto");
+      expect(inner.scrollWidth, JSON.stringify(inner)).toBeGreaterThan(inner.clientWidth);
+      // Tras desplazar, la píldora de estado queda entera dentro del viewport y del contenedor.
+      const pill = row(page, NAME.foreign).locator(".status-pill");
+      await pill.scrollIntoViewIfNeeded();
+      const box = (await pill.boundingBox())!;
+      const frame = (await container.boundingBox())!;
+      expect(box.x).toBeGreaterThanOrEqual(0);
+      expect(box.x + box.width).toBeLessThanOrEqual(375);
+      expect(box.y).toBeGreaterThanOrEqual(0);
+      expect(box.y + box.height).toBeLessThanOrEqual(812);
+      expect(box.x).toBeGreaterThanOrEqual(frame.x - 0.5);
+      expect(box.x + box.width).toBeLessThanOrEqual(frame.x + frame.width + 0.5);
       await page.screenshot({ path: path.join(EVIDENCE_DIR, `mis-calendarios-375-${scheme}.png`) });
       await page.context().close();
     });
