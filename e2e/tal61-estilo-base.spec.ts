@@ -17,6 +17,26 @@ const runId = uniqueRunId();
 const SA_EMAIL = `e2e-tal61-superadmin-${runId}@example.com`;
 const EVIDENCE_DIR = path.resolve(__dirname, "..", "docs", "evidence", "tal61");
 
+// Fechas RELATIVAS a hoy (antes eran fijas, 28/9–4/10/2026, y el caso 6
+// dejó de pasar en cuanto el calendario terminó: «Faltan N días» solo sale
+// con el calendario en curso). Calendario de hoy-3 a hoy+3; la puerta
+// «estable» (abierta, sin vídeo) es hoy-3, la del vídeo hoy-2 y el día del
+// aviso de TAL-66 hoy-1. Etiqueta de puerta/casilla: «D/M/AAAA».
+const DAY_MS = 86_400_000;
+const isoDay = (offset: number) => new Date(Date.now() + offset * DAY_MS).toISOString().slice(0, 10);
+const dayLabel = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return `${d}/${m}/${y}`;
+};
+const escapeRe = (text: string) => text.replace(/[.*+?^${}()|[\]\\/]/g, "\\$&");
+const START = isoDay(-3);
+const END = isoDay(3);
+const STABLE_DAY = isoDay(-3);
+const VIDEO_DAY = isoDay(-2);
+const WARNING_DAY = isoDay(-1);
+const STABLE_DOOR = new RegExp(`^${escapeRe(dayLabel(STABLE_DAY))}$`);
+const VIDEO_DOOR = new RegExp(`^${escapeRe(dayLabel(VIDEO_DAY))}`);
+
 let saId: Id<"users">;
 let calendarId: Id<"calendars">;
 let otherCalendarId: Id<"calendars">;
@@ -187,8 +207,8 @@ test.beforeAll(async () => {
       userId: saId,
       name,
       coverTitle: name,
-      startDate: "2026-09-28",
-      endDate: "2026-10-04",
+      startDate: START,
+      endDate: END,
       creationKey: `e2e-tal61-${key}-${runId}`,
     });
   calendarId = await create(`TAL-61 estilo ${runId}`, "main");
@@ -196,7 +216,7 @@ test.beforeAll(async () => {
   await convex.mutation(api.days.upsertDayPublic, {
     serverSecret: serverSecret(),
     calendarId,
-    date: "2026-09-29",
+    date: VIDEO_DAY,
     videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
   });
   await convex.mutation(api.invitations.inviteGuestPublic, {
@@ -241,7 +261,7 @@ test("1 · ninguna serifa ni monoespaciada en ninguna pantalla (diálogos y men�
   }
 
   await page.goto(`/c/${calendarId}`);
-  await page.getByRole("button", { name: /^29\/9\/2026/ }).click();
+  await page.getByRole("button", { name: VIDEO_DOOR }).click();
   await check("/c/<id> con el modal del vídeo abierto");
   await page.getByRole("dialog").getByRole("button", { name: "Cerrar" }).click();
 
@@ -373,7 +393,7 @@ for (const [vp, viewport] of [
   test(`5 · geometría intacta de puertas, casillas, cierres, segmentados, vista previa y muestras (${vp})`, async ({ browser }) => {
     const page = await newPage(browser, { viewport });
     const measured: Geometry = {
-      ...(await measureGuestCalendar(page, calendarId, /^28\/9\/2026$/, /^29\/9\/2026/)),
+      ...(await measureGuestCalendar(page, calendarId, STABLE_DOOR, VIDEO_DOOR)),
       ...(await measureEditor(page, calendarId)),
     };
     for (const [key, expected] of Object.entries(REFERENCE[vp])) {
@@ -392,7 +412,8 @@ for (const [vp, viewport] of [
 
     // Ninguno de los botones excluidos lleva .btn.
     await page.goto(`/c/${calendarId}`);
-    expect(await page.locator('button[aria-label*="/2026"].btn').count(), "puertas con .btn").toBe(0);
+    const doorSelector = [...new Set([START, END].map((iso) => iso.slice(0, 4)))].map((y) => `button[aria-label*="/${y}"].btn`).join(", ");
+    expect(await page.locator(doorSelector).count(), "puertas con .btn").toBe(0);
     await page.goto(`/admin/${calendarId}`);
     const excluded = page.locator(
       [
@@ -417,7 +438,7 @@ test("6 · números y fechas con tabular-nums", async ({ browser }) => {
     await locator.first().evaluate((el) => getComputedStyle(el).fontVariantNumeric);
 
   await page.goto(`/c/${calendarId}`);
-  expect(await numeric(page.getByRole("button", { name: /^28\/9\/2026$/ }).locator("span"))).toContain("tabular-nums");
+  expect(await numeric(page.getByRole("button", { name: STABLE_DOOR }).locator("span"))).toContain("tabular-nums");
   expect(await numeric(page.getByText(/^Faltan \d+ días?/))).toContain("tabular-nums");
 
   await page.goto(`/admin/${calendarId}`);
@@ -467,7 +488,7 @@ for (const scheme of ["light", "dark"] as const) {
 /** Guarda en el día 30/9 una URL que no se puede incrustar, para que aparezca el aviso de TAL-66. */
 async function openNonEmbeddableWarning(page: Page) {
   await page.goto(`/admin/${calendarId}`);
-  await page.locator('button[aria-label^="30/9/2026"]').click();
+  await page.locator(`button[aria-label^="${dayLabel(WARNING_DAY)}"]`).click();
   const dialog = page.getByRole("dialog", { name: /^Editar día/ });
   await dialog.locator('input[name="videoUrl"]').fill("https://example.com/mi-video.mp4");
   await dialog.getByRole("button", { name: "Guardar día" }).click();
