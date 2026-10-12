@@ -842,7 +842,9 @@ export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: stri
               // propio fondo dejaría el modal sin fondo legible en
               // absoluto, no "continuo con la página". Mismo criterio ya
               // adelantado en el brief de TAL-50.
-              background: "var(--skin-card)",
+              // TAL-70 — semiopaco (85 %) si el calendario tiene imagen de
+              // fondo (`--skin-card-surface`, page.tsx).
+              background: "var(--skin-card-surface, var(--skin-card))",
               color: "var(--skin-ink)",
               borderRadius: "1rem",
               maxWidth: "480px",

@@ -1,99 +1,14 @@
-import { ConvexHttpClient } from "convex/browser";
-import { api } from "../../../convex/_generated/api";
-import type { Id } from "../../../convex/_generated/dataModel";
+import { CalendarDays } from "lucide-react";
 import { devLoginEnabled } from "@/lib/auth.config";
 import { signIn } from "@/lib/auth";
-import { convexAppServerSecret } from "@/lib/convex-server";
-import { CoverIcon } from "@/components/cover-icon";
 
-// Hallazgo de auditoría, ronda 1: `fetchQuery` (`convex/nextjs`) no acepta
-// ningún `signal`/timeout propio — si Convex está inalcanzable de verdad
-// (no "responde rápido con un error", sino que la conexión se queda
-// colgada), la llamada podría tardar más que cualquier timeout externo
-// (proxy de Railway, el propio `fetch` de Next.js) — ese timeout externo
-// devolvería un 5xx/504 crudo al navegador ANTES de que el `try/catch` de
-// `getCalendarCoverForLogin` llegara siquiera a ejecutarse, exactamente
-// el tipo de respuesta distinguible que el brief pedía evitar (punto 4).
-// Por eso aquí se usa `ConvexHttpClient` directamente en vez de
-// `fetchQuery` con un `fetch` propio que impone un `AbortSignal` con
-// timeout — `setFetchOptions` (donde viviría un `signal` de forma más
-// directa) es un método `@internal` de `ConvexHttpClient`, sin tipo
-// público; `fetch` en el constructor SÍ es API pública documentada
-// ("A custom fetch implementation to use for all HTTP requests made by
-// this client."), así que es la vía soportada para esto. 3s es
-// deliberadamente pequeño frente a cualquier timeout de plataforma
-// razonable (decenas de segundos) — así el `catch` de esta función
-// SIEMPRE gana la carrera y la página cae a la portada genérica con 200,
-// nunca a un 5xx crudo del proxy.
-const LOGIN_COVER_QUERY_TIMEOUT_MS = 3000;
-
-function fetchWithTimeout(timeoutMs: number): typeof fetch {
-  return (input, init) => fetch(input, { ...init, cache: "no-store", signal: AbortSignal.timeout(timeoutMs) });
-}
-
-// `callbackUrl` dice de qué calendario mostrar la portada personalizada
-// (TAL-8, reconectada en TAL-25 tras el hueco que dejó TAL-10) cuando un
-// Invitado llega desde `/c/{calendarId}` sin sesión — solo esa forma, no
-// `/admin/{calendarId}` (decisión de TAL-25, ver más abajo).
-const GUEST_CALLBACK_RE = /^\/c\/([^/?]+)/;
-
-/**
- * TAL-25 — resuelve el calendario de la portada a partir de `callbackUrl`,
- * en una página pública SIN AUTENTICAR: alcanzable por cualquiera con el
- * link de invitación, incluso antes de loguearse. Dos decisiones de
- * seguridad, ambas dentro de lo que el propio brief de TAL-25 ya
- * planteaba como razonable (documentadas aquí, no escaladas — sin duda
- * real sobre ninguna de las dos):
- *
- * 1. Qué exponer: solo `coverTitle`/`coverIcon`/`coverImageUrl` — el
- *    nombre bonito, el icono y la foto del calendario, nada que no sea ya
- *    visible en la propia invitación por email (ni fechas, ni skin, ni
- *    nada de invitados/admins). Por eso esta función llama a
- *    `calendars.getPublicCoverInfoForLogin` (lista blanca explícita en
- *    Convex, ver el comentario completo ahí) y NUNCA a `calendars.getPublic`
- *    (documento entero) — así la restricción vive en la propia consulta,
- *    no en que este código recuerde no reenviar el resto del documento.
- * 2. Solo `/c/[calendarId]` (Invitado), no `/admin/[calendarId]`: esa es
- *    una ruta de Admin, no de Invitado — nadie llega ahí siguiendo un
- *    link de invitación, así que no tiene sentido de producto mostrar su
- *    portada en el login público, y ampliar la superficie que esta página
- *    sin autenticar puede resolver sin necesidad real no compensa.
- *
- * Cualquier fallo — `calendarId` con formato inválido (Convex rechaza el
- * argumento antes de que el handler compruebe si existe), el calendario
- * no existe, un fallo genuino de Convex, o que la consulta tarde más de
- * `LOGIN_COVER_QUERY_TIMEOUT_MS` (ver arriba) — cae al mismo `null`
- * (portada genérica), sin excepción ni distinción visible entre esos
- * casos (brief TAL-25 punto 4: no dar pistas de si un id existe o no a
- * quien no debería tenerlas) — mismo criterio ya establecido en esta
- * página desde TAL-10 para cualquier fallo de la capa de datos.
- */
-async function getCalendarCoverForLogin(
-  callbackUrl: string | undefined
-): Promise<{ coverTitle: string; coverIcon: string | null; coverImageUrl: string | null } | null> {
-  const match = callbackUrl?.match(GUEST_CALLBACK_RE);
-  if (!match) return null;
-
-  try {
-    const client = new ConvexHttpClient(process.env.NEXT_PUBLIC_CONVEX_URL!, {
-      fetch: fetchWithTimeout(LOGIN_COVER_QUERY_TIMEOUT_MS),
-    });
-    const calendar = await client.query(api.calendars.getPublicCoverInfoForLogin, {
-      serverSecret: convexAppServerSecret(),
-      calendarId: match[1] as Id<"calendars">,
-    });
-    if (!calendar) return null;
-    return {
-      coverTitle: calendar.coverTitle,
-      // TAL-60 — valor crudo; `<CoverIcon>` lo normaliza (nombre Lucide,
-      // emoji antiguo sin migrar o ausente → siempre un icono del catálogo).
-      coverIcon: calendar.coverIcon ?? null,
-      coverImageUrl: calendar.coverImageUrl ?? null,
-    };
-  } catch {
-    return null;
-  }
-}
+// TAL-70 — `/login` es genérico (design-system.md § "Bienvenida con foto
+// (después de entrar)"): una persona puede tener varios calendarios, así
+// que antes de entrar no se sabe cuál mostrar. Ya no lee ningún calendario
+// (ni con `callbackUrl` de invitación): la portada personalizada de TAL-25
+// y su consulta pública sin autenticar (`calendars.getPublicCoverInfoForLogin`)
+// se retiran. La foto de portada se ve después de entrar, en la bienvenida
+// de `/c/<id>` (`welcome-overlay.tsx`).
 
 export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   const { callbackUrl: callbackUrlRaw } = await searchParams;
@@ -111,8 +26,6 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
   // manda siempre `callbackUrl`, sin cambios.
   const redirectTo = callbackUrl ?? "/start";
 
-  const calendar = await getCalendarCoverForLogin(callbackUrl);
-
   return (
     <main
       style={{
@@ -121,26 +34,18 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
-        gap: "1.5rem",
+        gap: "1rem",
         textAlign: "center",
         padding: "2rem",
       }}
     >
-      {calendar?.coverImageUrl && (
-        // eslint-disable-next-line @next/next/no-img-element -- URL externa arbitraria (validada como https:// al guardarla, TAL-5), no vale next/image sin configurar dominios remotos.
-        <img
-          src={calendar.coverImageUrl}
-          alt=""
-          style={{ width: "120px", height: "120px", objectFit: "cover", borderRadius: "50%" }}
-        />
-      )}
-      {/* TAL-60 — icono Lucide en su recuadro, encima del título (antes,
-          emoji en línea con el h1). Sin skin en esta página (lista blanca
-          de TAL-25): color por defecto `--icon-tile-fg`. Sin calendario
-          (`callbackUrl` ausente o inválido) → el árbol por defecto, igual
-          que antes con el 🎄. */}
-      <CoverIcon value={calendar?.coverIcon} size={32} box={64} />
-      <h1 style={{ fontSize: "1.8rem" }}>{calendar?.coverTitle ?? "¡Feliz cuenta atrás, equipo!"}</h1>
+      <div className="login-logo" aria-hidden="true">
+        <CalendarDays size={36} strokeWidth={2} />
+      </div>
+      <div>
+        <h1 className="login-title">Calendario de Adviento</h1>
+        <p className="login-tagline">Una sorpresa cada día.</p>
+      </div>
 
       <form
         action={async () => {
@@ -149,7 +54,7 @@ export default async function LoginPage({ searchParams }: PageProps<"/login">) {
         }}
       >
         <button type="submit" className="btn btn-primary">
-          Continuar con Google
+          Entrar con Google
         </button>
       </form>
 
