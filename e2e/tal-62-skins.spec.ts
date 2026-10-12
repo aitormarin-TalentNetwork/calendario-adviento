@@ -379,7 +379,8 @@ test("6c · avisos del invitado (rango demasiado largo) sobre tarjeta opaca --sk
       await page.goto(`/c/${longId}`);
     }
     await expect(notice, path_).toBeVisible();
-    expect(await css(page, "main[data-skin-style]", "background-image"), `${path_}: imagen de fondo debajo`).toContain("tal62-fondo.jpg");
+    // TAL-70 — la imagen de fondo es ahora una capa tenue (.faint-bg-layer) dentro de <main>.
+    expect(await css(page, "main[data-skin-style] > .faint-bg-layer", "background-image"), `${path_}: imagen de fondo debajo`).toContain("tal62-fondo.jpg");
     expect(await notice.evaluate((el) => getComputedStyle(el).backgroundColor), `${path_}: tarjeta opaca`).toBe(rgb(noche.palette.card));
     expect(await notice.evaluate((el) => getComputedStyle(el).color), `${path_}: texto`).toBe(rgb(noche.palette.ink));
   }

@@ -198,10 +198,13 @@ test("2 · portada del invitado: icono Lucide en su recuadro, candado Lucide en 
   await page.context().close();
 });
 
-test("3 · login con callbackUrl del calendario: icono Lucide", async ({ browser }) => {
+// TAL-70 — `/login` es genérico: ya no pinta el icono del calendario (ni con
+// `callbackUrl`), sino el logo Lucide de la app.
+test("3 · login con callbackUrl del calendario: genérico (logo Lucide de la app, sin el icono del calendario)", async ({ browser }) => {
   const page = await newPage(browser);
   await page.goto(`/login?callbackUrl=/c/${calendarA}`);
-  const icon = page.locator(".cover-icon-box[data-cover-icon='dog']");
+  await expect(page.locator("[data-cover-icon]")).toHaveCount(0);
+  const icon = page.locator(".login-logo");
   await expect(icon).toBeVisible();
   await expectLucideSvg(icon);
   await expectNoEmoji(page);

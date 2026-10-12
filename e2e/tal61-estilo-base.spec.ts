@@ -223,9 +223,10 @@ test("1 · ninguna serifa ni monoespaciada en ninguna pantalla (diálogos y men�
   await anon.goto("/login");
   expect(await fontOffenders(anon), "/login").toEqual([]);
   expect(await anon.evaluate(() => document.fonts.check('16px "Plus Jakarta Sans"'))).toBe(true);
-  // --icon-tile-fg* solo se admite en .cover-icon-box porque ahí solo hay un
-  // <svg> (icono), nunca texto (caso 10).
-  const tiles = await anon.locator(".cover-icon-box").evaluateAll((els) =>
+  // TAL-70 — el login es genérico: en vez de .cover-icon-box lleva
+  // .login-logo, cuya excepción de color (--primary, caso 10) solo se admite
+  // porque ahí solo hay un <svg> (icono), nunca texto. Mismo invariante.
+  const tiles = await anon.locator(".login-logo, .cover-icon-box").evaluateAll((els) =>
     els.map((el) => ({ text: (el.textContent ?? "").trim(), svg: el.querySelectorAll("svg").length, children: el.children.length }))
   );
   expect(tiles.length).toBeGreaterThan(0);
