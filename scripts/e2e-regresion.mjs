@@ -7,8 +7,9 @@
 //    está tomado; un cerrojo huérfano NO se borra: se avisa y se espera);
 // 4. Playwright con `--grep @regresion`; las señales se reenvían SOLO a ese
 //    hijo y se espera a que termine antes de soltar el cerrojo;
-// 5. resumen (ejecutados, pasados, fallidos, omitidos, duración); un omitido
-//    hace fallar la batería (exit 1).
+// 5. resumen (ejecutados, pasados, fallidos, omitidos, espera del cerrojo y
+//    duración de Playwright por separado); un omitido hace fallar la batería
+//    (exit 1), salvo con `--list` (solo lista, no ejecuta nada).
 // Nunca mata procesos por patrón.
 import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
@@ -156,7 +157,10 @@ function releaseLock() {
 }
 
 // --- 4 · ejecución -----------------------------------------------------------------------------
+const listOnly = args.includes("--list");
+const waitStarted = Date.now();
 await acquireLock();
+const lockWaitSeconds = ((Date.now() - waitStarted) / 1000).toFixed(1);
 const jsonReport = path.join(tmpdir(), `e2e-regresion-${process.pid}-${token}.json`);
 const started = Date.now();
 const child = spawn(playwrightBin, ["test", "--grep", "@regresion", "--reporter=list,json", ...args], {
@@ -198,9 +202,11 @@ if (existsSync(jsonReport)) {
 }
 const ran = stats ? stats.expected + stats.unexpected + stats.flaky : "?";
 console.log(
-  `\nBatería de regresión: ${ran} ejecutados · ${stats?.expected ?? "?"} pasados · ${stats?.unexpected ?? "?"} fallidos · ${stats?.skipped ?? "?"} omitidos · ${stats?.flaky ?? "?"} inestables · ${seconds} s (exit de Playwright ${code})`
+  listOnly
+    ? `\nBatería de regresión: solo listado (--list), nada ejecutado · espera del cerrojo ${lockWaitSeconds} s · Playwright ${seconds} s (exit ${code})`
+    : `\nBatería de regresión: ${ran} ejecutados · ${stats?.expected ?? "?"} pasados · ${stats?.unexpected ?? "?"} fallidos · ${stats?.skipped ?? "?"} omitidos · ${stats?.flaky ?? "?"} inestables · espera del cerrojo ${lockWaitSeconds} s · Playwright ${seconds} s (exit de Playwright ${code})`
 );
-if (code === 0 && skippedTests.length > 0) {
+if (!listOnly && code === 0 && skippedTests.length > 0) {
   console.error(`✗ hay tests omitidos y la batería no admite omitidos:\n${skippedTests.map((t) => `    - ${t}`).join("\n")}`);
   process.exit(1);
 }
