@@ -75,7 +75,7 @@ test.afterAll(async () => {
   await convex.mutation(api.calendars.deleteCalendarAsUserPublic, { serverSecret: serverSecret(), calendarId, userId: saId });
 });
 
-test("1 · Super Admin: Usuario / Admin / Super Admin; «Super Admin» abre /superadmin y queda marcada", async ({ browser }) => {
+test("1 · Super Admin: Usuario / Admin / Super Admin; «Super Admin» abre /superadmin y queda marcada", { tag: "@regresion" }, async ({ browser }) => {
   const page = await newPage(browser);
   await loginAs(page, SA_EMAIL);
   await page.goto("/admin");
@@ -117,7 +117,7 @@ test("2 · Admin normal: solo Usuario / Admin; invitado puro: sin sección Modo"
   await guest.context().close();
 });
 
-test("3 · recordar el modo: Super Admin cierra sesión en /superadmin y vuelve ahí al entrar", async ({ browser }) => {
+test("3 · recordar el modo: Super Admin cierra sesión en /superadmin y vuelve ahí al entrar", { tag: "@regresion" }, async ({ browser }) => {
   expect(await preferredModeOf(saId)).toBe("superadmin");
   const page = await newPage(browser);
   await loginAsWithoutCallback(page, SA_EMAIL);

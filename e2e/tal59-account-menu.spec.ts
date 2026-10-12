@@ -229,7 +229,7 @@ test("3 · pulsar fuera cierra el menú", async ({ browser }) => {
   await page.context().close();
 });
 
-test("4 · cambiar a Usuario → /c; «Ir a calendario» con todos y el actual marcado en /c/<id>", async ({ browser }) => {
+test("4 · cambiar a Usuario → /c; «Ir a calendario» con todos y el actual marcado en /c/<id>", { tag: "@regresion" }, async ({ browser }) => {
   const page = await (await newContext(browser)).newPage();
   await loginAs(page, ADMIN_EMAIL);
   await page.goto("/admin");
@@ -254,7 +254,7 @@ test("4 · cambiar a Usuario → /c; «Ir a calendario» con todos y el actual m
   await page.context().close();
 });
 
-test("5 · recordar el modo: Usuario → logout → login sin callback → /c; Admin → logout → login → /admin", async ({ browser }) => {
+test("5 · recordar el modo: Usuario → logout → login sin callback → /c; Admin → logout → login → /admin", { tag: "@regresion" }, async ({ browser }) => {
   const page = await (await newContext(browser)).newPage();
   // El caso 4 dejó preferredMode = "user".
   await loginAsWithoutCallback(page, ADMIN_EMAIL);
@@ -299,7 +299,7 @@ test("6 · el link de invitación (callbackUrl) manda sobre el modo recordado", 
   await page.context().close();
 });
 
-test("7 · invitado puro: sin sección Modo; lista solo con >1; siempre modo Usuario; forzar «Admin» no hace nada", async ({ browser }) => {
+test("7 · invitado puro: sin sección Modo; lista solo con >1; siempre modo Usuario; forzar «Admin» no hace nada", { tag: "@regresion" }, async ({ browser }) => {
   const context = await newContext(browser);
   const page = await context.newPage();
   await loginAsWithoutCallback(page, GUEST_MANY_EMAIL);

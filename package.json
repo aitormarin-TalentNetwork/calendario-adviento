@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:e2e:regresion": "node scripts/e2e-regresion.mjs"
   },
   "dependencies": {
     "convex": "^1.44.0",

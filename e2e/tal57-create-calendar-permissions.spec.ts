@@ -147,7 +147,7 @@ function actionRedirectTarget(response: APIResponse): string | null {
   return target === null ? null : target.split(";")[0];
 }
 
-test("1 · el Super Admin ve «+ Nuevo calendario» y crea un calendario", async () => {
+test("1 · el Super Admin ve «+ Nuevo calendario» y crea un calendario", { tag: "@regresion" }, async () => {
   const page = await superAdminContext.newPage();
   await page.goto("/admin");
 
@@ -170,7 +170,7 @@ test("1 · el Super Admin ve «+ Nuevo calendario» y crea un calendario", async
   expect(stored?.name).toBe(calendarName);
 });
 
-test("2 · el Admin (no Super Admin) no ve el botón de crear, sí su calendario", async () => {
+test("2 · el Admin (no Super Admin) no ve el botón de crear, sí su calendario", { tag: "@regresion" }, async () => {
   await convex.mutation(api.superadmin.addAdminPublic, {
     serverSecret: serverSecret(),
     actorUserId: superAdminId,
@@ -213,7 +213,7 @@ test("3 · control positivo: la misma petición reconstruida con la sesión del 
   expect(stored?.name).toBe(controlName);
 });
 
-test("3b · el Admin sigue pudiendo editar su calendario y el cambio persiste", async () => {
+test("3b · el Admin sigue pudiendo editar su calendario y el cambio persiste", { tag: "@regresion" }, async () => {
   const page = await adminContext.newPage();
   await page.goto(`/admin/${calendarId}`);
 
@@ -229,7 +229,7 @@ test("3b · el Admin sigue pudiendo editar su calendario y el cambio persiste", 
   calendarName = renamed;
 });
 
-test("4 · el Admin llama a Convex directamente: «No autorizado.» y no se crea nada", async () => {
+test("4 · el Admin llama a Convex directamente: «No autorizado.» y no se crea nada", { tag: "@regresion" }, async () => {
   const before = await allCalendarNames();
   const directName = `TAL-57 convex directo ${runId}`;
   const baseArgs = {

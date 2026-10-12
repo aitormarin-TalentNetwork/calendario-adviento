@@ -92,7 +92,7 @@ test.describe("«Mis calendarios» (E2E)", () => {
     }
   });
 
-  test("1 · cada fila lleva su estado; la ajena, «Super Admin» y su estado sin solaparse", async ({ browser }) => {
+  test("1 · cada fila lleva su estado; la ajena, «Super Admin» y su estado sin solaparse", { tag: "@regresion" }, async ({ browser }) => {
     const page = await pageAs(browser);
     await expect(page.getByRole("columnheader", { name: "Estado" })).toBeVisible();
     await expect(row(page, NAME.finished).locator(".status-pill")).toHaveText("Terminado");
