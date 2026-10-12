@@ -1,0 +1,87 @@
+<title>Catálogo Completo de Skins</title>
+<style>
+  :root {
+    --pine: #1b3a2f; --paper: #f6f1e4; --paper-2: #efe7d4; --gold: #c99a3d; --gold-2: #e3bb63;
+    --ink: #16211c; --text-dim: #57604f; --border: #ded3ba; --bg: var(--paper); --bg-raised: #ffffff;
+    --text: var(--ink); --shadow: 0 1px 2px rgba(20,30,20,0.06), 0 8px 24px rgba(20,30,20,0.08);
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "URW Palladio L", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --font-mono: ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) { --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436; }
+  }
+  :root[data-theme="dark"] { --bg: #0f1e17; --bg-raised: #16281f; --text: #ece6d6; --text-dim: #a9b6a9; --border: #2a4436; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--font-body); }
+  h1 { font-family: var(--font-display); margin: 0 0 8px; text-wrap: balance; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 40px 24px 90px; }
+  .intro p { color: var(--text-dim); max-width: 78ch; line-height: 1.55; margin: 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; margin-top: 30px; }
+  .card {
+    border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--border);
+    display: flex; flex-direction: column;
+  }
+  .swatch { aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; padding: 14px; text-align: center; }
+  .swatch .title { font-size: 1.15rem; line-height: 1.25; text-wrap: balance; }
+  .meta { padding: 10px 14px; background: var(--bg-raised); font-size: 0.72rem; color: var(--text-dim); line-height: 1.5; }
+  .meta b { color: var(--text); font-size: 0.82rem; display: block; margin-bottom: 2px; font-family: var(--font-display); }
+  .flag { color: #d9822b; font-weight: 700; }
+  .footnote { margin-top: 30px; color: var(--text-dim); font-size: 0.85rem; max-width: 78ch; line-height: 1.55; }
+</style>
+
+<div class="wrap">
+  <div class="intro">
+    <h1>Los 23 skins — propuesta de textColor + tipografía</h1>
+    <p>Fondo/acento tal cual ya están validados en el catálogo. Añadido: color de texto y tipografía del título, propuestos por mí, para que los repases uno a uno. Los marcados <span class="flag">⚠</span> son los que más dudo — fondos con patrón/degradado muy variado donde un solo color de texto es más difícil de garantizar.</p>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <p class="footnote">Dime qué cambiar (skin por skin, o "vale todo menos estos") y lo cierro en el Design System + Linear para que el equipo lo construya.</p>
+</div>
+
+<script>
+  const SKINS = [
+    { key: "dorado", name: "Dorado", bg: "linear-gradient(160deg, #c99a3d 0%, #e3bb63 100%)", text: "#1b3a2f", font: "var(--font-display)" },
+    { key: "grosella", name: "Grosella", bg: "linear-gradient(160deg, #8c2f39 0%, #4a1319 100%)", text: "#f6f1e4", font: "var(--font-display)" },
+    { key: "medianoche", name: "Medianoche", bg: "linear-gradient(160deg, #0f1e17 0%, #1b3a2f 100%)", text: "#f6f1e4", font: "'Big Caslon','Didot','Times New Roman',var(--font-display)", caps: true },
+    { key: "pino", name: "Pino", bg: "linear-gradient(160deg, #234a3b 0%, #1b3a2f 100%)", text: "#f6f1e4", font: "var(--font-display)" },
+    { key: "nochebuena", name: "Nochebuena", bg: "radial-gradient(ellipse at 30% 20%, rgba(201,154,61,0.25), transparent 55%), linear-gradient(160deg, #4a1319 0%, #1b3a2f 100%)", text: "#f6f1e4", font: "var(--font-display)" },
+    { key: "nieve", name: "Nieve", bg: "linear-gradient(160deg, #cfe3ee 0%, #eef5f8 55%, #ffffff 100%)", text: "#1c3a4a", font: "'Snell Roundhand','Bradley Hand','Segoe Script',cursive,var(--font-display)" },
+    { key: "confeti", name: "Confeti", bg: "conic-gradient(from 0deg at 20% 15%, #f2a6d8 0deg 40deg, #7c5cbf 40deg 80deg, #f4805c 80deg 120deg, #7c5cbf 120deg 160deg, #f4c542 160deg 200deg, #7c5cbf 200deg 240deg, #f2a6d8 240deg 280deg, #7c5cbf 280deg 320deg, #f4805c 320deg 360deg), #7c5cbf", text: "#241a1a", font: "'Marker Felt','Segoe Print','Comic Sans MS',var(--font-body)", flag: true },
+    { key: "dorado-real", name: "Dorado Real", bg: "linear-gradient(160deg, #0c0c0c 0%, #1a1512 100%)", text: "#e9d9ae", font: "'Bodoni MT','Didot',var(--font-display)", italic: true },
+    { key: "bosque-nordico", name: "Bosque Nórdico", bg: "linear-gradient(160deg, #e7e0cf 0%, #d8cdaf 100%)", text: "#3c3423", font: "'Bookman Old Style','American Typewriter',var(--font-display)" },
+    { key: "neon-fiesta", name: "Neón Fiesta", bg: "linear-gradient(160deg, #0d0221 0%, #1a0b3d 100%)", text: "#f4e9ff", font: "'Futura','Century Gothic',var(--font-body)", caps: true, bold: true },
+    { key: "historieta", name: "Historieta", bg: "radial-gradient(circle, #1a1a1a 1.2px, transparent 1.2px) 0 0 / 10px 10px, #ffd23f", text: "#1a1a1a", font: "'Comic Sans MS','Chalkboard SE',var(--font-body)", bold: true, flag: true },
+    { key: "enamorados", name: "Enamorados", bg: "radial-gradient(ellipse at 70% 20%, rgba(255,255,255,0.3), transparent 55%), linear-gradient(160deg, #d94f6b 0%, #f7c9d4 100%)", text: "#4a1320", font: "'Snell Roundhand','Brush Script MT',cursive,var(--font-display)", flag: true },
+    { key: "oficina", name: "Oficina", bg: "linear-gradient(160deg, #d9d2bd 0%, #b9ae90 100%)", text: "#3a3424", font: "Calibri,Arial,var(--font-body)" },
+    { key: "superheroe", name: "Superhéroe", bg: "linear-gradient(160deg, #1a3ba8 0%, #0b1b4a 100%)", text: "#ffd23f", font: "Impact,'Arial Black',var(--font-body)", caps: true, bold: true },
+    { key: "bebe", name: "Bebé", bg: "linear-gradient(160deg, #dff0f7 0%, #fde7ef 100%)", text: "#3c4a52", font: "'Segoe UI Rounded','SF Pro Rounded',var(--font-body)" },
+    { key: "adolescente", name: "Adolescente", bg: "linear-gradient(150deg, #6d28d9 0%, #db2777 55%, #f97316 100%)", text: "#ffffff", font: "'Futura','Arial Black',var(--font-body)", caps: true, bold: true, flag: true },
+    { key: "memorias-de-familia", name: "Memorias de Familia", bg: "linear-gradient(160deg, #e8dcc4 0%, #c9b78f 100%)", text: "#4a3b22", font: "'American Typewriter','Courier New',var(--font-mono)" },
+    { key: "amigas", name: "Amigas", bg: "linear-gradient(135deg, #ffb3c6 0%, #c9a7f5 50%, #a0e7d4 100%)", text: "#33253f", font: "'Segoe UI Rounded','SF Pro Rounded',var(--font-body)", flag: true },
+    { key: "kpop", name: "K-pop", bg: "linear-gradient(120deg, #ffd6ec 0%, #d8ccff 30%, #bdf3ff 60%, #ffe4fb 100%)", text: "#4a2f66", font: "'Marker Felt','Segoe Print','Comic Sans MS',var(--font-body)", bold: true, flag: true },
+    { key: "gotico", name: "Gótico", bg: "linear-gradient(160deg, #0a0a0c 0%, #1c1622 100%)", text: "#d8c9e0", font: "'Copperplate','Big Caslon',var(--font-display)", caps: true },
+    { key: "baloncesto", name: "Baloncesto", bg: "linear-gradient(160deg, #b3541e 0%, #7a3610 100%)", text: "#fff2e0", font: "Impact,'Arial Black',var(--font-body)", caps: true, bold: true },
+    { key: "futbol", name: "Fútbol", bg: "repeating-linear-gradient(90deg, #1a2a6c 0 22px, #8c2f39 22px 44px)", text: "#ffffff", font: "Impact,'Arial Black',var(--font-body)", caps: true, bold: true, flag: true },
+    { key: "tira-comica", name: "Tira Cómica", bg: "linear-gradient(160deg, #fdf8ec 0%, #ffffff 100%)", text: "#1a1a1a", font: "'Comic Sans MS','Chalkboard SE',var(--font-body)", bold: true },
+  ];
+
+  const grid = document.getElementById("grid");
+  SKINS.forEach((s) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    const titleStyle = [
+      "color:" + s.text,
+      "font-family:" + s.font,
+      s.bold ? "font-weight:700" : "",
+      s.italic ? "font-style:italic" : "",
+      s.caps ? "text-transform:uppercase; letter-spacing:0.04em" : "",
+    ].filter(Boolean).join(";");
+    card.innerHTML =
+      '<div class="swatch" style="background:' + s.bg + '"><span class="title" style="' + titleStyle + '">¡Feliz cuenta atrás!</span></div>' +
+      '<div class="meta"><b>' + s.name + (s.flag ? ' <span class="flag">⚠</span>' : '') + '</b>texto ' + s.text + '</div>';
+    grid.appendChild(card);
+  });
+</script>

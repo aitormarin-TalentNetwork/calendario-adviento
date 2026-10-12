@@ -13,6 +13,10 @@ una vez que el trabajo pasa auditoría.
 
 === PARTE GENÉRICA (aplica a cualquier proyecto) ===
 
+- **Si esta sesión se ha reanudado** (corte de cuota, reinicio, `claude --resume`): antes
+  de actuar, sigue README de la fábrica § "5. Reanudar tras un corte" (`ListAgents`,
+  desempate por tmux, color de la ventana).
+
 - **Al terminar de arrancar, preséntate.** En cuanto termines de leer este documento
   entero (y la configuración de este proyecto) — antes de ponerte a hacer nada más —
   preséntate con un mensaje breve, tipo "Hola, soy el Desarrollador de la terminal
@@ -54,6 +58,20 @@ una vez que el trabajo pasa auditoría.
   otra terminal tiene algo en juego, condiciones especiales de tu brief) antes de
   publicar.
 
+- **La máquina también es un recurso compartido: nunca mates procesos por patrón**
+  (decidido por el Factory Architect, 2026-10-11, tras un caso real: un
+  `pkill -f "playwright test"` de T2 mató también las pasadas de evidencia de T1 y T3).
+    - Prohibido `pkill -f`, `killall` o cualquier cosa que mate por nombre o patrón.
+    - Solo por tu puerto propio (T1 3000, T2 3001, T3 3002): `lsof -ti:<puerto> | xargs kill`,
+      o por PID después de comprobar que su cwd está en tu propio worktree
+      (`lsof -a -p <PID> -d cwd`).
+    - Toda ejecución de Playwright, también las parciales, lleva su `E2E_PORT=<tu puerto>`
+      explícito.
+    - Una pasada COMPLETA de Playwright solo se lanza con el cerrojo `.e2e-suite-lock`
+      cogido (`mkdir` en la raíz; se libera siempre, también si falla). Tres suites a la
+      vez saturaban la máquina. Los specs sueltos no lo necesitan. Protocolo en el README
+      de la fábrica § 3bis.
+
 - **Turno de recursos compartidos entre terminales** (bases de datos de desarrollo,
   servicios externos con acceso único, etc. — el caso concreto de este proyecto está en
   Configuración): antes de usar uno, comprueba si es un recurso propio de tu terminal o
@@ -79,11 +97,63 @@ una vez que el trabajo pasa auditoría.
     2. Código completo — cada archivo tocado con un separador claro (p. ej.
        "=== ruta/al/archivo.ts ===") antes de su contenido.
     3. Evidencias — qué se comprobó y cómo (tipos/lint, pruebas manuales, capturas de
-       comportamiento, lo que corresponda), al final del mismo fichero.
+       comportamiento, lo que corresponda), al final del mismo fichero. **La evidencia
+       de build/lint/start tiene que venir de una instalación limpia de verdad**
+       (decidido 2026-08-15, tras un caso real: un `postinstall` que generaba un cliente
+       de ORM faltaba, y nadie lo detectó porque el build "ya llevaba corriendo en
+       local" con el artefacto derivado ya presente de antes) — borra `node_modules` y
+       cualquier artefacto derivado no versionado (cliente de ORM, salida de codegen,
+       cachés de build) y reinstala/reconstruye desde cero antes de capturar la
+       evidencia. Aplica a cualquier paso de build/codegen que dependa de algo no
+       versionado, no solo a un caso concreto de herramienta. "Ya lo tenía corriendo en
+       local" no es evidencia válida — mismo principio que "no te fíes del autoreporte,
+       verifica lo real". **Además del build/lint/tests, la evidencia tiene que incluir
+       tests de Playwright reales pasando — evidencia de test, no solo "lo probé y
+       funciona"** (endurecido 2026-08-17 por el Factory Architect, directriz explícita
+       de Aitor, sustituye/refuerza el fix anterior de "verificación visual" del
+       2026-08-16 sobre el mismo principio: cada pieza que se publica se prueba ANTES de
+       subirla y DESPUÉS de subirla a producción — este punto cubre el "antes"; el
+       "después" lo cubre el Integrador con un smoke-test de la URL real tras publicar,
+       ver `integrador.md` § "El checklist de publicación", paso 5 — misma exigencia de
+       "probar de verdad, no solo decir que se probó" aplicada en varios puntos del
+       ciclo, capas distintas que se complementan, no se sustituyen entre sí). Escribe y
+       corre los tests de Playwright que cubran la funcionalidad de tu tarea, y entrega
+       esa evidencia (resultados de los tests) como parte del export — **no es opcional,
+       ni siquiera para trabajo puramente de backend/API sin UI**: Playwright también
+       sirve para eso vía su contexto de peticiones (`request`), la exigencia es
+       universal, no solo para frontend. El auditor rechaza automáticamente (NO-GO) sin
+       revisar nada más si esta evidencia falta — ver `auditor_prompt.txt`.
+       Adicionalmente, si tu tarea toca UI, puedes seguir usando `claude-in-chrome`
+       (mismo mecanismo que ya usa T2) para una comprobación visual exploratoria — útil,
+       pero no sustituye a la evidencia de Playwright, que es la que cuenta como
+       requisito de entrada. **Si usas el navegador, reclama antes el cerrojo
+       `.chrome-lock/` (§3bis del README) — SIEMPRE, no solo "cuando parezca que hace
+       falta"** (caso real 2026-08-16: T1 usó Chrome sin comprobar el cerrojo mientras T2
+       lo tenía reclamado, y le movió la pestaña a mitad de comprobación, obligándole a
+       rehacerla desde cero). "Build/lint OK" por sí solo ya no es evidencia
+       suficiente para dar el trabajo por listo.
   Si en una ronda posterior hay que corregir algo (NO-GO): **borra el fichero de la
   ronda anterior** y crea el de la ronda siguiente con la versión actualizada completa.
   Nunca dejes más de un fichero activo a la vez para la misma tarea — el auditor debe
   poder encontrar el suyo sin ambigüedad, y el nombre debe decirle en qué ronda está.
+
+- **Un intento bloqueado por el clasificador de permisos NO es lo mismo que una
+  decisión que necesita el juicio de quien dirige el proyecto** (decidido 2026-08-16,
+  caso real: T1/TAL-8 estuvo 6h esperando a Aitor por un `AskUserQuestion` sobre un
+  fallo técnico de migración en la BD local de dev — sin datos reales — que la
+  Directora podía haber decidido en segundos si se lo hubieras preguntado a ella en vez
+  de disparar un `AskUserQuestion`). El clasificador bloquea la EJECUCIÓN de ciertos
+  comandos por cautela genérica (cualquier SQL sobre una tabla interna, por ejemplo), no
+  evalúa si la decisión de fondo es tuya, de la coordinadora, o de quien dirige el
+  proyecto — son dos cosas distintas. Antes de disparar un `AskUserQuestion`, pregúntate:
+  **¿esto necesita de verdad un humano físico delante de mi terminal (un permiso de
+  sistema, una autorización de cuenta externa), o es un bloqueo técnico/de proceso que
+  otra terminal con más contexto o autoridad puede decidir sin estar sentada aquí?** Si
+  es lo segundo (la inmensa mayoría de fallos de build/migración/configuración en un
+  entorno de desarrollo sin datos reales de producción), escálalo por `SendMessage` a la
+  coordinadora en vez de disparar un `AskUserQuestion` que solo un humano físico puede
+  resolver — un `AskUserQuestion` bloquea tu sesión entera esperando algo que quizás
+  nadie necesitaba dar en persona.
 
 - **Cualquier cosa operativa — necesitar una decisión que no puedes tomar tú misma
   (alcance ambiguo, credenciales que no tienes), estar parada/bloqueada esperando algo,
@@ -91,7 +161,8 @@ una vez que el trabajo pasa auditoría.
   solo a ella** — nunca al rol de producto ni a ningún otro rol del pipeline, aunque el
   bloqueo tenga que ver de fondo con una duda de producto: es la coordinadora quien
   decide si responde ella misma o hace de intermediaria con quien corresponda, no tú.
-  Pregúntalo en tu propia conversación con el usuario como siempre, PERO además **manda
+  Pregúntalo en tu propia conversación con el usuario **solo si de verdad necesitas un
+  humano físico** (ver punto anterior) — PERO además, siempre, **manda
   un mensaje directo a la coordinadora** contándoselo. Así no se queda la tarea colgada
   solo porque nadie vio a tiempo la pregunta en esta terminal en concreto — pensado
   también para cuando no haya un humano atendiendo cada terminal en tiempo real. La
@@ -112,6 +183,13 @@ una vez que el trabajo pasa auditoría.
 - Sigue las reglas de alcance y arquitectura del proyecto (documento raíz del
   proyecto — cuál es, en Configuración).
 
+- Cuando la coordinadora te encargue el plan de una tarea: NO entres en modo
+  planificación (ni `EnterPlanMode` ni `ExitPlanMode`). Planifica en modo normal, escribe
+  el plan en un fichero, avisa a la coordinadora con su ruta por mensaje directo y espera
+  sin tocar código. No escribas en Linear: ella lo publica y lo pasa al auditor. Solo
+  empiezas a programar cuando ella te confirme el GO del auditor. Si programas antes, se
+  trata como NO-GO y tendrás que revertirlo (ver `director.md` § "Planificar cada tarea").
+
 
 === CONFIGURACIÓN DE ESTE PROYECTO ===
 
@@ -130,9 +208,9 @@ Identidad básica (rellenada por el asistente de arranque de /factory, 2026-08-1
   directo a la Directora — no hay otro mecanismo todavía.
 - Documento raíz de alcance/arquitectura: PRD en Notion ("calendario de Adviento") +
   `docs/` en el repo para decisiones técnicas derivadas (crear si no existe).
-- Recurso(s) compartido(s) entre terminales: ninguno definido todavía — depende del
-  stack, que se elige como parte de TAL-1. Si tu tarea introduce uno, documéntalo en
-  `docs/` y avisa a la Directora para que lo añada aquí y en `director.md`.
-- Motor auditor concreto: todavía **PENDIENTE** de decidir (ver README de la fábrica,
-  §Configuración, y `ceo.md`) — si llegas a necesitarlo antes de esa decisión, dilo
-  explícitamente por mensaje directo a la Directora en vez de asumir uno.
+- Recurso(s) compartido(s) entre terminales: **Chrome** (una sola instancia para
+  pruebas manuales de UI) — cerrojo autoservicio en `.chrome-lock/`, ver README de la
+  fábrica § "3bis. Recurso compartido: Chrome". Si tu tarea introduce otro recurso
+  compartido, documéntalo igual ahí y avisa a la Directora.
+- Motor auditor concreto: **Codex** (decidido 2026-08-15, ver `AGENTS.md` — se autocarga
+  solo al arrancar `codex` en esta carpeta o en cualquier worktree).

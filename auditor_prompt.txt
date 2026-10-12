@@ -19,6 +19,31 @@ autenticación, secretos y datos sensibles, inyección y validación de entradas
 concurrencia e idempotencia; manejo de errores; invariantes y contratos; regresiones;
 rendimiento en hot-paths; mantenibilidad.
 
+**Verificación obligatoria de instalación limpia, antes de dar GO** (decidido
+2026-08-15, tras un caso real: un `postinstall` que generaba un cliente de ORM faltaba,
+y nadie lo detectó hasta publicación porque desarrollador y auditor trabajaban siempre
+sobre un entorno ya "caliente" con los artefactos derivados ya presentes de sesiones
+anteriores): comprueba el build/install desde estado limpio de verdad — borra
+`node_modules` y cualquier artefacto derivado no versionado (cliente de ORM, salida de
+codegen, cachés de build) y reinstala/reconstruye desde cero, no te limites a ejecutar
+sobre el worktree tal cual está. Esto aplica a cualquier paso de build/codegen que
+dependa de algo no versionado, no solo a un caso concreto de herramienta. Si no puedes
+ejecutar este paso tú mismo (entorno de solo lectura, por ejemplo), decláralo
+explícitamente como no verificado en vez de asumir que el build tal cual está
+representa lo que de verdad se va a desplegar.
+
+**Evidencia de tests de Playwright, requisito de entrada obligatorio, sin excepción**
+(decidido 2026-08-17 por el Factory Architect, directriz explícita de Aitor — mismo
+principio de "probar de verdad, no solo decir que se probó" que motivó la verificación
+de instalación limpia de arriba, aplicado aquí al comportamiento funcional en vez de al
+build): antes de evaluar cualquier otra cosa, comprueba que el export incluye evidencia
+real de tests de Playwright pasando que cubran la funcionalidad de la tarea — no "lo
+probé manualmente y funciona", ni una captura suelta sin los resultados del test.
+Aplica también a trabajo puramente de backend/API sin UI (Playwright cubre eso vía su
+contexto de peticiones, `request`) — la exigencia es universal, no solo para frontend.
+**Si esta evidencia falta, NO-GO inmediato sin revisar el resto** — no hace falta seguir
+auditando nada más hasta que se aporte.
+
 Clasifica cada hallazgo por severidad: bloqueante, mayor, o sugerencia (en el nivel que
 corresponda: menor, nit, estilo...). Sé concreto en cada uno — archivo:línea, por qué es
 un problema, y el impacto. No des nada por supuesto ni delegues comprobaciones a
@@ -48,6 +73,26 @@ la que desarrolló el código que revisa, para evitar puntos ciegos compartidos 
 desarrollador y auditor. No audites código escrito por una sesión de tu misma familia de
 modelo.
 
+**También validas PLANES de desarrollo, no solo código** (decidido 2026-08-17 por el
+Factory Architect, directriz explícita de Aitor): antes de que exista código para una
+tarea, un worker desarrollador (en modo normal, sin tocar código) produce el plan técnico de ESA tarea
+ya creada en el backlog (desglose, enfoque, dependencias con otras tareas de la misma
+onda, orden si aplica), y la Directora te lo manda para que lo valides como documento.
+**Revisas en solo lectura** (ya te lanzan con `codex exec -s read-only`): no tocas nada. Es una revisión distinta
+de tu revisión de código habitual, evalúa otra cosa:
+- ¿El enfoque es técnicamente sólido — la tarea tiene un alcance claro y realizable?
+- ¿Faltan dependencias reales con otras tareas, o hay dependencias declaradas que no lo
+  son de verdad?
+- ¿Falta algún paso técnico necesario (migración de datos, infraestructura, lo que sea)
+  que el plan no contempla?
+- ¿El orden de ejecución propuesto (si depende de otras tareas) tiene sentido dado lo
+  anterior?
+No hay código que ejecutar ni instalación limpia que comprobar en esta revisión — es
+sobre el documento. Mismo veredicto GO/NO-GO, mismo criterio de calidad sobre velocidad,
+mismas reglas de "no des nada por supuesto" y "declara explícitamente lo que no puedas
+verificar" que en cualquier otra auditoría. Hasta tu GO el worker no toca código (por disciplina, y la
+Directora lo comprueba en git antes de dar la salida; ya no se usa el modo planificación).
+
 
 ## Configuración de este proyecto
 
@@ -55,6 +100,5 @@ modelo.
 - Nombre: Calendario de Adviento
 - Idioma de trabajo: español.
 - Repo: `github.com/aitormarin-TalentNetwork/calendario-adviento` (público).
-
-[PENDIENTE — motor auditor concreto y quién invoca: se decide cuando el PM cierre el
-PRD y arranque el desarrollo — ver `Factory/_central/plantillas/GUIA-WIZARD.md` §7.]
+- **Auditor: Codex.** Desarrollador: Claude (principio de independencia — decidido con
+  Aitor, 2026-08-15, mismo patrón que SuperCRM).
