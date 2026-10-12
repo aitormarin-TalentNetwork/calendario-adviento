@@ -183,6 +183,10 @@ releaseLock();
 if (receivedSignal || childSignal) {
   const sig = receivedSignal ?? childSignal;
   console.error(`✗ batería interrumpida (${sig}) tras ${seconds} s.`);
+  // Comportamiento observado (TAL-71, docs/e2e.md): cortar a mitad mata el
+  // next dev de Playwright en plena compilación, y el siguiente arranque se
+  // puede quedar compilando al 100 % de CPU sin responder.
+  console.error(`⚠ si la próxima ejecución se queda arrancando (next dev al 100 % de CPU sin responder), para ese next dev por su PID y borra .next de este worktree (rm -rf "${path.join(ROOT, ".next")}") antes de relanzar.`);
   process.exit(128 + ({ SIGINT: 2, SIGTERM: 15 }[sig] ?? 1));
 }
 

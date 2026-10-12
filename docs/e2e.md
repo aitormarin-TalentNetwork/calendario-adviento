@@ -101,6 +101,12 @@ de punta a punta `e2e/regresion-recorrido.spec.ts`. La lista exacta está en
 4. **Playwright** con `--grep @regresion` (los argumentos extra se le pasan
    tal cual). SIGINT/SIGTERM se reenvían solo a ese proceso hijo, y el
    cerrojo se suelta después de que termine. Nunca mata procesos por patrón.
+   **Comportamiento conocido**: si cortas la batería a mitad (Ctrl-C o
+   SIGTERM), Playwright cierra el `next dev` en plena compilación. El
+   siguiente arranque en ese worktree se puede quedar compilando al 100 % de
+   CPU sin responder. Si pasa: para ese `next dev` por su PID (nunca por
+   patrón) y borra `.next` del worktree antes de relanzar. El lanzador lo
+   recuerda al interrumpirse.
 5. **Resumen**: ejecutados, pasados, fallidos, omitidos, inestables y
    duración. **Un test omitido hace fallar la batería** (exit 1). Por ejemplo,
    tal-66-videos 1 se omite sin salida a youtube.com, y eso no puede pasar por
