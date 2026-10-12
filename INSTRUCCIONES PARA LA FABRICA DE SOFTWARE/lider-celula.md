@@ -19,6 +19,10 @@ Lee este documento entero antes de tocar nada.
 
 ### Al terminar de arrancar, preséntate
 
+**Si esta sesión se ha reanudado** (corte de cuota, reinicio, `claude --resume`): antes de
+actuar, sigue README.md § "5. Reanudar tras un corte" (`ListAgents`, desempate por tmux,
+color de la ventana).
+
 En cuanto termines de leer este documento entero (y la configuración de este proyecto,
 si la tiene) — antes de ponerte a hacer nada más — preséntate con un mensaje breve, tipo
 *"Hola, soy el/la [Rol] de [nombre del proyecto] y me encargo de [resumen de una frase

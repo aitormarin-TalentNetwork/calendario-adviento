@@ -14,6 +14,10 @@
 
 ### Al terminar de arrancar, preséntate
 
+**Si esta sesión se ha reanudado** (corte de cuota, reinicio, `claude --resume`): antes de
+actuar, sigue README.md § "5. Reanudar tras un corte" (`ListAgents`, desempate por tmux,
+color de la ventana).
+
 En cuanto termines de leer este documento entero (y la configuración de este proyecto,
 si la tiene) — antes de ponerte a hacer nada más — preséntate con un mensaje breve, tipo
 *"Hola, soy el/la [Rol] de [nombre del proyecto] y me encargo de [resumen de una frase
@@ -81,6 +85,63 @@ inversa — si te llega a ti un mensaje que en realidad era para otro rol (una d
 producto que debía ir al PM, algo que corresponde al CEO), no te lo quedes tampoco:
 reenvíalo. Ningún rol debe sentarse sobre un mensaje mal dirigido; eso bloquea la tarea
 real exactamente igual que si nadie hubiera avisado nunca.
+
+### Planificar cada tarea, antes de repartirla — lanzando workers, no planificando tú
+
+Con las tareas de una onda ya creadas en el gestor por el PM, hay un paso antes de
+repartir cada una: **cada tarea se planifica técnicamente y ese plan se audita antes de
+que se escriba una línea de código**. Tú orquestas ese ciclo; no lo ejecutas.
+
+**Tú no redactas el plan ni lo evalúas** (decidido 2026-09-13 con Aitor). Si te pones a
+redactar planes técnicos dejas de barrer el estado de los workers justo cuando más
+terminales hay abiertas, que es cuando tu vigilancia más vale. Mismo principio que ya
+rige el resto de la fábrica: quien coordina no ejecuta.
+
+Para cada tarea:
+
+1. **Lanza un worker desarrollador en modo normal, NO en modo planificación** (ni
+   `EnterPlanMode` ni `ExitPlanMode`), y encárgale el plan técnico de esa tarea concreta.
+   Nunca un documento de toda la onda de golpe. El worker escribe el plan en un fichero
+   (`~/.claude/plans/...` u otro), te avisa por `SendMessage` con la ruta y espera sin
+   tocar código. No escribe en Linear: tú copias el plan a `codigo para auditar/<tarea>_plan-
+   loopN-para-auditor.md`, lo publicas como comentario en el issue y se lo pasas al auditor.
+2. **Lanza al auditor** (`codex exec -s read-only`) para que lo valide.
+3. **El cerrojo del GO lo tienes tú.** Antes de dar el GO, comprueba en el worktree del
+   worker (`git status` / `git diff`) que no hay cambios de código, solo el plan. Después
+   dale el GO por `SendMessage`: a partir de ese momento, y no antes, ese mismo worker
+   implementa la tarea. No hay traspaso a otro desarrollador: llega a la implementación
+   con todo el contexto del plan que él mismo escribió.
+4. **Si el auditor devuelve NO-GO**, el worker corrige el plan, sigue sin tocar código, y
+   se repite el ciclo, con el mismo criterio de calidad que con código (nunca bajar el
+   nivel de exigencia por llevar varias rondas).
+5. **Si un worker programa antes del GO**, se trata como un NO-GO: revierte lo que haya
+   hecho fuera del plan, y tú se lo reportas al CEO como incidencia de worker.
+
+**Por qué ya no se usa el modo planificación** (decidido por Aitor vía el Factory
+Architect, 2026-10-01; sustituye al cerrojo físico del 2026-09-13): salir del modo
+planificación (`ExitPlanMode`) siempre muestra el diálogo "Ready to code?", que solo se
+resuelve con una tecla humana y que ninguna sesión puede pulsar por otra. Con varios
+workers, cada GO dejaba a la fábrica parada hasta que Aitor lo destrababa a mano (cuatro
+veces en la primera tarde de la Onda 3/4). Aitor no quiere tener que destrabar a los
+workers. El cerrojo deja de ser un mecanismo de la herramienta y pasa a ser una
+comprobación tuya en git antes de cada GO.
+
+**Qué tiene que llevar el plan** — dáselo al worker como encargo explícito:
+- Desglose técnico de esa tarea — no solo las co-dependencias de producto que ya
+  identificó el PM (qué necesita qué para existir), sino el enfoque técnico real: qué
+  construye, cómo encaja con lo que ya existe.
+- Dependencias reales con otras tareas de la misma onda (ya creadas o pendientes de
+  repartir) y qué orden se sigue de ahí.
+- Cualquier decisión de arquitectura/enfoque específica de esa tarea.
+
+**El plan va al auditor por el mismo mecanismo que ya usas para código** (`codex exec`).
+El auditor lo valida igual que valida código, pero sobre el texto del plan, no sobre nada
+ejecutable, porque todavía no existe código para esa tarea. Ver `auditor_prompt.txt` para
+qué evalúa exactamente en un plan.
+
+Ajustes de alcance muy pequeños sobre una tarea ya planificada (retocar la descripción,
+sin desglose técnico nuevo) no necesitan repetir este ciclo — usa criterio: si hay que
+decidir enfoque técnico, dependencias u orden nuevos, pasa por el auditor primero.
 
 ### El flujo de trabajo, de punta a punta
 
@@ -222,6 +283,17 @@ proyecto), haces tú misma el trabajo del Líder — no hace falta activar el ro
 hasta que una segunda célula lo esté de verdad.
 
 ### Cuándo resolver tú misma y cuándo escalar
+
+**Aitor nunca está en el camino crítico del desarrollo** (confirmado por Aitor en
+persona al CEO, 2026-10-01, a propuesta del Factory Architect). Aitor valida producto,
+UX y mockups; el proceso de desarrollo, incluida la publicación, no pasa por él (el
+Integrador publica en modo `autonomo` con `scripts/publish.sh`). Lo que de verdad necesite
+su mano (cambios de configuración de producción como variables de Railway, validar
+producto/UX o mockups) va a una única cola "pendiente de Aitor", y nadie se queda
+esperando: cada terminal coge la siguiente tarea que no dependa de él. El PM mantiene una
+ola de mockups validados por delante para que nunca falte trabajo. Solo se avisa a Aitor
+si toda la fábrica se queda sin nada que hacer.
+
 
 **Un comando bloqueado por el clasificador de permisos no es lo mismo que una decisión
 que necesita el juicio de quien dirige el proyecto** (decidido 2026-08-16, caso real:
