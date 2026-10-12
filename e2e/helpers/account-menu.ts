@@ -32,9 +32,13 @@ export async function installHydrationTrace(page: Page): Promise<void> {
     const trace = { hydratedAt: null as number | null, clickAt: null as number | null };
     (window as unknown as { __tal80Trace: typeof trace }).__tal80Trace = trace;
     const selector = 'button[aria-label="Menú de la cuenta"]';
-    new MutationObserver(() => {
-      if (trace.hydratedAt === null && document.querySelector(`${selector}[data-hydrated="true"]`)) trace.hydratedAt = performance.now();
-    }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-hydrated"] });
+    const observer = new MutationObserver(() => {
+      if (document.querySelector(`${selector}[data-hydrated="true"]`)) {
+        trace.hydratedAt = performance.now();
+        observer.disconnect(); // capturado: no hace falta seguir observando
+      }
+    });
+    observer.observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-hydrated"] });
     document.addEventListener(
       "pointerdown",
       (event) => {
