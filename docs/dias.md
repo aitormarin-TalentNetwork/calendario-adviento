@@ -428,6 +428,10 @@ del proyecto); los resultados quedan documentados aquí.
 
 ## Aplicación visual de skins en el grid y el modal (TAL-24)
 
+> **Histórico (TAL-72):** desde TAL-62 el grid y el modal se pintan con las variables
+> `--skin-*` del catálogo 2026; `resolveSkinAppearance` y `coverBackgroundStyle`, citados
+> abajo, se eliminaron en TAL-72. Ver `docs/skins.md` § "Catálogo 2026".
+
 `skin.background`/`skin.accent` (TAL-22, `src/lib/skin-appearance.ts` para
 el respaldo cuando faltan) llegan a `DoorGrid`/`DaysGridEditor` así:
 
@@ -855,6 +859,10 @@ diálogo se quedaba abierto — había que cerrarlo a mano. Ajusta
   de Admin).
 
 ## Skin a pantalla completa + centrado (TAL-46/TAL-47 núcleo)
+
+> **Histórico en lo relativo a colores (TAL-72):** los `background`/`textColor`/`textPill`
+> de la fila de `skins` que cita esta sección ya no se leen; desde TAL-62 el fondo y el
+> texto salen del catálogo 2026 (`skinStyles`).
 
 **TAL-46 — centrado.** `<main className="session-page-main">` (`page.tsx`) tenía
 `maxWidth: 900px` pero ningún centrado horizontal — en pantallas más anchas que 900px

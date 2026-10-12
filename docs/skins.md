@@ -1,6 +1,8 @@
 # Catálogo de skins (TAL-22)
 
 > **TAL-62 (Onda 4):** el catálogo pasa a 8 skins "Estilo 2026" — ver § "Catálogo 2026" al final (modelo, migración y runbook de producción). Las secciones de abajo describen el catálogo anterior (24), que se retira.
+>
+> **TAL-72:** todo hasta § "Catálogo 2026" es **histórico**. El código del catálogo anterior (`SKIN_CATALOG`, `seedSkinCatalog`, `migrateLegacySkinKeysToSpanish`) y sus scripts (`verify-tal22-*`, `verify-tal47-*`) se eliminaron; los campos `background`/`accent`/`textColor`/`textPill` siguen en el schema, en desuso, hasta la fase e. Ver § "Limpieza del catálogo anterior (TAL-72)".
 
 Amplía la tabla `skins` de Convex (`key`/`name`/`description`, sin cambios
 desde TAL-9) con los campos de color que exige el Design System
@@ -420,6 +422,21 @@ npx convex import --prod --replace backups/tal62-skins-calendars.zip
 ```
 El backup se toma DESPUÉS de sembrar (fase d), así `skinStyles` sigue coherente con los
 `_id` de `skins` tras restaurar.
+
+### Limpieza del catálogo anterior (TAL-72)
+
+- **Eliminado:** `SKIN_CATALOG` (24 skins), `seedSkinCatalog`, la migración de un solo uso
+  de TAL-43 (`migrateLegacySkinKeysToSpanish`), los scripts que volvían a sembrar los skins
+  retirados (`verify-tal22-skin-schema-migration`, `verify-tal22-skin-seed-idempotency`,
+  `verify-tal47-textcolor-wcag`), el código del front sin llamadores
+  (`resolveSkinAppearance`, `coverBackgroundCss`, `coverBackgroundStyle`, `SkinLike`,
+  `SkinOption.textColor/textPill`) y los campos antiguos que devolvía
+  `listUserModeCalendars` (ahora solo `skin._id`).
+- **Se queda hasta la fase e:** los campos antiguos del schema (opcionales), el campo
+  `legacy` de `skinCatalog2026.ts`, `skins.listAllPublic`, el modo degradado del Next
+  (`src/lib/skin-catalog.ts`) y todo `convex/skinMigration.ts`, más `skins:createSkin`/
+  `getByKey` (los usa `scripts/verify-tal62-skin-migration.mjs`). Son la red del rollback
+  de TAL-62 y la compatibilidad con el Next anterior durante el despliegue.
 
 ### Rollback
 - **Convex** a funciones anteriores a TAL-62: seguro en cualquier fase (las tablas nuevas

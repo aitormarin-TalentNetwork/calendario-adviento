@@ -176,8 +176,8 @@ export async function updateCalendarAction(
     return { error: "Faltan campos obligatorios.", values };
   }
   // TAL-60 — misma lista blanca que `convex/calendars.ts::assertValidCoverIcon`
-  // (`coverIconForWrite`: nombres Lucide del catálogo, y durante la
-  // transición los emojis del catálogo antiguo, que se guardan tal cual).
+  // (`coverIconForWrite`: solo nombres Lucide del catálogo; desde TAL-72
+  // un emoji del catálogo antiguo se rechaza como cualquier otro valor).
   // El selector ya limita a los del catálogo; esto es el límite de
   // seguridad — nunca confiar en que el cliente mandó algo razonable.
   if (coverIconForWrite(coverIcon) === null) {

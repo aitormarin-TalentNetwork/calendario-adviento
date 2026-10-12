@@ -8,38 +8,31 @@ import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
 
 /**
- * TAL-60 — lectura con datos MEZCLADOS (emojis antiguos, nombres Lucide,
- * campo ausente): es lo que garantiza el commit de compatibilidad y lo que
- * hace válido un destino de rollback (docs/iconos.md § "Rollback"). Se
- * ejecuta contra el build normal de la rama y también contra el build de
- * `aitormarin/tal-60-rollback-compat` (solo el commit de compatibilidad).
+ * TAL-60 — lectura con datos MEZCLADOS (nombre Lucide, valor fuera del
+ * catálogo, campo ausente): la lectura nunca falla y nunca pinta el valor
+ * guardado como texto.
  *
- * Datos: "🎁" (emoji antiguo, guardado tal cual por la escritura
- * tolerante), "dog" (nombre), y dos sembrados crudos con
- * `npx convex import --append`: "🦄" (emoji antiguo sin equivalente
- * directo) y uno sin `coverIcon`.
+ * Datos: "dog" (nombre, creado por la mutation normal) y dos sembrados
+ * crudos con `npx convex import --append` (la escritura ya no los acepta):
+ * "🦄" (emoji del catálogo antiguo; desde TAL-72 es un valor fuera del
+ * catálogo como cualquier otro → regalo) y uno sin `coverIcon`.
  */
 test.describe.configure({ mode: "serial" });
 
 const runId = uniqueRunId();
 const ACTOR_EMAIL = `e2e-tal60c-actor-${runId}@example.com`;
 const GUEST_EMAIL = `e2e-tal60c-guest-${runId}@example.com`;
-// Propiedad de compatibilidad: el `coverIcon` guardado (emoji o nombre)
-// NUNCA aparece como texto en la página — siempre como icono. Es más
-// estrecha que el barrido general de emojis de `tal-60-iconos-lucide.spec.ts`
-// a propósito: este spec también se ejecuta contra el build del commit de
-// compatibilidad SOLO, que todavía no incluye el candado/botones de cerrar
-// del commit 2.
-const STORED_VALUES = ["🎁", "🦄", "dog"];
+// El `coverIcon` guardado (emoji o nombre) NUNCA aparece como texto en la
+// página — siempre como icono.
+const STORED_VALUES = ["🦄", "dog"];
 async function expectStoredValueNotAsText(page: import("@playwright/test").Page) {
   const text = await page.evaluate(() => document.body.innerText);
   for (const value of STORED_VALUES) expect(text.includes(value), `"${value}" no aparece como texto`).toBe(false);
 }
 
 const CASES = [
-  { key: "emoji-gift", coverIcon: "🎁", expected: "gift", raw: false },
   { key: "nombre-lucide", coverIcon: "dog", expected: "dog", raw: false },
-  { key: "raw-unicorn", coverIcon: "🦄", expected: "sparkles", raw: true },
+  { key: "raw-unicorn", coverIcon: "🦄", expected: "gift", raw: true },
   { key: "raw-missing", coverIcon: undefined, expected: "tree-pine", raw: true },
 ] as const;
 
@@ -88,8 +81,8 @@ test.beforeAll(async () => {
   for (const id of Object.values(ids)) {
     await convex.mutation(api.invitations.inviteGuestPublic, { serverSecret: serverSecret(), calendarId: id, email: GUEST_EMAIL });
   }
-  // El dato sigue tal cual en Convex (no se ha migrado nada).
-  expect((await convex.query(api.calendars.getPublic, { serverSecret: serverSecret(), calendarId: ids["emoji-gift"] }))!.coverIcon).toBe("🎁");
+  // El dato sigue tal cual en Convex (la lectura no reescribe nada).
+  expect((await convex.query(api.calendars.getPublic, { serverSecret: serverSecret(), calendarId: ids["raw-unicorn"] }))!.coverIcon).toBe("🦄");
 });
 
 test.afterAll(async () => {
@@ -131,7 +124,7 @@ for (const c of CASES) {
   });
 }
 
-test("'Tus calendarios' con los 4 datos mezclados", async ({ browser }) => {
+test("'Tus calendarios' con los 3 datos mezclados", async ({ browser }) => {
   const page = await guestPage(browser);
   await page.goto("/c");
   await expect(page.locator(".calendar-card")).toHaveCount(CASES.length);

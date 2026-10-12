@@ -40,8 +40,9 @@ invitación — su acceso global no los hace "suyos".
   fechas — "1 dic – 24 dic 2026", "28 dic 2026 – 6 ene 2027" (meses fijos en
   español, no `Intl`, que da "dic." y depende de ICU).
 - Etiqueta "Admin" en los que administra.
-- Portada: fondo del skin (`skinBackgroundStyle`) con respaldo
-  `DEFAULT_SKIN_APPEARANCE` si el skin no existe o le faltan campos.
+- Portada: estilo del skin resuelto con el catálogo 2026 (`resolveSkinStyle`; la fila
+  solo trae `skin._id` desde TAL-72), con respaldo Alegre si el skin no existe o está
+  fuera del catálogo.
 
 ## Aterrizaje
 

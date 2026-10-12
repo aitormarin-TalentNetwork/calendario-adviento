@@ -9,7 +9,8 @@ import { thumbnailSourceForVideo } from "./dayFileGuards";
  * TAL-67 — migración ÚNICA en producción: rellena la copia propia de la
  * miniatura de los días existentes (la ejecutan la Directora y el CEO; runbook
  * en docs/dias.md § "Migración de miniaturas (TAL-67)"). Mismo rigor que
- * TAL-60 (`coverIconMigration.ts`):
+ * la migración de iconos de TAL-60 (`coverIconMigration.ts`, retirada en
+ * TAL-72):
  * - por lotes (`paginate`), con las descargas en serie y pausa entre lotes
  *   para no castigar a los proveedores;
  * - log por día (`dayThumbnailMigrationLog`) e idempotente: reejecutar con el

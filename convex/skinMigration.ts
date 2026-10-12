@@ -4,7 +4,8 @@
 // INTERNAS: solo se invocan por la CLI de administrador
 // (`npx convex run [--prod] skinMigration:<función> '<args>'`).
 //
-// Mismo diseño y garantías que `coverIconMigration.ts` (TAL-60):
+// Mismo diseño y garantías que `coverIconMigration.ts` (TAL-60, retirado en
+// TAL-72 tras su fase d):
 // - lotes acotados (`paginate`), cada uno en su propia transacción;
 // - log duradero (`skinMigrationLog`) escrito en la MISMA transacción que
 //   cada `patch`;
