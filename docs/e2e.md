@@ -70,7 +70,7 @@ E2E_PORT=3002 npm run test:e2e:regresion     # cada terminal con su puerto: T1 3
 
 Los tests etiquetados `@regresion` (opción `tag` de Playwright) y el recorrido
 de punta a punta `e2e/regresion-recorrido.spec.ts`. La lista exacta está en
-`e2e/regresion.manifest.json` (23 tests):
+`e2e/regresion.manifest.json` (25 tests):
 
 | Flujo | Tests |
 |---|---|
@@ -78,6 +78,7 @@ de punta a punta `e2e/regresion-recorrido.spec.ts`. La lista exacta está en
 | Modos y menú de la cuenta | tal59 4, 5 y 7; tal68-menu-superadmin 1 y 3 |
 | Super Admin ve todos | tal64 1 y 3 |
 | Estado en «Mis calendarios» (TAL-74) | tal74 1 (la etiqueta de estado de cada fila) |
+| Progreso y filtros en «Tus calendarios» (TAL-73) | tal-73-progreso-filtros 1 (barra vistos/total y «Empieza en N días») y 3 (chips: filtro, aria-pressed, teclado y foco) |
 | Invitar con rol | tal65 1, 2 (lo necesita el 3), 3 y 5 |
 | Vídeo | tal-66-videos 1 y 8 |
 | Imagen de los días vistos | tal67-day-image 1 |

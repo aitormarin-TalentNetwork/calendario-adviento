@@ -72,7 +72,7 @@ test.afterAll(async () => {
   }
 });
 
-test("1 · barra vistos/total de esa persona; «Empieza en 9 días» en el próximo, sin barra", async ({ page }) => {
+test("1 · barra vistos/total de esa persona; «Empieza en 9 días» en el próximo, sin barra", { tag: "@regresion" }, async ({ page }) => {
   await loginAs(page, GUEST_EMAIL);
   await page.goto("/c");
   const live = card(page, ids.live);
@@ -109,7 +109,7 @@ test("2 · el progreso coincide con lo visto de verdad: abrir otro día en la UI
   await expect(card(page, ids.live).locator(".calendar-card-progress")).toHaveAttribute("data-progress", "2/3");
 });
 
-test("3 · chips: filtran por fechas, aria-pressed, teclado (Enter/Espacio) y foco visible", async ({ page }) => {
+test("3 · chips: filtran por fechas, aria-pressed, teclado (Enter/Espacio) y foco visible", { tag: "@regresion" }, async ({ page }) => {
   await loginAs(page, GUEST_EMAIL);
   await page.goto("/c");
   const pressed = async () =>
