@@ -5,6 +5,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { DEFAULT_COVER_ICON } from "../src/lib/cover-icons";
 import { loginAs, loginAsWithoutCallback, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { accountMenu, accountMenuTrigger, openAccountMenu, waitAccountMenuReady } from "./helpers/account-menu";
 
 /**
  * TAL-59 — menú de la cuenta en el avatar (modo Usuario | Admin, saltar de
@@ -87,13 +88,10 @@ async function newContext(browser: Browser, viewport?: { width: number; height: 
   return await browser.newContext(viewport ? { viewport } : {});
 }
 
-const trigger = (page: Page) => page.getByRole("button", { name: "Menú de la cuenta" });
-const menu = (page: Page) => page.getByRole("menu", { name: "Menú de la cuenta" });
-
-async function openMenu(page: Page): Promise<void> {
-  await trigger(page).click();
-  await expect(menu(page)).toBeVisible();
-}
+// TAL-80 — localizadores y apertura compartidos (espera de hidratación).
+const trigger = accountMenuTrigger;
+const menu = accountMenu;
+const openMenu = openAccountMenu;
 
 async function logoutFromMenu(page: Page): Promise<void> {
   await openMenu(page);
@@ -188,6 +186,9 @@ test("2 · teclado: Enter abre y enfoca el primer item, ↓ recorre, Escape devu
   await loginAs(page, ADMIN_EMAIL);
   await page.goto("/admin");
 
+  // TAL-80 — excepción justificada al helper: se abre con teclado, pero
+  // también después de esperar a la hidratación.
+  await waitAccountMenuReady(page);
   await trigger(page).focus();
   await page.keyboard.press("Enter");
   await expect(menu(page)).toBeVisible();

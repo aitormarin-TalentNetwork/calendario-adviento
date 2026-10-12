@@ -5,6 +5,7 @@ import { expect, test } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
 import { seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { deleteCalendarsAs } from "./helpers/cleanup";
 
 /**
  * TAL-67 — ciclo de vida de los ficheros (docs/dias.md § "Ficheros de TAL-67"):
@@ -213,9 +214,7 @@ test.afterAll(async () => {
   for (const name of ["DAY_FILES_FAULT", "DAY_FILES_PAUSE_AT", "DAY_FILE_RECONCILE_BATCH", "DAY_FILE_RECONCILE_LEASE_MS", "DAY_FILE_INTENT_TTL_MS", "ALLOW_TEST_HELPERS"]) {
     envRemove(name);
   }
-  for (const id of createdCalendars) {
-    await convex.mutation(api.calendars.deleteCalendarAsUserPublic, { serverSecret: serverSecret(), calendarId: id, userId: sId }).catch(() => {});
-  }
+  await deleteCalendarsAs(sId, createdCalendars);
 });
 
 test("7 · concurrencia N=10 contando ficheros en _storage (misma URL, URLs distintas, guardado || migración)", async () => {

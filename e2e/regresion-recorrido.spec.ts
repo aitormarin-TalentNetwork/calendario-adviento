@@ -4,6 +4,7 @@ import { expect, test, type Browser, type BrowserContext, type Page } from "@pla
 import type { Id } from "../convex/_generated/dataModel";
 import { seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { accountMenu, openAccountMenu } from "./helpers/account-menu";
 
 /**
  * TAL-71 — recorrido de punta a punta de la batería de regresión: lo único
@@ -89,11 +90,8 @@ async function devLogin(page: Page, email: string, name: string, callbackUrl?: s
   await expect(page).not.toHaveURL(/\/login/);
 }
 
-const accountMenu = (page: Page) => page.getByRole("menu", { name: "Menú de la cuenta" });
-async function openMenu(page: Page) {
-  await page.getByRole("button", { name: "Menú de la cuenta" }).click();
-  await expect(accountMenu(page)).toBeVisible();
-}
+// TAL-80 — apertura compartida con espera de hidratación.
+const openMenu = openAccountMenu;
 
 async function inviteFromUi(page: Page, email: string, role: "Visitante" | "Administrador") {
   const form = page.locator("form.people-invite");

@@ -4,6 +4,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { deleteCalendarsAs } from "./helpers/cleanup";
 
 /**
  * TAL-65 — compatibilidad del despliegue: el build de Railway despliega
@@ -82,13 +83,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  for (const id of createdCalendarIds) {
-    await convex.mutation(api.calendars.deleteCalendarAsUserPublic, {
-      serverSecret: serverSecret(),
-      calendarId: id,
-      userId: sId,
-    });
-  }
+  await deleteCalendarsAs(sId, createdCalendarIds);
 });
 
 test("1 · editor antiguo: la invitación ADMIN no se pinta como invitado; la de Visitante sí y se puede quitar", async ({
