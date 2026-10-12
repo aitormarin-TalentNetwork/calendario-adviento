@@ -188,7 +188,25 @@ test("5 · un Admin normal que fuerza la Server Action con «superadmin» acaba 
 for (const scheme of ["light", "dark"] as const) {
   test(`6 · 375px (${scheme === "light" ? "claro" : "oscuro"}): menú con las tres opciones dentro de pantalla, filas ≥ 44px`, async ({ browser }) => {
     const page = await newPage(browser, { viewport: { width: 375, height: 812 }, colorScheme: scheme });
+    // TAL-80 — solo para la evidencia: E2E_CPU_THROTTLE=<n> ralentiza la CPU
+    // del navegador (CDP) ANTES de navegar, para ensanchar la ventana de
+    // hidratación de forma reproducible. Sin la variable no hace nada.
+    if (process.env.E2E_CPU_THROTTLE) {
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: Number(process.env.E2E_CPU_THROTTLE) });
+    }
     await loginAs(page, SA_EMAIL);
+    // TAL-80 — solo para la evidencia: E2E_DELAY_JS_MS=<ms> retrasa la entrega
+    // de los chunks de JavaScript de Next (el mecanismo real de la carrera:
+    // el HTML del servidor llega antes que el JS que hidrata el menú). Se
+    // activa tras el login y ANTES de navegar a /superadmin.
+    if (process.env.E2E_DELAY_JS_MS) {
+      const delay = Number(process.env.E2E_DELAY_JS_MS);
+      await page.route("**/_next/static/chunks/**", async (route) => {
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        await route.continue();
+      });
+    }
     await page.goto("/superadmin");
     await openMenu(page);
     await expect(menu(page).getByRole("menuitemradio")).toHaveCount(3);
