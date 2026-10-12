@@ -34,8 +34,13 @@ npx playwright install chromium   # solo la primera vez
 npm run test:e2e
 ```
 
-Puerto: `E2E_PORT` (3000 por defecto, el de T1; T2 usa `E2E_PORT=3001`). Si ya
-hay un `next dev` en ese puerto se reutiliza; si no, lo arranca Playwright.
+Puerto: `E2E_PORT` (3000 por defecto, el de T1; T2 usa `E2E_PORT=3001` y T3
+`E2E_PORT=3002`). Si ya hay un `next dev` en ese puerto se reutiliza; si no, lo
+arranca Playwright.
+
+Toda ejecución de Playwright, también las parciales, lleva E2E_PORT explícito (T1
+3000, T2 3001, T3 3002). Nunca se matan procesos por patrón (pkill -f, killall),
+solo por puerto propio o PID con cwd verificado en tu worktree.
 
 Nunca contra producción: los tests escriben datos de prueba en el deployment
 de Convex de `.env.local`.
