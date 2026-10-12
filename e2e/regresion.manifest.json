@@ -86,5 +86,9 @@
   {
     "file": "tal70-welcome.spec.ts",
     "title": "2 · bienvenida: sale la primera vez del día y queda marcada; mismo día no; otro día sí"
+  },
+  {
+    "file": "tal74-estado-mis-calendarios.spec.ts",
+    "title": "1 · cada fila lleva su estado; la ajena, «Super Admin» y su estado sin solaparse"
   }
 ]

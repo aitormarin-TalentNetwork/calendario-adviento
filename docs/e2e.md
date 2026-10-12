@@ -65,13 +65,14 @@ E2E_PORT=3002 npm run test:e2e:regresion     # cada terminal con su puerto: T1 3
 
 Los tests etiquetados `@regresion` (opción `tag` de Playwright) y el recorrido
 de punta a punta `e2e/regresion-recorrido.spec.ts`. La lista exacta está en
-`e2e/regresion.manifest.json` (22 tests):
+`e2e/regresion.manifest.json` (23 tests):
 
 | Flujo | Tests |
 |---|---|
 | Roles y permisos | tal57 1, 2, 3b y 4; tal-58 4 |
 | Modos y menú de la cuenta | tal59 4, 5 y 7; tal68-menu-superadmin 1 y 3 |
 | Super Admin ve todos | tal64 1 y 3 |
+| Estado en «Mis calendarios» (TAL-74) | tal74 1 (la etiqueta de estado de cada fila) |
 | Invitar con rol | tal65 1, 2 (lo necesita el 3), 3 y 5 |
 | Vídeo | tal-66-videos 1 y 8 |
 | Imagen de los días vistos | tal67-day-image 1 |
@@ -88,19 +89,27 @@ de punta a punta `e2e/regresion-recorrido.spec.ts`. La lista exacta está en
    (`DENIED_PROD_SLUGS`, ampliable). Rechaza `--prod` y exige `E2E_PORT`
    explícito. Si algo no cuadra, sale con exit 2 sin arrancar nada.
 2. **Manifiesto.** Lo que lista `playwright test --grep @regresion --list`
-   tiene que ser idéntico a `e2e/regresion.manifest.json`; si no, exit 3. Un
+   tiene que ser idéntico a `e2e/regresion.manifest.json` (listas ordenadas y
+   sin duplicados en ninguna de las dos); si no, exit 3. Un
    título renombrado o una etiqueta perdida no pasan en silencio.
 3. **Cerrojo `.e2e-suite-lock`** en la raíz del repo principal (el padre de
    `git rev-parse --git-common-dir`):
    - adquisición atómica con `mkdir`;
-   - `owner` con terminal, cwd, pid, hora y un token;
+   - `owner` con terminal, cwd, pid, hora y un token, escrito de forma atómica
+     (fichero temporal dentro del cerrojo + `rename`);
    - si está tomado, espera (reintento cada 15 s);
-   - un cerrojo **huérfano** (sin `owner` o con el pid muerto) **no se borra**:
-     avisa y sigue esperando, y lo borra a mano quien lo compruebe;
+   - un cerrojo **huérfano** **no se borra**: avisa y sigue esperando, y lo
+     borra a mano quien lo compruebe. Es huérfano si el pid del `owner` ya no
+     existe, o si pasan más de 5 s sin un `owner` legible con `pid=` (ausente,
+     vacío o a medio escribir);
    - al terminar libera solo si el `owner` conserva su token.
 4. **Playwright** con `--grep @regresion` (los argumentos extra se le pasan
-   tal cual). SIGINT/SIGTERM se reenvían solo a ese proceso hijo, y el
-   cerrojo se suelta después de que termine. Nunca mata procesos por patrón.
+   tal cual). Los manejadores de SIGINT/SIGTERM se registran antes de pedir el
+   cerrojo. Con Playwright en marcha, la señal se reenvía solo a ese proceso
+   hijo y el cerrojo se suelta cuando termina. Sin hijo (esperando, escribiendo
+   el `owner` o justo antes de lanzarlo), se suelta el cerrojo si es nuestro y
+   se sale. Si Playwright no se puede lanzar, también se suelta. Nunca mata
+   procesos por patrón.
    **Comportamiento conocido**: si cortas la batería a mitad (Ctrl-C o
    SIGTERM), Playwright cierra el `next dev` en plena compilación. El
    siguiente arranque en ese worktree se puede quedar compilando al 100 % de
