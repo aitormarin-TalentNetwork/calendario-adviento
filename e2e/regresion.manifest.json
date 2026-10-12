@@ -1,0 +1,94 @@
+[
+  {
+    "file": "regresion-recorrido.spec.ts",
+    "title": "recorrido de punta a punta entre roles: crear, invitar con rol, vídeo, imagen, bienvenida, saltar de calendario y cambiar de modo"
+  },
+  {
+    "file": "tal-58-modo-usuario.spec.ts",
+    "title": "4 · invitado puro que visita /admin acaba en modo Usuario, sin nada de administración"
+  },
+  {
+    "file": "tal-66-videos.spec.ts",
+    "title": "1 · invitado: cada formato de YouTube se reproduce DENTRO del diálogo (iframe cargado)"
+  },
+  {
+    "file": "tal-66-videos.spec.ts",
+    "title": "8 · caso real (criterio b): la URL de búsqueda reproduce el síntoma del invitado y el editor avisa al guardarla"
+  },
+  {
+    "file": "tal57-create-calendar-permissions.spec.ts",
+    "title": "1 · el Super Admin ve «+ Nuevo calendario» y crea un calendario"
+  },
+  {
+    "file": "tal57-create-calendar-permissions.spec.ts",
+    "title": "2 · el Admin (no Super Admin) no ve el botón de crear, sí su calendario"
+  },
+  {
+    "file": "tal57-create-calendar-permissions.spec.ts",
+    "title": "3b · el Admin sigue pudiendo editar su calendario y el cambio persiste"
+  },
+  {
+    "file": "tal57-create-calendar-permissions.spec.ts",
+    "title": "4 · el Admin llama a Convex directamente: «No autorizado.» y no se crea nada"
+  },
+  {
+    "file": "tal59-account-menu.spec.ts",
+    "title": "4 · cambiar a Usuario → /c; «Ir a calendario» con todos y el actual marcado en /c/<id>"
+  },
+  {
+    "file": "tal59-account-menu.spec.ts",
+    "title": "5 · recordar el modo: Usuario → logout → login sin callback → /c; Admin → logout → login → /admin"
+  },
+  {
+    "file": "tal59-account-menu.spec.ts",
+    "title": "7 · invitado puro: sin sección Modo; lista solo con >1; siempre modo Usuario; forzar «Admin» no hace nada"
+  },
+  {
+    "file": "tal64-superadmin-all-calendars.spec.ts",
+    "title": "1 · Super Admin en /admin: ve también los ajenos, con la etiqueta «Super Admin»; el propio sin ella"
+  },
+  {
+    "file": "tal64-superadmin-all-calendars.spec.ts",
+    "title": "3 · /superadmin: la tarjeta de un calendario abre su editor"
+  },
+  {
+    "file": "tal65-invite-with-role.spec.ts",
+    "title": "1 · un Admin invita como Administrador → esa persona entra y lo ve en «Mis calendarios» con permisos de Admin"
+  },
+  {
+    "file": "tal65-invite-with-role.spec.ts",
+    "title": "2 · invitar como Visitante (por defecto) → entra, pero no tiene acceso al editor"
+  },
+  {
+    "file": "tal65-invite-with-role.spec.ts",
+    "title": "3 · cambiar rol desde la UI en los dos sentidos (ya entró y pendiente)"
+  },
+  {
+    "file": "tal65-invite-with-role.spec.ts",
+    "title": "5 · último Admin: desplegable y «Quitar» deshabilitados con aviso; el servidor también lo rechaza"
+  },
+  {
+    "file": "tal67-day-image.spec.ts",
+    "title": "1 · subir JPG, PNG y WebP → vista previa, y la casilla Visto del invitado la usa sea cual sea el proveedor"
+  },
+  {
+    "file": "tal68-menu-superadmin.spec.ts",
+    "title": "1 · Super Admin: Usuario / Admin / Super Admin; «Super Admin» abre /superadmin y queda marcada"
+  },
+  {
+    "file": "tal68-menu-superadmin.spec.ts",
+    "title": "3 · recordar el modo: Super Admin cierra sesión en /superadmin y vuelve ahí al entrar"
+  },
+  {
+    "file": "tal70-welcome.spec.ts",
+    "title": "1 · /login genérico, con y sin callbackUrl; entrar conserva el callbackUrl"
+  },
+  {
+    "file": "tal70-welcome.spec.ts",
+    "title": "2 · bienvenida: sale la primera vez del día y queda marcada; mismo día no; otro día sí"
+  },
+  {
+    "file": "tal74-estado-mis-calendarios.spec.ts",
+    "title": "1 · cada fila lleva su estado; la ajena, «Super Admin» y su estado sin solaparse"
+  }
+]
