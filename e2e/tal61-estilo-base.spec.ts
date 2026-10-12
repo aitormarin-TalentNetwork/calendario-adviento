@@ -243,9 +243,10 @@ test("1 · ninguna serifa ni monoespaciada en ninguna pantalla (diálogos y men�
   await anon.goto("/login");
   expect(await fontOffenders(anon), "/login").toEqual([]);
   expect(await anon.evaluate(() => document.fonts.check('16px "Plus Jakarta Sans"'))).toBe(true);
-  // --icon-tile-fg* solo se admite en .cover-icon-box porque ahí solo hay un
-  // <svg> (icono), nunca texto (caso 10).
-  const tiles = await anon.locator(".cover-icon-box").evaluateAll((els) =>
+  // TAL-70 — el login es genérico: en vez de .cover-icon-box lleva
+  // .login-logo, cuya excepción de color (--primary, caso 10) solo se admite
+  // porque ahí solo hay un <svg> (icono), nunca texto. Mismo invariante.
+  const tiles = await anon.locator(".login-logo, .cover-icon-box").evaluateAll((els) =>
     els.map((el) => ({ text: (el.textContent ?? "").trim(), svg: el.querySelectorAll("svg").length, children: el.children.length }))
   );
   expect(tiles.length).toBeGreaterThan(0);
@@ -642,16 +643,16 @@ const EXCEPTIONS: Record<string, ColorException> = {
   "app/globals.css:1011": { value: "#ffffff", reason: "opción marcada del segmentado de TAL-65: blanco sobre --primary-btn (5,06 / 4,66)" },
   "app/globals.css:1124": { value: "var(--skin-hero-ink)", reason: ".skin-hero: textos del bloque (portada y diálogo de la vista previa, TEXTO GRANDE según scripts/tal62-hero-text-sizes.json) sobre --skin-hero, o sobre píldora blanca en Rojiblanco; la miniatura compacta no tiene texto (NO-GO M1); " + GATE },
   "app/globals.css:1156": { value: "var(--skin-hero-num)", reason: ".skin-hero-num: número de la cuenta atrás (texto grande) sobre --skin-hero o píldora blanca; " + GATE },
-  "app/globals.css:1204": { value: "var(--skin-ink)", reason: ".skin-month-card: fondo --skin-card en la misma regla: ink/card, " + GATE },
-  "app/globals.css:1214": { value: "var(--skin-ink)", reason: ".skin-notice (avisos del invitado, NO-GO M2): fondo --skin-card opaco en la misma regla, haya o no imagen debajo: ink/card, " + GATE },
+  "app/globals.css:1205": { value: "var(--skin-ink)", reason: ".skin-month-card: fondo --skin-card en la misma regla: ink/card, " + GATE },
+  "app/globals.css:1215": { value: "var(--skin-ink)", reason: ".skin-notice (avisos del invitado, NO-GO M2): fondo --skin-card opaco en la misma regla, haya o no imagen debajo: ink/card, " + GATE },
   // Editor (fuera del calendario)
-  "app/admin/[calendarId]/days-grid-editor.tsx:521": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
+  "app/admin/[calendarId]/days-grid-editor.tsx:524": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
   "app/admin/[calendarId]/calendar-preview.tsx:221": { value: '"#ffffff"', reason: "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin" },
   // Superficie del calendario: grid del editor dentro de la sección de días (days-section.tsx fija --accent con el del skin) y /c/[id]
   "app/admin/[calendarId]/days-grid-editor.tsx:60": { value: '"inherit"', reason: "casilla del grid: hereda; " + SKIN },
   "app/admin/[calendarId]/days-grid-editor.tsx:117": { value: '"var(--bg)"', reason: "número sobre miniatura de vídeo (foto arbitraria), «hoy» o no: píldora OPACA --bg sobre --ink (15,2 / 16,3, caso 4) — TAL-62, NO-GO M3 del loop2" },
   "app/admin/[calendarId]/days-grid-editor.tsx:127": { value: 'isToday ? "var(--accent)" : isWeekend ? "var(--coral-ink)" : "var(--ink)"', reason: "número de día: --accent del skin hoy, --coral-ink fin de semana, --ink resto; " + SKIN },
-  "app/admin/[calendarId]/days-grid-editor.tsx:280": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
+  "app/admin/[calendarId]/days-grid-editor.tsx:283": { value: 'i >= 5 ? "var(--coral-ink)" : undefined', reason: "inicial S/D en --coral-ink, resto heredado; " + SKIN },
   "app/c/[calendarId]/door-grid.tsx:37": { value: '"var(--skin-ink)"', reason: "número de casilla abierta sobre --skin-cell: ink/cell, " + GATE },
   "app/c/[calendarId]/door-grid.tsx:41": { value: '"var(--skin-dim)"', reason: "casilla bloqueada: fondo transparente dentro de la tarjeta del mes (--skin-card): dim/card, " + GATE },
   "app/c/[calendarId]/door-grid.tsx:50": { value: '"var(--skin-today-ink)"', reason: "casilla de hoy sobre --skin-today: todayInk/today, " + GATE },
@@ -662,18 +663,20 @@ const EXCEPTIONS: Record<string, ColorException> = {
   "app/c/[calendarId]/door-grid.tsx:652": { value: '"var(--skin-ink)"', reason: "cabecera sticky del mes con fondo --skin-card: ink/card, " + GATE },
   "app/c/[calendarId]/door-grid.tsx:667": { value: '"var(--skin-dim)"', reason: "iniciales L–V dentro de la tarjeta del mes (--skin-card): dim/card, " + GATE },
   "app/c/[calendarId]/door-grid.tsx:676": { value: 'i >= 5 ? "var(--skin-weekend)" : undefined', reason: "inicial S/D en --skin-weekend (verificado por la puerta de TAL-62), resto heredado de --skin-dim" },
-  "app/c/[calendarId]/door-grid.tsx:846": { value: '"var(--skin-ink)"', reason: "modal del día con fondo --skin-card: ink/card, " + GATE },
-  "app/c/[calendarId]/page.tsx:198": { value: '"var(--skin-ink)"', reason: "color heredado del <main> (fondo --skin-bg, o la imagen de fondo): ningún texto lo usa directamente sobre el fondo — el título fija el suyo (TAL-47: ink/bg, o «photo» con imagen), y bloque, tarjeta del mes y avisos (.skin-notice) llevan fondo opaco propio; ink/bg, " + GATE },
+  "app/c/[calendarId]/door-grid.tsx:848": { value: '"var(--skin-ink)"', reason: "modal del día con fondo --skin-card: ink/card, " + GATE },
+  "app/c/[calendarId]/page.tsx:231": { value: '"var(--skin-ink)"', reason: "color heredado del <main> (fondo --skin-bg, con la imagen de fondo al 10 % encima desde TAL-70): el título usa ink (TAL-47; con imagen, ink sobre bg + imagen 10 %, scripts/verify-tal70-faint-background-contrast.mjs), el bloque y los avisos (.skin-notice) llevan fondo opaco propio y la tarjeta del mes va al 85 % (misma puerta de TAL-70); ink/bg, " + GATE },
   "app/c/[calendarId]/door-grid.tsx:781": { value: '"var(--bg)"', reason: "burbuja de paciencia invertida: --bg sobre --ink (15,2 / 16,3)" },
   "components/cover-text.tsx:37": { value: "treatment.color", reason: "texto de portada: el color lo da el tratamiento del skin (resolveCoverTextTreatment, TAL-47); " + SKIN },
   "components/cover-text.tsx:51": { value: "treatment.color", reason: "ídem (variante píldora); " + SKIN },
   // .ts (desde el loop 4)
-  "lib/skin-appearance.ts:186": { value: "string", reason: TYPE },
-  "lib/skin-appearance.ts:187": { value: "string", reason: TYPE },
   "lib/skin-appearance.ts:188": { value: "string", reason: TYPE },
-  "lib/skin-appearance.ts:221": { value: '"#fff"', reason: "tratamiento «photo»: texto blanco con sombra sobre la foto/imagen de fondo de la portada; " + SKIN },
-  "lib/skin-appearance.ts:224": { value: "appearance.textColor", reason: "tratamiento «pill»: textColor del skin sobre píldora oscura; " + SKIN },
-  "lib/skin-appearance.ts:226": { value: "appearance.textColor", reason: "tratamiento «flat»: textColor del skin sobre su fondo (verificado en TAL-47, scripts/verify-tal47-textcolor-wcag.mjs); " + SKIN },
+  "lib/skin-appearance.ts:190": { value: "string", reason: TYPE },
+  "app/globals.css:1290": { value: "var(--primary)", reason: "TAL-70 .login-logo: solo envuelve el <svg> del icono CalendarDays (sin texto), --primary sobre --primary-soft ≥ 3:1 como elemento gráfico" },
+  "app/globals.css:1343": { value: "#ffffff", reason: "TAL-70 .welcome-content: texto blanco sobre el degradado rgba(10,8,30,…) compuesto sobre el peor caso de foto (#fff), medido en el DOM a la altura de cada texto por e2e/tal70-welcome.spec.ts (≥ 4,5, título ≥ 3)" },
+  "lib/skin-appearance.ts:189": { value: "string", reason: TYPE },
+  "lib/skin-appearance.ts:223": { value: '"#fff"', reason: "tratamiento «photo»: texto blanco con sombra (desde TAL-70 ninguna superficie lo usa: la imagen de fondo es tenue y el texto lleva el tratamiento del skin); " + SKIN },
+  "lib/skin-appearance.ts:226": { value: "appearance.textColor", reason: "tratamiento «pill»: textColor del skin sobre píldora oscura; " + SKIN },
+  "lib/skin-appearance.ts:228": { value: "appearance.textColor", reason: "tratamiento «flat»: textColor del skin sobre su fondo (verificado en TAL-47, scripts/verify-tal47-textcolor-wcag.mjs); " + SKIN },
   "lib/confetti-canvas.ts:26": { value: "string", reason: TYPE },
   "lib/confetti-canvas.ts:88": { value: "CONFETTI_COLORS[(Math.random() * CONFETTI_COLORS.length) | 0]", reason: "partícula de confeti pintada en <canvas>, decorativa, no texto" },
 };

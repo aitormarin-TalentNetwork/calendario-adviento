@@ -13,7 +13,7 @@ import {
 import { EditorWarning } from "@/components/editor-warning";
 import { SubmitButton } from "@/components/submit-button";
 import { groupIntoMonths, isWeekendUTC, parseDateOnlyUTC, todayDateStrInTimeZone } from "@/lib/calendar-grid";
-import { resolveCoverTextTreatment, skinBackgroundStyle } from "@/lib/skin-appearance";
+import { faintBackgroundLayer, resolveCoverTextTreatment, skinBackgroundStyle } from "@/lib/skin-appearance";
 import { CoverText } from "@/components/cover-text";
 import { dayCellBackground, dayCellImageUrl } from "@/lib/day-image";
 
@@ -151,15 +151,13 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
  * las casillas individuales, que codifican los estados de este editor
  * (sin vídeo/con vídeo/hoy/diálogo abierto) ya auditados en TAL-21.
  *
- * TAL-39 — `backgroundImageUrl`, si el calendario tiene uno, sustituye ese
- * mismo `background` del skin en la cabecera de mes (`skinBackgroundStyle`,
- * `skin-appearance.ts`).
+ * TAL-39 — `backgroundImageUrl`, si el calendario tiene uno, se pinta en la
+ * cabecera de mes. Desde TAL-70, casi transparente encima del skin
+ * (`faintBackgroundLayer`, `skin-appearance.ts`), no en su lugar.
  *
  * TAL-47 — el texto de esa cabecera ya no es blanco + sombra fijos: usa
  * `textColor`/`textPill` del skin (`resolveCoverTextTreatment`/`CoverText`),
- * salvo con `backgroundImageUrl` puesto, donde se mantiene blanco + sombra
- * (foto arbitraria, sin `textColor` verificado) — mismo criterio que
- * `door-grid.tsx`, ver el comentario completo ahí.
+ * también con imagen de fondo desde TAL-70 (antes, blanco + sombra).
  */
 export function DaysGridEditor({
   calendarId,
@@ -176,7 +174,10 @@ export function DaysGridEditor({
   textColor: string;
   textPill: boolean;
 }) {
-  const textTreatment = resolveCoverTextTreatment({ textColor, textPill }, !!backgroundImageUrl);
+  // TAL-70 — con imagen de fondo, capa tenue (10 %) encima del skin en la
+  // cabecera de mes y texto con el tratamiento normal del skin.
+  const textTreatment = resolveCoverTextTreatment({ textColor, textPill }, false);
+  const faintLayer = faintBackgroundLayer(backgroundImageUrl);
   // TAL-34 — ya no arranca con el primer día "seleccionado" por defecto (la
   // ronda anterior abría el panel del día 1 nada más cargar la página, sin
   // que nadie hubiera hecho clic); el diálogo solo se abre tras un clic real
@@ -241,6 +242,7 @@ export function DaysGridEditor({
           {months.map((month) => (
             <div key={month.key}>
               <div
+                className={faintLayer ? "faint-bg-host" : undefined}
                 style={{
                   position: "sticky",
                   top: 0,
@@ -249,12 +251,13 @@ export function DaysGridEditor({
                   // en vez del antiguo `coverBackgroundStyle` + blanco fijo —
                   // ver el comentario completo en `door-grid.tsx`, mismo
                   // motivo/mecanismo.
-                  ...skinBackgroundStyle(background, backgroundImageUrl),
+                  ...skinBackgroundStyle(background),
                   fontWeight: 800,
                   fontSize: "1.15rem",
                   padding: "10px 20px",
                 }}
               >
+                {faintLayer && <div className="faint-bg-layer" aria-hidden="true" style={faintLayer} />}
                 <CoverText treatment={textTreatment}>{month.label}</CoverText>
               </div>
               <div
