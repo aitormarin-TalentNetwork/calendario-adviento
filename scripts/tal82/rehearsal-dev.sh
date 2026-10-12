@@ -18,7 +18,7 @@ set -x
 npx convex dev --once
 
 # --- R1 · verify-tal62 ANTES de cualquier limpieza de dev (su escenario necesita los retirados)
-( set -a; source .env.local; source .env; set +a; node scripts/verify-tal62-skin-migration.mjs )
+with_env_files node scripts/verify-tal62-skin-migration.mjs   # nunca `source` con `set -x` activo (ver lib.sh)
 
 # --- R2 · primer export
 EXPORT1=$(scripts/tal82/export.sh "$slug" ensayo-1 | tail -1)

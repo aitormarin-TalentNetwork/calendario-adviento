@@ -18,6 +18,21 @@ TAL82_PROD_SLUG="abundant-badger-144"
 
 die() { echo "ABORTO: $*" >&2; exit 1; }
 
+# with_env_files <comando…>: ejecuta el comando en un subshell con las variables de .env.local y
+# .env. SEGURIDAD (incidente de TAL-82): `set -x` imprimiría en el log cada asignación del
+# `source`, secretos incluidos. Por eso la traza se apaga ANTES (sin trazar el propio `set +x`) y
+# solo se vuelve a encender, si estaba activa, cuando el subshell con las variables ya ha terminado.
+with_env_files() {
+  local was_tracing=0
+  case "$-" in *x*) was_tracing=1 ;; esac
+  { set +x; } 2>/dev/null
+  echo "(con .env.local y .env cargados, traza desactivada): $*"
+  local rc=0
+  ( set -a; source "$TAL82_ROOT/.env.local"; source "$TAL82_ROOT/.env"; set +a; "$@" ) || rc=$?
+  [ "$was_tracing" = 1 ] && set -x
+  return "$rc"
+}
+
 # guard_deployment <slug>: valida el destino antes de cualquier comando.
 guard_deployment() {
   local slug="$1"
