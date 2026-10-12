@@ -292,7 +292,9 @@ test("8 · oscuro y 375px: selector, portada, /c y login sin scroll horizontal",
     for (const page of [mobile, desktop]) {
       const suffix = `${colorScheme}-${page === mobile ? "375" : "desktop"}`;
       await page.goto(`/login?callbackUrl=/c/${calendarA}`);
-      await expect(page.locator(".cover-icon-box")).toBeVisible();
+      // TAL-70 — login genérico: el logo de la app, no el icono del calendario.
+      await expect(page.locator(".login-logo")).toBeVisible();
+      await expect(page.locator("[data-cover-icon]")).toHaveCount(0);
       await expectNoHorizontalScroll(page);
       await page.screenshot({ path: path.join(EVIDENCE_DIR, `8-login-${suffix}.png`) });
 
