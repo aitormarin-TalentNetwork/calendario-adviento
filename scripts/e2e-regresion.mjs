@@ -116,8 +116,13 @@ function pidAlive(pid) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+// Entre el `mkdir` de otro lanzador y la escritura de su `owner` hay un
+// instante sin fichero: sin owner solo cuenta como huérfano si dura más de esto.
+const NO_OWNER_GRACE_MS = 5_000;
+
 async function acquireLock() {
   let warned = null;
+  let noOwnerSince = null;
   for (;;) {
     try {
       mkdirSync(LOCK); // atómico: falla con EEXIST si otro lo tiene
@@ -129,7 +134,8 @@ async function acquireLock() {
     }
     const owner = readOwner();
     const pid = Number(owner?.match(/^pid=(\d+)$/m)?.[1]);
-    const orphan = owner === null || (pid > 0 && !pidAlive(pid));
+    noOwnerSince = owner === null ? (noOwnerSince ?? Date.now()) : null;
+    const orphan = (owner === null && Date.now() - noOwnerSince > NO_OWNER_GRACE_MS) || (pid > 0 && !pidAlive(pid));
     const state = orphan ? `huérfano:${owner ?? "(sin owner)"}` : `ocupado:${owner}`;
     if (state !== warned) {
       warned = state;
@@ -141,7 +147,7 @@ async function acquireLock() {
         console.log(`… cerrojo ocupado, esperando (reintento cada ${LOCK_POLL_MS / 1000} s). owner:\n${(owner ?? "").trim().replace(/^/gm, "    ")}`);
       }
     }
-    await sleep(LOCK_POLL_MS);
+    await sleep(owner === null ? Math.min(LOCK_POLL_MS, 1_000) : LOCK_POLL_MS);
   }
 }
 
