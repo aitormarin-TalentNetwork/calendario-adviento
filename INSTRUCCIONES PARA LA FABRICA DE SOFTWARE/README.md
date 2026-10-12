@@ -87,8 +87,8 @@ comprobar por sí mismo si el recurso estaba libre de verdad):
 - **Reclamar:** `mkdir .chrome-lock` en la raíz del repo (en `.gitignore`) antes de
   empezar a usar Chrome para una prueba manual — `mkdir` falla solo si ya existe, sin
   ventana de carrera (mismo patrón que `director.md` § "Recursos compartidos entre
-  terminales").
-- **Liberar:** `rmdir .chrome-lock` en cuanto termines de usar el navegador —
+  terminales"), y escribir dentro el `owner` en el formato de abajo.
+- **Liberar:** `rm -rf .chrome-lock` en cuanto termines de usar el navegador —
   inmediatamente, no al final de toda la tarea.
 - **Antes de reclamarlo:** comprueba si `.chrome-lock/` ya existe. Si existe, no esperes
   a que alguien te avise — coordina directo con quien lo tiene (mensaje directo,
@@ -109,14 +109,39 @@ evidencia de T1 y T3). Detalle en `intro-terminal.txt`.
 Architect, 2026-10-11). Tres suites completas de Playwright a la vez subieron la carga
 de la máquina a ~65: T2 tardó 54 min en vez de 8 y tuvo 5 fallos de infraestructura.
 Mismo protocolo que Chrome:
-- **Reclamar:** `mkdir .e2e-suite-lock` en la raíz antes de una pasada COMPLETA, y
-  anotar dentro quién eres y cuándo empezaste (p. ej. `echo "T2 TAL-73 22:30" > .e2e-suite-lock/owner`).
+- **Suite completa** (`E2E_PORT=<tu puerto> npx playwright test`, ~350 tests; es la
+  evidencia obligatoria de CADA tarea): el cerrojo se coge **a mano, siempre**.
+  `mkdir .e2e-suite-lock` en la raíz, se lanza la suite en segundo plano y en seguida
+  se escribe el `owner` con su pid (p. ej. `pid=$!`) en el formato de abajo; el lanzador
+  de regresión da 5 s de gracia a un owner sin pid. Al terminar se libera, también si
+  falla.
+- **Batería de regresión** (`npm run test:e2e:regresion`, los ~23 tests `@regresion`,
+  `scripts/e2e-regresion.mjs`, TAL-71): el lanzador coge y suelta el cerrojo él solo,
+  con su propio pid. No se toca a mano.
+- **Nunca anidadas:** no lances la batería dentro de tu cerrojo manual; se quedaría
+  esperándose a sí misma.
+- **La batería NO sustituye a la suite completa** en la evidencia de una tarea, salvo
+  que el brief diga lo contrario.
 - **Si ya existe:** mira quién lo tiene y espera, o coordínate con esa terminal
   directamente. No lances tu suite en paralelo.
 - **Liberar:** `rm -rf .e2e-suite-lock` en cuanto termine la pasada, **también si
   falla**.
 - **Huérfano:** lo comprueban la Directora y el CEO en su barrido, como el de Chrome.
 - Los specs sueltos (`playwright test e2e/<fichero>`) no necesitan cerrojo.
+
+**Formato del fichero `owner` de los dos cerrojos (Chrome y suites E2E): `key=valor`,
+una por línea, con al menos `terminal=`, `tarea=`, `desde=` y `pid=`** (decidido por el
+Factory Architect, 2026-10-12). `pid=` es el del proceso que usa el recurso de verdad
+(la suite o el navegador), no el de la shell: el lanzador de TAL-71 da por "posiblemente
+huérfano" cualquier owner sin `pid=` vivo, y el CEO y la Directora lo comprueban igual
+en su barrido (`ps -p <pid>`). Ejemplo:
+```
+terminal=T2 (E2E_PORT 3001)
+tarea=TAL-73 evidencia
+desde=2026-10-12T02:17:00Z
+pid=12345
+```
+
 
 Detalles finos de integración en el flujo real de pruebas de este proyecto (dónde
 exactamente se reclama/libera dentro de cada verificación) los define la Directora,

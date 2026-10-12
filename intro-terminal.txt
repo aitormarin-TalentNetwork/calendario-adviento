@@ -67,10 +67,16 @@ una vez que el trabajo pasa auditoría.
       (`lsof -a -p <PID> -d cwd`).
     - Toda ejecución de Playwright, también las parciales, lleva su `E2E_PORT=<tu puerto>`
       explícito.
-    - Una pasada COMPLETA de Playwright solo se lanza con el cerrojo `.e2e-suite-lock`
-      cogido (`mkdir` en la raíz; se libera siempre, también si falla). Tres suites a la
-      vez saturaban la máquina. Los specs sueltos no lo necesitan. Protocolo en el README
-      de la fábrica § 3bis.
+    - La suite COMPLETA (`E2E_PORT=<tu puerto> npx playwright test`, la evidencia
+      obligatoria de cada tarea) se lanza siempre con el cerrojo `.e2e-suite-lock` cogido
+      A MANO: `mkdir` en la raíz, suite en segundo plano y en seguida el `owner` en
+      formato `key=valor` (terminal=, tarea=, desde=, pid= de la suite, p. ej. `$!`, no
+      de la shell). Se libera siempre, también si falla.
+    - La batería de regresión (`npm run test:e2e:regresion`) coge y suelta el cerrojo
+      sola: no la lances dentro de tu cerrojo manual, porque se esperaría a sí misma. Y
+      no sustituye a la suite completa en la evidencia, salvo que el brief lo diga.
+    - `.chrome-lock` usa el mismo formato de `owner`. Los specs sueltos no necesitan
+      cerrojo. Protocolo en el README de la fábrica § 3bis.
 
 - **Turno de recursos compartidos entre terminales** (bases de datos de desarrollo,
   servicios externos con acceso único, etc. — el caso concreto de este proyecto está en
