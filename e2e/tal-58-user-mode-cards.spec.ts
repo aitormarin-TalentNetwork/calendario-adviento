@@ -68,7 +68,7 @@ test("toUserModeCard compone título, icono por defecto, skin de respaldo y lín
       endDate: utc("2027-01-06"),
       isAdmin: false,
       skin: null,
-    })
+    }, utc("2026-12-20"))
   ).toEqual({
     id: "c1",
     title: "Interno",
@@ -77,5 +77,9 @@ test("toUserModeCard compone título, icono por defecto, skin de respaldo y lín
     backgroundImageUrl: null,
     subtitle: "28 dic 2026 – 6 ene 2027",
     isAdmin: false,
+    // TAL-73 — próximo (empieza en 8 días), sin barra.
+    status: "upcoming",
+    progress: null,
+    startsInDays: 8,
   });
 });

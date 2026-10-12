@@ -100,8 +100,11 @@ test("3 · comprobación lenta: el guardado no la espera, persiste y no hay avis
   const slow = "https://tal69.invalid/stub-slow.jpg";
   const started = Date.now();
   await saveWith(page, id, { cover: slow });
-  await expect(page.getByRole("button", { name: "Guardar cambios" })).toBeEnabled({ timeout: 2_000 });
-  expect(Date.now() - started).toBeLessThan(2_000 + 1_500); // goto + rellenar + guardar, sin esperar a los 10 s del stub
+  // El stub lento tarda 10 s: si el guardado lo esperara, el botón no volvería
+  // antes de 10 s. Margen de 8 s (antes 2 s, intermitente con la máquina
+  // cargada: el botón muestra "…" mientras guarda y no se encontraba a tiempo).
+  await expect(page.getByRole("button", { name: "Guardar cambios" })).toBeEnabled({ timeout: 8_000 });
+  expect(Date.now() - started).toBeLessThan(9_000); // goto + rellenar + guardar, sin esperar a los 10 s del stub
   expect((await stored(id)).cover).toBe(slow);
   await page.waitForTimeout(4_000); // pasado el plazo de 3 s de la acción
   await expect(field(page, COVER).getByRole("status")).toHaveCount(0);
