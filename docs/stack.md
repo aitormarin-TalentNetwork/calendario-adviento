@@ -202,6 +202,46 @@ advisory).
 - Queda corregido porque `next@16.3.8` resuelve `sharp@0.35.5`
   (`@img/sharp-*@0.35.5`, `@img/sharp-libvips-*@1.3.4`).
 
+### TAL-77 (2026-10-12): `source-map-js` corregida; `braces` sin corrección posible
+
+`npm audit` daba 6 altas de **dos** avisos.
+
+**`source-map-js` — GHSA-68fv-2mgg-jv7q (corregida).**
+- Es una denegación de servicio por offsets de secciones indexadas en un source map.
+- Está en el **árbol de producción**: `next@16.3.8` → `postcss@8.5.23` → `source-map-js`.
+- Se corrige en 1.2.2, que cabe en el `^1.2.1` de postcss. Solo cambia el lock
+  (`npm update source-map-js --package-lock-only`, 3 líneas).
+- No cambian ni `package.json`, ni `next` (16.3.8), ni `postcss` (8.5.23).
+- `npm audit --omit=dev` queda en 0.
+
+**`braces` — GHSA-vfj7-8cjw-p6xm (sin corrección; solo desarrollo).**
+
+Es una denegación de servicio por pila agotada con patrones de llaves muy anidados. Afecta a
+`braces <= 3.0.3`, sin versión corregida (`first_patched_version: null`); la última publicada es la 3.0.3.
+
+- **Son 5 hallazgos de `npm audit` de UNA sola vulnerabilidad raíz.** `braces`, y los 4 paquetes que la
+  heredan: `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`.
+- **Ninguna versión de `@next/eslint-plugin-next` lo evita:** 16.3.8, `latest` 16.4.0 y `canary` 16.5.0-canary.8
+  fijan `fast-glob: "3.3.1"`. Subir `eslint-config-next` no corrige nada y lo desalinearía de `next`.
+- **Por qué no `npm audit fix --force`:** instalaría `eslint-config-next@14.2.35`, dos versiones mayores atrás,
+  incompatible con ESLint 9 (config plana) y con Next 16.
+- **Por qué no `overrides`:**
+  - forzar otra versión de `fast-glob` o de `micromatch` es posible, pero **no corrige braces**, porque todas
+    sus versiones dependen de `braces ^3.0.3`;
+  - forzar `braces` es imposible, porque no hay versión corregida;
+  - no se sustituyen por un fork ni por otra implementación, porque cambiaría la API que usa el plugin.
+- **Alcance real:**
+  - el plugin solo llama a `fast-glob` (`dist/utils/get-root-dirs.js`, `globSync`) si la config de ESLint
+    define `settings.next.rootDir`;
+  - ni `eslint.config.mjs` ni `eslint-config-next` lo definen, así que **con nuestra config ese código no se
+    ejecuta**;
+  - aunque se definiera, el patrón saldría de nuestra propia config versionada;
+  - y en cualquier caso solo correría durante una ejecución explícita de ESLint, en desarrollo o en CI;
+    **nunca en `next build` ni en runtime**. Railway instala las dependencias de desarrollo para construir,
+    pero no ejecuta ESLint.
+- **Revisar** en cuanto salga `braces > 3.0.3`, o un `@next/eslint-plugin-next` que no dependa de
+  `fast-glob 3.3.1`. Entonces se actualiza y desaparecen los 5 hallazgos.
+
 ### Pauta
 
 - `npm audit` antes de cerrar cada onda. Nunca `npm audit fix --force` a
