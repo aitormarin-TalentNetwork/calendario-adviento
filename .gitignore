@@ -30,3 +30,8 @@ next-env.d.ts
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Cerrojos autoservicio entre terminales (README de la fábrica § 3bis/3ter)
+.chrome-lock/
+.e2e-suite-lock/
+.convex-dev-lock/

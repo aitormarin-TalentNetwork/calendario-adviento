@@ -32,6 +32,11 @@ ejecutar este paso tú mismo (entorno de solo lectura, por ejemplo), decláralo
 explícitamente como no verificado en vez de asumir que el build tal cual está
 representa lo que de verdad se va a desplegar.
 
+**Evidencia exigida: la salida completa de `scripts/clean-evidence.sh`, ni más ni menos**
+(decidido por el Factory Architect, 2026-10-12). El worker la pega tal cual en el export.
+Si falta, está recortada o resumida, o la instalación limpia se hizo a mano con otros
+pasos, es NO-GO por evidencia. Playwright va aparte, con su propia evidencia.
+
 **Evidencia de tests de Playwright, requisito de entrada obligatorio, sin excepción**
 (decidido 2026-08-17 por el Factory Architect, directriz explícita de Aitor — mismo
 principio de "probar de verdad, no solo decir que se probó" que motivó la verificación
