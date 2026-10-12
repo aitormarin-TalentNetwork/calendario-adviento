@@ -48,8 +48,8 @@
 
   /* --- Tipografía --- */
   /* Una sola familia (design-system.md § "Estilo 2026 → Tipografía"):
-     Plus Jakarta Sans servida por la app con next/font (src/app/layout.tsx
-     define --font-jakarta). Sin serifa ni monoespaciada en ningún sitio;
+     Plus Jakarta Sans autoalojada (TAL-79: --font-jakarta, en el bloque
+     TAL-79 al final del fichero). Sin serifa ni monoespaciada en ningún sitio;
      jerarquía por peso y tamaño; números y fechas con .num (tabular-nums). */
   --font: var(--font-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 
@@ -1422,6 +1422,26 @@ a {
 
 .status-pill--finished {
   background: var(--surface-2);
+}
+
+/* TAL-79 — Plus Jakarta Sans autoalojada (src/app/fonts/plus-jakarta-sans):
+   las 20 @font-face y la precarga las emite next/font/local; esto es lo que
+   next/font/local no deja fijar. Valores LITERALES del CSS que generaba
+   next/font/google (antes de TAL-79): la fuente de respaldo con sus métricas
+   (gobiernan el render antes de que cargue la fuente) y la variable que usa
+   --font. Los protege e2e/tal79-fuente-local.spec.ts sobre el CSS emitido:
+   no cambiarlos sin cambiar el test. */
+@font-face {
+  font-family: "Plus Jakarta Sans Fallback";
+  src: local("Arial");
+  ascent-override: 98.88%;
+  descent-override: 21.15%;
+  line-gap-override: 0.0%;
+  size-adjust: 104.98%;
+}
+
+:root {
+  --font-jakarta: "Plus Jakarta Sans", "Plus Jakarta Sans Fallback";
 }
 
 /* TAL-73 — "Tus calendarios": chips de filtro y barra de progreso

@@ -7,10 +7,15 @@ implementado y la frontera con TAL-62 (skins).
 
 ## Tipografía
 
-- **Plus Jakarta Sans** con `next/font/google` (`src/app/layout.tsx`): pesos
-  400-800, `latin` + `latin-ext`. next/font la descarga en el build y la
-  sirve desde `/_next/static/media/…`: no hay peticiones a Google en tiempo
-  de ejecución.
+- **Plus Jakarta Sans**, pesos 400-800, servida desde `/_next/static/media/…`:
+  no hay peticiones a Google ni en tiempo de ejecución ni en el build.
+  **TAL-79:** autoalojada con `next/font/local`
+  (`src/app/fonts/plus-jakarta-sans/`, ver su README: los 4 subsets de
+  Google byte a byte, origen y `sha256`, licencia OFL). Hasta TAL-79 la
+  descargaba `next/font/google` en cada build, y un fallo de Google rompía el
+  build. El respaldo `Plus Jakarta Sans Fallback` y `--font-jakarta` están
+  en `globals.css` (bloque TAL-79), con los literales de antes; los protege
+  `e2e/tal79-fuente-local.spec.ts`.
 - Un único token `--font`. Desaparecen `--font-display` (serifa),
   `--font-body` y `--font-mono` (monoespaciada) con todos sus usos, también
   dentro del calendario: un skin nunca cambia la fuente.

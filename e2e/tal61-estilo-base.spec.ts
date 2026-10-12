@@ -643,7 +643,7 @@ const EXCEPTIONS: Record<string, ColorException> = {
   "app/globals.css:1149": { value: "var(--skin-hero-num)", reason: ".skin-hero-num: número de la cuenta atrás (texto grande) sobre --skin-hero o píldora blanca; " + GATE },
   "app/globals.css:1198": { value: "var(--skin-ink)", reason: ".skin-month-card: fondo --skin-card en la misma regla: ink/card, " + GATE },
   "app/globals.css:1208": { value: "var(--skin-ink)", reason: ".skin-notice (avisos del invitado, NO-GO M2): fondo --skin-card opaco en la misma regla, haya o no imagen debajo: ink/card, " + GATE },
-  "app/globals.css:1453": { value: "var(--bg)", reason: "chip de filtro activo de «Tus calendarios» (TAL-73): --bg sobre --ink (15,2 / 16,3, caso 4)" },
+  "app/globals.css:1473": { value: "var(--bg)", reason: "chip de filtro activo de «Tus calendarios» (TAL-73): --bg sobre --ink (15,2 / 16,3, caso 4)" },
   // Editor (fuera del calendario)
   "app/admin/[calendarId]/days-grid-editor.tsx:526": { value: 'videoSource === value ? "#ffffff" : "var(--ink-dim)"', reason: "segmentado Link/Subir: blanco sobre --primary-btn si está marcado, --ink-dim si no (ambos AA)" },
   "app/admin/[calendarId]/calendar-preview.tsx:221": { value: '"#ffffff"', reason: "icono ✕ (svg) blanco sobre el círculo oscuro del diálogo de vista previa, encima de la portada del skin" },
