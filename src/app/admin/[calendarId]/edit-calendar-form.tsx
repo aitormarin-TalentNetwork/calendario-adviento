@@ -38,9 +38,9 @@ function initialValues(calendar: EditCalendarFormProps["calendar"]): UpdateCalen
   return {
     name: calendar.name,
     coverTitle: calendar.coverTitle,
-    // TAL-60 — siempre un nombre del catálogo Lucide: un emoji antiguo sin
-    // migrar (o un valor ausente) se normaliza aquí, así que al guardar el
-    // formulario nunca reenvía un emoji (`normalizeCoverIcon`).
+    // TAL-60 — siempre un nombre del catálogo Lucide: un valor ausente o
+    // fuera del catálogo se normaliza aquí, así que al guardar el formulario
+    // nunca reenvía algo que la escritura rechazaría (`normalizeCoverIcon`).
     coverIcon: normalizeCoverIcon(calendar.coverIcon),
     // Mismo criterio que `coverIcon` — el respaldo por defecto
     // (`DEFAULT_COUNTDOWN_LABEL`) ya se resolvió en `getCalendarForAdminPage`.
@@ -120,11 +120,9 @@ type EditCalendarFieldsProps = {
  * componente resuelve "hoy" y el NaN de fecha de fin borrada por su
  * cuenta, mismo criterio, ver `calendar-preview.tsx`). El fondo que le
  * pasamos es el del skin SELECCIONADO EN VIVO en el formulario
- * (`fieldValues.skinId`), no el guardado en servidor — mismo respaldo
- * (`DEFAULT_SKIN_APPEARANCE`) que ya usa `SkinPicker` para una fila de
- * `skins` sin `background` todavía. TAL-47 (reconciliación, ronda 3):
- * mismo criterio para `textColor`/`textPill` — el skin en vivo, no el
- * guardado, con el mismo respaldo.
+ * (`fieldValues.skinId`), no el guardado en servidor; sin estilo del
+ * catálogo 2026 (modo degradado o skin fuera del catálogo), el respaldo
+ * Alegre (TAL-62).
  */
 function EditCalendarFields({ fieldValues, setField, skins, imageWarnings }: EditCalendarFieldsProps) {
   const { pending } = useFormStatus();

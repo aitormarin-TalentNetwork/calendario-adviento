@@ -2,10 +2,9 @@
  * Iconos de portada (TAL-60: Lucide en vez de emojis) — Design System
  * (`design/design-system.md` § "Estilo 2026 → Iconos").
  *
- * El catálogo (nombres, categorías, términos de búsqueda en español), la
- * tabla de los emojis antiguos y la normalización viven en el fichero
- * neutral `convex/coverIconCatalog.ts`, porque Convex también los necesita
- * (validación y migración). Aquí solo se añade lo que Convex NO debe
+ * El catálogo (nombres, categorías, términos de búsqueda en español) y la
+ * normalización viven en el fichero neutral `convex/coverIconCatalog.ts`,
+ * porque Convex también los necesita (validación). Aquí solo se añade lo que Convex NO debe
  * arrastrar a su bundle: el componente de Lucide de cada nombre.
  *
  * Un import explícito por icono — nunca `import { icons } from "lucide-react"`,
@@ -67,10 +66,8 @@ export {
   COVER_ICON_CATEGORIES,
   DEFAULT_COVER_ICON,
   FALLBACK_COVER_ICON,
-  LEGACY_EMOJI_TO_COVER_ICON,
   coverIconForWrite,
   isCoverIconName,
-  isLegacyCoverEmoji,
   normalizeCoverIcon,
 } from "../../convex/coverIconCatalog";
 export type { CoverIconName } from "../../convex/coverIconCatalog";

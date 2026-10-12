@@ -29,10 +29,9 @@ import { WelcomeOverlay } from "@/app/c/[calendarId]/welcome-overlay";
  * se deja propagar, mismo criterio que el resto de lecturas reconectadas
  * de TAL-12 (no hay ningún estado parcial honesto que fingir).
  *
- * TAL-24 — pide también `skins.listAllPublic` en paralelo (mismo patrón
- * que ya usaba `admin/[calendarId]/page.tsx` desde TAL-12) para resolver
- * el `background`/`accent` reales del skin del calendario — ver
- * `src/lib/skin-appearance.ts`.
+ * TAL-24/TAL-62 — pide también el catálogo de skins en paralelo
+ * (`loadSkinCatalog`, `src/lib/skin-catalog.ts`) para resolver el estilo
+ * del skin del calendario (`resolveSkinStyle`, `src/lib/skin-style.ts`).
  *
  * TAL-27 — también `endDate`/`countdownLabel`, para el marcador "Faltan X
  * días para Y" (ver más abajo). Mismo respaldo de lectura que `coverIcon`
@@ -60,8 +59,8 @@ async function getCalendarForGuestPage(
   if (!calendar) return null;
   return {
     coverTitle: calendar.coverTitle,
-    // TAL-60 — valor crudo; `<CoverIcon>` aplica el respaldo y normaliza
-    // emojis antiguos sin migrar (`normalizeCoverIcon`).
+    // TAL-60 — valor crudo; `<CoverIcon>` aplica el respaldo
+    // (`normalizeCoverIcon`).
     coverIcon: calendar.coverIcon ?? null,
     endDate: parseUtcDateOnly(calendar.endDate)!,
     // Respaldo para calendarios creados antes de TAL-27 — ver
@@ -151,14 +150,11 @@ export default async function GuestCalendarPage({
 
   // TAL-47 — resuelto en una variable propia (tipada como
   // `React.CSSProperties`, no con un `as` inline) antes de mezclarla con
-  // `"--accent"` más abajo: `skinBackgroundStyle` devuelve una unión
-  // discriminada (TAL-29) que TypeScript no deja "castear" junto a una
-  // custom property arbitraria en el mismo objeto literal ("neither type
+  // las variables del skin más abajo: `skinBackgroundStyle` devuelve una
+  // unión discriminada (TAL-29) que TypeScript no deja "castear" junto a
+  // custom properties arbitrarias en el mismo objeto literal ("neither type
   // sufficiently overlaps") — asignarla primero a una variable con tipo
   // declarado la resuelve a un `CSSProperties` concreto sin ese conflicto.
-  // `skinBackgroundStyle`, no `coverBackgroundStyle` — la primera ya no
-  // antepone la capa oscura cuando no hay foto (el contraste lo garantiza
-  // `textColor` ahora), ver `skin-appearance.ts`.
   //
   // TAL-70 — la imagen de fondo ya no sustituye al skin: capa casi
   // transparente encima (`faintLayer`), y con ella la tarjeta del mes y el

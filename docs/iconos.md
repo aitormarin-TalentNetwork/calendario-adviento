@@ -1,5 +1,14 @@
 # Iconos Lucide y migración de `coverIcon` (TAL-60)
 
+> **TAL-72:** retirado el respaldo emoji → Lucide. La migración de producción (fase d)
+> dejó `invalid: 0`, así que se eliminaron la tabla de 45 emojis, la escritura tolerante,
+> `convex/coverIconMigration.ts` (migración, auditoría y restauración), la prop `accent` de
+> `<CoverIcon>` con `src/lib/cover-icon-colors.ts`, y los scripts `verify-tal60-*`. La tabla
+> `coverIconMigrationLog` se conserva en el schema (tiene documentos en producción). Las
+> secciones «Piezas» y «Reglas» describen el estado actual; desde «Commits de TAL-60» en
+> adelante, el documento es **histórico** (runbook y rollback ya ejecutados, con funciones
+> que ya no existen).
+
 Design System: `design/design-system.md` § "Estilo 2026 → Iconos". Toda la interfaz usa
 iconos de línea **Lucide** (`lucide-react@1.49.0`, licencia ISC): trazo `2px`, sin
 relleno, `currentColor`. Ningún emoji en la UI (salvo el texto que escribe el Admin).
@@ -8,30 +17,25 @@ relleno, `currentColor`. Ningún emoji en la UI (salvo el texto que escribe el A
 
 | Pieza | Fichero | Qué hace |
 |---|---|---|
-| Catálogo + compatibilidad | `convex/coverIconCatalog.ts` (neutral: lo importan Convex y Next) | 5 categorías con nombres Lucide (todos ≤ 16 caracteres) y términos de búsqueda en español; tabla de los 45 emojis antiguos → icono; `normalizeCoverIcon` (lectura, nunca falla); `coverIconForWrite` (escritura) |
+| Catálogo | `convex/coverIconCatalog.ts` (neutral: lo importan Convex y Next) | 5 categorías con nombres Lucide (todos ≤ 16 caracteres) y términos de búsqueda en español; `normalizeCoverIcon` (lectura, nunca falla); `coverIconForWrite` (escritura) |
 | Componentes | `src/lib/cover-icons.ts` | Nombre → componente Lucide (`satisfies Record<CoverIconName, LucideIcon>`) |
-| Render | `src/components/cover-icon.tsx` | `<CoverIcon value size box? accent?>` — normaliza y pinta, opcionalmente en el recuadro pastel `.cover-icon-box`. Marcador `data-cover-icon` |
-| Color | `src/lib/cover-icon-colors.ts` | Accent del skin si da ≥ 3:1 contra el recuadro en cada tema; si no, token `--icon-tile-fg` |
-| Migración | `convex/coverIconMigration.ts` + tabla `coverIconMigrationLog` | Lotes con log transaccional, auditoría acotada, restauración |
+| Render | `src/components/cover-icon.tsx` | `<CoverIcon value size box?>` — normaliza y pinta, opcionalmente en el recuadro pastel `.cover-icon-box`. Marcador `data-cover-icon` |
+| Registro histórico | tabla `coverIconMigrationLog` | En desuso desde TAL-72: se conserva por los documentos de producción |
 
-**Tokens** (contrato con TAL-61, solo cambian valores, nunca nombres): `--icon-tile-bg`
-(provisional `#e6e0ff` / `#2a2645`, definitivo `var(--primary-soft)`) y `--icon-tile-fg`
-(provisional la tinta del tema, definitivo `var(--primary)`). Si cambian, actualizar
-`ICON_TILE_BG` en `cover-icon-colors.ts` y volver a pasar
-`scripts/verify-tal60-icon-contrast.mjs`.
+**Tokens**: `--icon-tile-bg` (`var(--primary-soft)`) e `--icon-tile-fg` (`var(--primary)`),
+de TAL-61. Dentro de un calendario, TAL-62 los sobrescribe con el par `tile`/`tileInk`
+del skin. Su contraste (≥ 3:1) lo comprueba `e2e/tal61-estilo-base.spec.ts` (caso 4).
 
 ## Reglas de lectura y escritura
 
-- **Lectura** (`normalizeCoverIcon`): nombre del catálogo → el mismo; emoji antiguo →
-  su equivalente; ausente → `tree-pine`; cualquier otra cosa → `gift`. Por eso cualquier
-  mezcla de datos se pinta bien, migrada o no.
-- **Escritura** (`coverIconForWrite`, en Convex y en la Server Action): nombre del
-  catálogo → se guarda; **emoji antiguo → se guarda TAL CUAL** (sin convertir); lo
-  demás se rechaza. Así, mientras el Next anterior a TAL-60 siga sirviendo durante un
-  despliegue, lo que escribe sigue siendo un emoji que él sabe pintar. El Next nuevo
-  siempre manda nombres.
-- Seguimiento posible (fuera de TAL-60): retirar la tolerancia a emojis antiguos de
-  `coverIconForWrite` cuando producción esté migrada y verificada.
+- **Lectura** (`normalizeCoverIcon`): nombre del catálogo → el mismo; ausente →
+  `tree-pine`; cualquier otra cosa (incluido un emoji del catálogo antiguo, desde
+  TAL-72) → `gift`. Nunca falla.
+- **Escritura** (`coverIconForWrite`, en Convex y en la Server Action): solo nombres del
+  catálogo; lo demás, emojis incluidos (TAL-72), se rechaza. Convex responde «Icono de
+  portada no válido.» y la Server Action «Elige un icono de la lista.».
+- *Histórico (TAL-60 → TAL-72):* durante la transición la escritura guardaba los emojis
+  antiguos tal cual, para que el Next anterior a TAL-60 siguiera pintando lo que escribía.
 
 ## Commits de TAL-60 (los necesita el rollback)
 

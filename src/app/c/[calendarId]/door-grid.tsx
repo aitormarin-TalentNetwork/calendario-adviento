@@ -828,7 +828,7 @@ export function DoorGrid({ calendarId, doors: initialDoors }: { calendarId: stri
               // del skin (`--skin-line`, `--skin-card`); el iframe no se toca.
               border: "2px solid var(--skin-line)",
               // TAL-47 — `skinBackgroundStyle` en vez del antiguo
-              // `coverBackgroundStyle`.
+              // `coverBackgroundStyle` (retirado en TAL-72).
               //
               // TAL-50 — a diferencia de la tarjeta de portada y la
               // cabecera de mes (arriba, ya sin fondo propio — dejan

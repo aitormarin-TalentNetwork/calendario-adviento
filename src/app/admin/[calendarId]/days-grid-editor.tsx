@@ -145,8 +145,8 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
  * que `door-grid.tsx` guarda el botón concreto que abrió el modal
  * (`lastTriggerRef`) en vez de asumir un único disparador fijo.
  *
- * TAL-24 — `background` (el `background` real del skin del calendario) se
- * aplica solo a la cabecera sticky de cada mes, mismo criterio que
+ * TAL-24 — `background` (el fondo del skin del calendario; desde TAL-62,
+ * del catálogo 2026) se aplica solo a la cabecera sticky de cada mes, mismo criterio que
  * `door-grid.tsx` (ver el comentario completo ahí): no se toca el fondo de
  * las casillas individuales, que codifican los estados de este editor
  * (sin vídeo/con vídeo/hoy/diálogo abierto) ya auditados en TAL-21.
@@ -156,8 +156,9 @@ function numStyle(day: DayInfo, isToday: boolean, isWeekend: boolean): React.CSS
  * (`faintBackgroundLayer`, `skin-appearance.ts`), no en su lugar.
  *
  * TAL-47 — el texto de esa cabecera ya no es blanco + sombra fijos: usa
- * `textColor`/`textPill` del skin (`resolveCoverTextTreatment`/`CoverText`),
- * también con imagen de fondo desde TAL-70 (antes, blanco + sombra).
+ * `textColor`/`textPill` del skin (`resolveCoverTextTreatment`/`CoverText`;
+ * desde TAL-62, el `ink` del catálogo y sin píldora), también con imagen de
+ * fondo desde TAL-70 (antes, blanco + sombra).
  */
 export function DaysGridEditor({
   calendarId,
@@ -248,7 +249,8 @@ export function DaysGridEditor({
                   top: 0,
                   zIndex: 2,
                   // TAL-47 — `skinBackgroundStyle`/`resolveCoverTextTreatment`
-                  // en vez del antiguo `coverBackgroundStyle` + blanco fijo —
+                  // en vez del antiguo `coverBackgroundStyle` (retirado en
+                  // TAL-72) + blanco fijo —
                   // ver el comentario completo en `door-grid.tsx`, mismo
                   // motivo/mecanismo.
                   ...skinBackgroundStyle(background),

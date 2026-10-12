@@ -98,6 +98,6 @@ idempotente. Al rebasar otra rama sobre TAL-61, pasarlo sobre sus ficheros
   (nombre decidido por la Directora; orden de publicación TAL-61 → TAL-62 →
   TAL-67).
 - **TAL-62:** catálogo de 8 skins, cómo pinta cada skin la portada, la cuenta
-  atrás y el grid (valores inline de la tabla `skins`: `background`,
-  `--accent`, `textColor`, `textPill`), radios/forma de las casillas del
-  invitado y migración de calendarios.
+  atrás y el grid (variables `--skin-*` del catálogo 2026, tabla `skinStyles`;
+  los campos antiguos de `skins` quedaron en desuso, TAL-72), radios/forma de las
+  casillas del invitado y migración de calendarios.

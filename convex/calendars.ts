@@ -76,11 +76,9 @@ function assertSafeBackgroundImageUrl(url: string | undefined): void {
 /**
  * TAL-60 — lista blanca del catálogo Lucide (`convex/coverIconCatalog.ts`),
  * que sustituye a la cota de longitud de TAL-23 (`MAX_COVER_ICON_LENGTH`,
- * eliminada). Durante la transición también acepta los emojis del catálogo
- * antiguo y los guarda TAL CUAL (`coverIconForWrite`): mientras el Next
- * anterior a TAL-60 siga sirviendo en un despliegue, lo que escribe sigue
- * siendo un emoji que él sabe pintar. Los convierte la migración
- * (`convex/coverIconMigration.ts`), ver docs/iconos.md.
+ * eliminada). Solo acepta nombres del catálogo (`coverIconForWrite`): la
+ * aceptación transitoria de los emojis antiguos se retiró en TAL-72, una vez
+ * migrados en producción (docs/iconos.md).
  */
 function assertValidCoverIcon(icon: string | undefined): void {
   if (icon === undefined) return;
@@ -147,8 +145,8 @@ async function assertNoDayOutsideRange(
  * criterio que `defaultSkin()` en la versión Prisma (TAL-5).
  *
  * TAL-30, hallazgo de T3 verificando TAL-24: la key aquí decía "pine"
- * (inglés), pero el catálogo real sembrado por TAL-22
- * (`convex/skins.ts::SKIN_CATALOG`) usa "pino" (español, consistente con
+ * (inglés), pero el catálogo real sembrado por TAL-22 (el catálogo antiguo,
+ * `SKIN_CATALOG`, retirado en TAL-72) usaba "pino" (español, consistente con
  * el resto — "dorado", "grosella", "medianoche"). "pine" nunca existía en
  * la tabla, así que este lookup fallaba SIEMPRE y caía al fallback
  * alfabético — "+ Nuevo calendario" (que nunca manda `skinId` explícito)
@@ -163,6 +161,8 @@ async function resolveDefaultSkinId(ctx: MutationCtx): Promise<Id<"skins">> {
   // siempre ("pino" y, si no, el primero por key) — despliegue seguro.
   const alegre = await getCatalogDefaultSkinId(ctx);
   if (alegre) return alegre;
+  // Respaldo solo para un deployment sin el catálogo nuevo sembrado
+  // (desarrollo recién creado o rollback de TAL-62).
 
   const pino = await ctx.db
     .query("skins")
@@ -647,7 +647,7 @@ export type UserModeCalendarRow = {
   startDate: string;
   endDate: string;
   isAdmin: boolean;
-  skin: { _id: Id<"skins">; background?: string; accent?: string; textColor?: string; textPill?: boolean } | null;
+  skin: { _id: Id<"skins"> } | null;
   /**
    * TAL-73 — progreso de ESTA persona: días del calendario (todo día lleva
    * vídeo) y cuántos ha visto. OPCIONALES: faltan a partir del calendario
@@ -689,9 +689,9 @@ export const MAX_PROGRESS_CALENDARS = 50;
  * membership (y las invitaciones duplicadas se colapsan igual).
  *
  * Lista blanca explícita de campos (no el documento entero, mismo
- * criterio que la antigua portada de `/login`, TAL-25); los campos del skin van
- * crudos — el estilo de la tarjeta lo resuelve Next con el catálogo 2026
- * (TAL-62, `src/app/c/page.tsx`).
+ * criterio que la antigua portada de `/login`, TAL-25). Del skin solo va el
+ * `_id` (TAL-72): la página resuelve el estilo con el catálogo 2026
+ * (`resolveSkinStyle`) y ningún Next lee los campos antiguos de esta fila.
  *
  * TAL-73 — además, `totalDays`/`viewedDays` (progreso de esta persona) en
  * los primeros `MAX_PROGRESS_CALENDARS`; ver ese tope más arriba.
@@ -747,15 +747,7 @@ async function listUserModeCalendarsHandler(
           startDate: calendar.startDate,
           endDate: calendar.endDate,
           isAdmin,
-          skin: skin
-            ? {
-                _id: skin._id,
-                background: skin.background,
-                accent: skin.accent,
-                textColor: skin.textColor,
-                textPill: skin.textPill,
-              }
-            : null,
+          skin: skin ? { _id: skin._id } : null,
         } satisfies UserModeCalendarRow,
       };
     })
@@ -858,8 +850,8 @@ async function backfillEmbeddedCoverIconHandler(
     await ctx.db.patch(calendar._id, {
       coverTitle: calendar.coverTitle.slice(0, -LEGACY_EMBEDDED_ICON_SUFFIX.length).trimEnd(),
       // TAL-60 — escribe ya el nombre Lucide (antes escribía el
-      // emoji 🎄): así da igual si este backfill corre antes o después de
-      // `coverIconMigration`. Las constantes `LEGACY_*` siguen siendo
+      // emoji 🎄), el único valor que hoy acepta la escritura (TAL-72).
+      // Las constantes `LEGACY_*` siguen siendo
       // emojis porque DETECTAN el formato viejo del título.
       coverIcon: DEFAULT_COVER_ICON,
       updatedAt: Date.now(),
