@@ -4,6 +4,7 @@ import { expect, test, type Browser, type Page, type Request } from "@playwright
 import type { Id } from "../convex/_generated/dataModel";
 import { loginAs, loginAsWithoutCallback, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { accountMenu, openAccountMenu } from "./helpers/account-menu";
 
 /**
  * TAL-68 — opción «Super Admin» (→ /superadmin) en el menú de la cuenta,
@@ -29,14 +30,11 @@ let calendarId: Id<"calendars">;
 /** La petición real de «Super Admin» en el menú (caso 1), para reenviarla en el caso 5. */
 let switchToSuperadmin: { url: string; headers: Record<string, string>; body: Buffer } | null = null;
 
-const trigger = (page: Page) => page.getByRole("button", { name: "Menú de la cuenta" });
-const menu = (page: Page) => page.getByRole("menu", { name: "Menú de la cuenta" });
+// TAL-80 — localizadores y apertura compartidos (espera de hidratación).
+const menu = accountMenu;
 const radio = (page: Page, name: string) => menu(page).getByRole("menuitemradio", { name, exact: true });
 
-async function openMenu(page: Page) {
-  await trigger(page).click();
-  await expect(menu(page)).toBeVisible();
-}
+const openMenu = openAccountMenu;
 
 async function preferredModeOf(userId: Id<"users">): Promise<string | null> {
   const user = await convex.query(api.users.getByIdPublic, { serverSecret: serverSecret(), userId });

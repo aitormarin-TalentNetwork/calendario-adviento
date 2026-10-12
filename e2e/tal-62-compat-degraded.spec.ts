@@ -3,6 +3,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { SKIN_CATALOG_2026 } from "../convex/skinCatalog2026";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { deleteCalendarsAs } from "./helpers/cleanup";
 
 /**
  * TAL-62 — Next NUEVO sin catálogo 2026 utilizable (modo degradado,
@@ -64,8 +65,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  await convex.mutation(api.calendars.deleteCalendarAsUserPublic, { serverSecret: serverSecret(), calendarId, userId: actorId });
-  await convex.mutation(api.calendars.deleteCalendarAsUserPublic, { serverSecret: serverSecret(), calendarId: secondCalendarId, userId: actorId });
+  await deleteCalendarsAs(actorId, [calendarId, secondCalendarId]);
 });
 
 test(`${MODE}: la portada del invitado se pinta con el respaldo Alegre`, async ({ page }) => {

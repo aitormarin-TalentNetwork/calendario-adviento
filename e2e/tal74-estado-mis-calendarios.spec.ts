@@ -5,6 +5,7 @@ import type { Id } from "../convex/_generated/dataModel";
 import { calendarStatus } from "../convex/calendarStatus";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { deleteCalendarsBestEffort } from "./helpers/cleanup";
 
 /**
  * TAL-74 — etiqueta de estado (En marcha / Próximo / Terminado) en cada fila
@@ -87,9 +88,7 @@ test.describe("«Mis calendarios» (E2E)", () => {
   });
 
   test.afterAll(async () => {
-    for (const { id, owner } of created) {
-      await convex.mutation(api.calendars.deleteCalendarAsUserPublic, { serverSecret: serverSecret(), calendarId: id, userId: owner });
-    }
+    await deleteCalendarsBestEffort(created.map(({ id, owner }) => ({ id, userId: owner })));
   });
 
   test("1 · cada fila lleva su estado; la ajena, «Super Admin» y su estado sin solaparse", { tag: "@regresion" }, async ({ browser }) => {

@@ -7,6 +7,7 @@ import { expect, request as playwrightRequest, test, type Browser, type BrowserC
 import type { Id } from "../convex/_generated/dataModel";
 import { seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { openAccountMenu } from "./helpers/account-menu";
 
 /**
  * TAL-70 — login genérico, bienvenida con foto (primera vez de cada día, por
@@ -249,8 +250,7 @@ for (const [label, viewport] of [["375", { width: 375, height: 812 }], ["escrito
     await page.goto(`/c/${calendarId}`);
     await expect(welcome(page)).toHaveAttribute("data-welcome-phase", "shown");
     // El menú de la cuenta queda por encima de la bienvenida.
-    await page.getByRole("button", { name: "Menú de la cuenta" }).click();
-    await expect(page.getByRole("menu")).toBeVisible();
+    await openAccountMenu(page);
     await page.keyboard.press("Escape");
     await expect(page.getByRole("menu")).toHaveCount(0);
     // Ese Escape era del menú: la bienvenida sigue ahí.

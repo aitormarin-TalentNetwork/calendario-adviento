@@ -4,6 +4,7 @@ import { expect, test, type APIRequestContext, type Browser, type Page } from "@
 import type { Id } from "../convex/_generated/dataModel";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { deleteCalendarsAs } from "./helpers/cleanup";
 
 /**
  * TAL-67 — imagen de la casilla "Visto": imagen subida por el Admin, copia
@@ -151,9 +152,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  for (const id of createdCalendarIds) {
-    await convex.mutation(api.calendars.deleteCalendarAsUserPublic, { serverSecret: serverSecret(), calendarId: id, userId: sId });
-  }
+  await deleteCalendarsAs(sId, createdCalendarIds);
 });
 
 test("1 · subir JPG, PNG y WebP → vista previa, y la casilla Visto del invitado la usa sea cual sea el proveedor", { tag: "@regresion" }, async ({ browser }) => {

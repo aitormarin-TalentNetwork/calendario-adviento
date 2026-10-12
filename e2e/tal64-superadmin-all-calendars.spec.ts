@@ -4,6 +4,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { openAccountMenu } from "./helpers/account-menu";
 
 /**
  * TAL-64 — el Super Admin ve y administra TODOS los calendarios: en "Mis
@@ -174,8 +175,7 @@ test("3 · /superadmin: la tarjeta de un calendario abre su editor", { tag: "@re
 test("4 · menú de la cuenta del Super Admin: «Administrar» incluye los ajenos y el propio", async ({ browser }) => {
   const page = await newPageAs(browser, SA_EMAIL);
   await page.goto("/admin");
-  await page.getByRole("button", { name: "Menú de la cuenta" }).click();
-  const menu = page.getByRole("menu", { name: "Menú de la cuenta" });
+  const menu = await openAccountMenu(page);
   await expect(menu.getByText("Administrar")).toBeVisible();
   for (const key of ["OWN", "OTHER_1", "ADMIN_CAL"] as const) {
     await expect(menu.getByRole("menuitem", { name: NAME[key] })).toHaveAttribute("href", `/admin/${cal[key]}`);
@@ -192,8 +192,7 @@ test("5 · Admin normal: solo los suyos, sin etiqueta; un ajeno sigue dando /una
   await expect(page.getByText("Super Admin", { exact: true })).toHaveCount(0);
 
   // Con un solo calendario, el menú no muestra la lista.
-  await page.getByRole("button", { name: "Menú de la cuenta" }).click();
-  await expect(page.getByRole("menu", { name: "Menú de la cuenta" }).getByText("Administrar")).toHaveCount(0);
+  await expect((await openAccountMenu(page)).getByText("Administrar")).toHaveCount(0);
 
   await page.goto(`/admin/${cal.OTHER_1}`);
   await page.waitForURL(/\/unauthorized/);
@@ -234,8 +233,7 @@ test("7 · 375px: /admin y /superadmin sin scroll horizontal; menú dentro de pa
   }
 
   await page.goto("/admin");
-  await page.getByRole("button", { name: "Menú de la cuenta" }).click();
-  const box = await page.getByRole("menu", { name: "Menú de la cuenta" }).boundingBox();
+  const box = await (await openAccountMenu(page)).boundingBox();
   expect(box!.x).toBeGreaterThanOrEqual(0);
   expect(box!.x + box!.width).toBeLessThanOrEqual(375);
   expect(box!.y + box!.height).toBeLessThanOrEqual(812);
