@@ -23,7 +23,18 @@ import { v } from "convex/values";
 import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
-import { getCatalogDefaultSkinId, getSkinStyle } from "./skins";
+import { assertTestHelpersAllowed } from "./lib/testHelpers";
+import {
+  calendarInScope,
+  checkTestScope,
+  clampPhaseEBatch,
+  countRetiredInScope,
+  getCatalogDefaultSkinId,
+  getSkinStyle,
+  skinInScope,
+  testScopeValidator,
+  type TestScope,
+} from "./skins";
 
 const MAX_BATCH_SIZE = 100;
 const MAX_AUDIT_PAGE_SIZE = 200;
@@ -124,12 +135,14 @@ type AuditPage = {
 
 /** Auditoría de una página: contadores + como mucho 10 calendarios problemáticos de muestra. */
 export const auditCalendarSkinsPage = internalQuery({
-  args: { cursor: v.optional(v.union(v.string(), v.null())), numItems: v.optional(v.number()) },
+  args: { cursor: v.optional(v.union(v.string(), v.null())), numItems: v.optional(v.number()), testScope: testScopeValidator },
   handler: async (ctx, args): Promise<AuditPage> => {
+    checkTestScope(args.testScope);
     const numItems = clampBatchSize(args.numItems, MAX_AUDIT_PAGE_SIZE);
     const page = await ctx.db.query("calendars").paginate({ cursor: args.cursor ?? null, numItems });
+    const inScope = page.page.filter((calendar) => calendarInScope(calendar, args.testScope));
     const result: AuditPage = {
-      total: page.page.length,
+      total: inScope.length,
       inCatalog: 0,
       legacy: 0,
       missingSkin: 0,
@@ -138,7 +151,7 @@ export const auditCalendarSkinsPage = internalQuery({
       continueCursor: page.continueCursor,
       isDone: page.isDone,
     };
-    for (const calendar of page.page) {
+    for (const calendar of inScope) {
       const skin = await ctx.db.get(calendar.skinId);
       if (!skin) {
         result.missingSkin++;
@@ -157,14 +170,15 @@ export const auditCalendarSkinsPage = internalQuery({
 
 type AuditTotals = Omit<AuditPage, "continueCursor" | "isDone">;
 
-/** Auditoría completa: suma contadores; como mucho 30 keys antiguas y 20 muestras. */
+/** Auditoría completa: suma contadores; como mucho 30 keys antiguas y 20 muestras. TAL-82: `testScope` (solo dev) limita a los calendarios del prefijo. */
 export const auditCalendarSkins = internalAction({
-  args: {},
-  handler: async (ctx): Promise<AuditTotals> => {
+  args: { testScope: testScopeValidator },
+  handler: async (ctx, args): Promise<AuditTotals> => {
+    checkTestScope(args.testScope);
     const totals: AuditTotals = { total: 0, inCatalog: 0, legacy: 0, missingSkin: 0, legacyByKey: {}, samples: [] };
     let cursor: string | null = null;
     for (;;) {
-      const page: AuditPage = await ctx.runQuery(internal.skinMigration.auditCalendarSkinsPage, { cursor });
+      const page: AuditPage = await ctx.runQuery(internal.skinMigration.auditCalendarSkinsPage, { cursor, testScope: args.testScope });
       totals.total += page.total;
       totals.inCatalog += page.inCatalog;
       totals.legacy += page.legacy;
@@ -306,8 +320,9 @@ type DeleteResult = { scanned: number; deleted: number; skippedReferenced: numbe
  * el chequeo de referencias).
  */
 export const deleteRetiredSkinsBatch = internalMutation({
-  args: { cursor: v.optional(v.union(v.string(), v.null())), batchSize: v.optional(v.number()) },
+  args: { cursor: v.optional(v.union(v.string(), v.null())), batchSize: v.optional(v.number()), testScope: testScopeValidator },
   handler: async (ctx, args): Promise<DeleteResult> => {
+    checkTestScope(args.testScope);
     await requireAlegre(ctx);
     const numItems = clampBatchSize(args.batchSize, MAX_BATCH_SIZE);
     const page = await ctx.db.query("skins").paginate({ cursor: args.cursor ?? null, numItems });
@@ -320,6 +335,7 @@ export const deleteRetiredSkinsBatch = internalMutation({
       isDone: page.isDone,
     };
     for (const skin of page.page) {
+      if (!skinInScope(skin, args.testScope)) continue;
       if (await getSkinStyle(ctx, skin._id)) continue;
       const referenced = await ctx.db
         .query("calendars")
@@ -341,24 +357,35 @@ export const deleteRetiredSkinsBatch = internalMutation({
  * Conveniencia del runbook: EXIGE antes `legacy: 0` y `missingSkin: 0` en la
  * auditoría (si no, aborta sin borrar nada: hay que relanzar la migración),
  * borra por lotes y devuelve totales + la auditoría final.
+ * TAL-82: `expectRetired` OBLIGATORIO — si el número real de retirados no
+ * coincide, aborta antes de borrar (precondición del runbook de la fase e).
  */
 export const runDeleteRetiredSkins = internalAction({
-  args: { batchSize: v.optional(v.number()) },
+  args: { expectRetired: v.number(), batchSize: v.optional(v.number()), testScope: testScopeValidator },
   handler: async (
     ctx,
     args
   ): Promise<
-    | { aborted: true; reason: string; audit: AuditTotals }
+    | { aborted: true; reason: string; audit: AuditTotals; retired?: number }
     | { aborted: false; batches: number; deleted: number; skippedReferenced: number; deletedKeys: string[]; finalAudit: AuditTotals }
   > => {
-    const audit: AuditTotals = await ctx.runAction(internal.skinMigration.auditCalendarSkins, {});
+    checkTestScope(args.testScope);
+    const audit: AuditTotals = await ctx.runAction(internal.skinMigration.auditCalendarSkins, { testScope: args.testScope });
     if (audit.legacy !== 0 || audit.missingSkin !== 0) {
       return { aborted: true, reason: "La auditoría no da legacy: 0 y missingSkin: 0 — relanza la migración antes de borrar.", audit };
+    }
+    const retired: number = await ctx.runQuery(internal.skinMigration.countRetiredSkins, { testScope: args.testScope });
+    if (retired !== args.expectRetired) {
+      return { aborted: true, reason: `Hay ${retired} skins retirados, se esperaban ${args.expectRetired}: no se borra nada.`, audit, retired };
     }
     let cursor: string | null = null;
     const totals = { batches: 0, deleted: 0, skippedReferenced: 0, deletedKeys: [] as string[] };
     for (;;) {
-      const result: DeleteResult = await ctx.runMutation(internal.skinMigration.deleteRetiredSkinsBatch, { cursor, batchSize: args.batchSize });
+      const result: DeleteResult = await ctx.runMutation(internal.skinMigration.deleteRetiredSkinsBatch, {
+        cursor,
+        batchSize: args.batchSize,
+        testScope: args.testScope,
+      });
       totals.batches++;
       totals.deleted += result.deleted;
       totals.skippedReferenced += result.skippedReferenced;
@@ -366,7 +393,98 @@ export const runDeleteRetiredSkins = internalAction({
       if (result.isDone) break;
       cursor = result.continueCursor;
     }
-    const finalAudit: AuditTotals = await ctx.runAction(internal.skinMigration.auditCalendarSkins, {});
+    const finalAudit: AuditTotals = await ctx.runAction(internal.skinMigration.auditCalendarSkins, { testScope: args.testScope });
     return { aborted: false, ...totals, finalAudit };
+  },
+});
+
+/** TAL-82 — número de skins retirados (sin estilo) del alcance. */
+export const countRetiredSkins = internalQuery({
+  args: { testScope: testScopeValidator },
+  handler: async (ctx, args): Promise<number> => {
+    checkTestScope(args.testScope);
+    return await countRetiredInScope(ctx, args.testScope);
+  },
+});
+
+// ---------------------------------------------------------------------------
+// TAL-82 — vaciado de `skinMigrationLog` (fase e). Solo tiene sentido cuando
+// ya no queda ningún skin retirado: con ellos borrados, la restauración desde
+// el log es imposible (apuntaría a skins inexistentes). Se comprueba ANTES
+// (coordinadora) y en CADA lote (dentro de su transacción).
+// ---------------------------------------------------------------------------
+
+function logInScope(migrationId: string, scope: TestScope): boolean {
+  return scope === undefined || migrationId.startsWith(scope.keyPrefix);
+}
+
+type ClearLogResult = { scanned: number; deleted: number; continueCursor: string; isDone: boolean };
+
+export const clearSkinMigrationLogBatch = internalMutation({
+  args: { cursor: v.optional(v.union(v.string(), v.null())), batchSize: v.optional(v.number()), testScope: testScopeValidator },
+  handler: async (ctx, args): Promise<ClearLogResult> => {
+    checkTestScope(args.testScope);
+    const retired = await countRetiredInScope(ctx, args.testScope);
+    if (retired !== 0) throw new Error(`Quedan ${retired} skins retirados: el log todavía sirve para restaurar. No se borra.`);
+    const page = await ctx.db.query("skinMigrationLog").paginate({ cursor: args.cursor ?? null, numItems: clampPhaseEBatch(args.batchSize) });
+    let deleted = 0;
+    for (const row of page.page) {
+      if (!logInScope(row.migrationId, args.testScope)) continue;
+      await ctx.db.delete(row._id);
+      deleted++;
+    }
+    return { scanned: page.page.length, deleted, continueCursor: page.continueCursor, isDone: page.isDone };
+  },
+});
+
+/** Filas del log del alcance (solo lectura). */
+export const countSkinMigrationLog = internalQuery({
+  args: { testScope: testScopeValidator },
+  handler: async (ctx, args): Promise<number> => {
+    checkTestScope(args.testScope);
+    return (await ctx.db.query("skinMigrationLog").collect()).filter((row) => logInScope(row.migrationId, args.testScope)).length;
+  },
+});
+
+/**
+ * Coordinadora (runbook, paso 2.4): aborta sin borrar si queda algún retirado
+ * o si las filas no son `expectRows`; recorre los lotes y exige 0 al final.
+ * Idempotente: con 0 filas, `expectRows: 0` es un no-op verificable.
+ */
+export const runClearSkinMigrationLog = internalAction({
+  args: { expectRows: v.number(), batchSize: v.optional(v.number()), testScope: testScopeValidator },
+  handler: async (
+    ctx,
+    args
+  ): Promise<{ aborted: true; reason: string; rows: number; retired: number } | { aborted: false; ok: boolean; batches: number; deleted: number; remaining: number }> => {
+    checkTestScope(args.testScope);
+    const retired: number = await ctx.runQuery(internal.skinMigration.countRetiredSkins, { testScope: args.testScope });
+    const rows: number = await ctx.runQuery(internal.skinMigration.countSkinMigrationLog, { testScope: args.testScope });
+    if (retired !== 0) return { aborted: true, reason: `Quedan ${retired} skins retirados.`, rows, retired };
+    if (rows !== args.expectRows) return { aborted: true, reason: `El log tiene ${rows} filas, se esperaban ${args.expectRows}.`, rows, retired };
+    let cursor: string | null = null;
+    const totals = { batches: 0, deleted: 0 };
+    for (;;) {
+      const result: ClearLogResult = await ctx.runMutation(internal.skinMigration.clearSkinMigrationLogBatch, {
+        cursor,
+        batchSize: args.batchSize,
+        testScope: args.testScope,
+      });
+      totals.batches++;
+      totals.deleted += result.deleted;
+      if (result.isDone) break;
+      cursor = result.continueCursor;
+    }
+    const remaining: number = await ctx.runQuery(internal.skinMigration.countSkinMigrationLog, { testScope: args.testScope });
+    return { aborted: false, ok: remaining === 0, ...totals, remaining };
+  },
+});
+
+/** Ayuda SOLO de tests en dev: fila de log de fixture (su `migrationId` lleva el prefijo). */
+export const insertSkinMigrationLogForTests = internalMutation({
+  args: { migrationId: v.string(), calendarId: v.id("calendars"), fromSkinId: v.id("skins"), toSkinId: v.id("skins") },
+  handler: async (ctx, args) => {
+    assertTestHelpersAllowed();
+    return await ctx.db.insert("skinMigrationLog", { ...args, fromKey: "fixture", restored: false });
   },
 });

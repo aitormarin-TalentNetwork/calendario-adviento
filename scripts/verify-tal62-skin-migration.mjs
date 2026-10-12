@@ -264,7 +264,8 @@ assert(restore.skippedMissing === 1, "1 skippedMissing (el 'roto': su skin de or
 assert((await getCal(idByLabel.pino)).skinId === keyToSkin.pino._id, "'pino' vuelve a su skin antiguo");
 const unrestored = await readLog(migrationId, true);
 log("Filas sin restaurar (revisión de skippedEdited/skippedMissing, paginado hasta isDone)", unrestored);
-const aborted = await convexRun("skinMigration:runDeleteRetiredSkins");
+// TAL-82 — `expectRetired` es obligatorio: el número real de skins sin estilo.
+const aborted = await convexRun("skinMigration:runDeleteRetiredSkins", { expectRetired: (await listAll()).length - catalog.length });
 log("Borrado con legacy > 0", aborted);
 assert(aborted.aborted === true && aborted.audit.legacy > 0, "runDeleteRetiredSkins ABORTA sin borrar nada si legacy > 0");
 let reuseRejected = false;
@@ -283,7 +284,7 @@ assert(audit2.legacy === 0 && audit2.missingSkin === 0, "tras la migración nuev
 assert((await updateSkin(idByLabel.dorado, "dorado")) === alegreId, "carrera: actualizar a 'dorado' (retirado) tras migrar → la barrera guarda Alegre");
 const styledlessBeforeDelete = (await listAll()).length - catalog.length;
 log("Skins sin estilo antes del borrado", styledlessBeforeDelete);
-const del = await convexRun("skinMigration:runDeleteRetiredSkins");
+const del = await convexRun("skinMigration:runDeleteRetiredSkins", { expectRetired: styledlessBeforeDelete });
 log("Borrado protegido", del);
 assert(del.aborted === false && del.skippedReferenced === 0, "borrado sin referencias pendientes (skippedReferenced: 0)");
 assert(del.finalAudit.legacy === 0 && del.finalAudit.missingSkin === 0, "auditoría final: legacy 0 y missingSkin 0");

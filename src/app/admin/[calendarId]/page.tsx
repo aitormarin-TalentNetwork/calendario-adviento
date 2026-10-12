@@ -32,8 +32,7 @@ type AdminCalendar = {
 
 /**
  * TAL-12 — reconectada contra Convex (`calendars.getPublic` + el catálogo
- * de skins, en paralelo; desde TAL-62 `loadSkinCatalog`, que solo cae a
- * `skins.listAllPublic` en modo degradado). `null` significa "este calendario
+ * de skins, en paralelo; desde TAL-62 `loadSkinCatalog`). `null` significa "este calendario
  * no existe de verdad" (mismo hecho que `notFound()` representaba con
  * Prisma) — distinto de un fallo de la capa de datos, que ahora se deja
  * propagar tal cual (no hay ningún resultado parcial honesto que mostrar
@@ -47,8 +46,7 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
 } | null> {
   const serverSecret = convexAppServerSecret();
   // TAL-62 — el selector ofrece el catálogo 2026 (8, en su orden) con sus
-  // muestras; en modo degradado (Convex anterior a TAL-62), las filas
-  // antiguas como antes. Si el calendario todavía apunta a un skin fuera del
+  // muestras (TAL-82: sin modo degradado). Si el calendario apunta a un skin fuera del
   // catálogo, el formulario parte de Alegre (su destino de migración; la
   // barrera de escritura de Convex lo guardaría así de todos modos).
   const [calendar, skinCatalog] = await Promise.all([
@@ -58,22 +56,15 @@ async function getCalendarForAdminPage(calendarId: string): Promise<{
   if (!calendar) return null;
 
   const skinStyle = resolveSkinStyle(calendar.skinId, skinCatalog.catalog);
-  let skins: SkinOption[];
+  const skins: SkinOption[] = skinCatalog.catalog.map((skin) => ({
+    id: skin._id,
+    name: skin.name,
+    swatches: skin.swatches,
+    skinStyle: resolveSkinStyle(skin._id, skinCatalog.catalog),
+  }));
   let skinId: string = calendar.skinId;
-  if (skinCatalog.mode === "full") {
-    skins = skinCatalog.catalog.map((skin) => ({
-      id: skin._id,
-      name: skin.name,
-      swatches: skin.swatches,
-      skinStyle: resolveSkinStyle(skin._id, skinCatalog.catalog),
-    }));
-    if (!skins.some((skin) => skin.id === skinId)) {
-      skinId = skinCatalog.catalog.find((skin) => skin.key === "alegre")?._id ?? skins[0]?.id ?? skinId;
-    }
-  } else {
-    skins = skinCatalog.allSkins
-      .map((skin) => ({ id: skin._id, name: skin.name, background: skin.background, accent: skin.accent }))
-      .sort((a, b) => a.name.localeCompare(b.name));
+  if (!skins.some((skin) => skin.id === skinId)) {
+    skinId = skinCatalog.catalog.find((skin) => skin.key === "alegre")?._id ?? skins[0]?.id ?? skinId;
   }
 
   return {
