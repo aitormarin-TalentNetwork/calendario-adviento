@@ -14,6 +14,10 @@ Lee este documento entero antes de tocar nada.
 
 ### Al terminar de arrancar, preséntate
 
+**Si esta sesión se ha reanudado** (corte de cuota, reinicio, `claude --resume`): antes de
+actuar, sigue README.md § "5. Reanudar tras un corte" (`ListAgents`, desempate por tmux,
+color de la ventana).
+
 En cuanto termines de leer este documento entero (y la configuración de este proyecto,
 si la tiene) — antes de ponerte a hacer nada más — preséntate con un mensaje breve, tipo
 *"Hola, soy el/la [Rol] de [nombre del proyecto] y me encargo de [resumen de una frase
@@ -102,6 +106,13 @@ por ejecutado solo por haberlo comunicado.
    sin tener que volver a preguntarte qué querías decir.
 4. El CEO implementa (edita los documentos de proceso correspondientes) y vigila que
    los workers lo sigan correctamente a partir de ahí.
+5. **Un cambio de proceso no está terminado hasta que está en `main`** (decidido
+   2026-10-11). Mientras solo esté editado en la raíz, los worktrees siguen leyendo su
+   copia de rama, que está desfasada: Codex audita con un `AGENTS.md` antiguo y los
+   workers leen un `intro-terminal.txt` antiguo. El CEO no lo deja apilado en la raíz:
+   lo commitea en la rama de proceso vigente, y la Directora la publica junto a la
+   siguiente tarea, con `scripts/publish.sh` a través del Integrador. Después, cada
+   worker integra `main` en su rama.
 
 ---
 

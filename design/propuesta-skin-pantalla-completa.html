@@ -24,8 +24,9 @@
   .old-take { margin-top: 10px; padding: 14px 18px; border-radius: 12px; background: var(--bg-raised); border: 1px solid var(--border); font-size: 0.85rem; color: var(--text-dim); line-height: 1.55; }
   .old-take strong { color: var(--text); }
 
-  .row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 8px; }
-  @media (max-width: 900px) { .row { grid-template-columns: 1fr; } }
+  .row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px; margin-top: 8px; }
+  @media (max-width: 1100px) { .row { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
   .col-label { font-family: var(--font-display); font-size: 1rem; margin-bottom: 3px; }
   .col-note { color: var(--text-dim); font-size: 0.8rem; margin-bottom: 12px; line-height: 1.45; }
 
@@ -61,6 +62,27 @@
   .medianoche .day { background: #1b3a2f; }
   .medianoche .portada, .medianoche .month-header, .medianoche .weekday-row span, .medianoche .num { color: #f6f1e4; }
 
+  /* ---- Cada skin lleva también su propia tipografía de título — coherente
+     con su estilo, no la --font-display fija del sistema para todos ---- */
+  .kpop h2, .kpop .month-header { font-family: "Marker Felt", "Segoe Print", "Comic Sans MS", var(--font-body); font-weight: 700; }
+  .nieve h2, .nieve .month-header { font-family: "Snell Roundhand", "Bradley Hand", "Segoe Script", cursive, var(--font-display); font-weight: 400; letter-spacing: 0.01em; }
+  .medianoche h2, .medianoche .month-header { font-family: "Didot", "Big Caslon", "Times New Roman", var(--font-display); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; font-size: 0.92em; }
+
+  /* ---- Tira Cómica: título con estilo genérico de cómic — letra gruesa
+     con contorno negro + relleno de color vivo + un ligero desplazamiento
+     de "impresión barata" (efecto homenaje al cómic clásico en general,
+     no a ningún personaje/logo concreto) ---- */
+  .tiracomica .portada, .tiracomica .month-header { background: linear-gradient(160deg, #fdf8ec 0%, #ffffff 100%); }
+  .tiracomica .cal-frame, .tiracomica .weekday-row span, .tiracomica .week-row { background: #fffdf8; }
+  .tiracomica .day { background: #fff6e8; }
+  .tiracomica .portada, .tiracomica .month-header, .tiracomica .weekday-row span, .tiracomica .num { color: #1a1a1a; }
+  .tiracomica h2, .tiracomica .month-header {
+    font-family: Impact, "Arial Black", "Franklin Gothic Bold", var(--font-body);
+    font-weight: 900; text-transform: uppercase; letter-spacing: 0.01em;
+    color: #e63946; -webkit-text-stroke: 1.5px #1a1a1a;
+    text-shadow: 2px 2px 0 #2fa8e0, -1px -1px 0 #1a1a1a, 1px -1px 0 #1a1a1a, -1px 1px 0 #1a1a1a;
+  }
+
   .verdict { margin-top: 30px; padding: 18px 20px; border-radius: 12px; background: var(--bg-raised); border: 1px solid var(--border); font-size: 0.9rem; line-height: 1.6; }
   .verdict strong { color: var(--gold); }
   .footnote { margin-top: 20px; color: var(--text-dim); font-size: 0.85rem; max-width: 76ch; line-height: 1.55; }
@@ -76,7 +98,7 @@
     <strong>Por qué existía la capa negra:</strong> el sistema forzaba texto blanco siempre (más simple de construir), y sin una capa oscura debajo, el blanco se volvía ilegible en skins claros como "Nieve". La capa fue el parche para ese problema — pero el parche penalizaba a TODOS los skins, incluidos los vivos como "K-pop", que nunca tuvieron ese problema. La solución de raíz es más simple: texto oscuro en skins claros, texto claro en skins oscuros. Cada uno con lo suyo.
   </div>
 
-  <div class="section-title">Tres skins reales, cada uno con su propio color de texto</div>
+  <div class="section-title">Cuatro skins reales, cada uno con su propio color de texto (y tipografía)</div>
   <div class="row">
     <div>
       <div class="col-label">K-pop</div>
@@ -122,6 +144,25 @@
       <div class="skin-page medianoche">
         <div class="portada">
           <div class="icon">🌙</div>
+          <h2>¡Feliz cuenta atrás, equipo!</h2>
+          <div class="sub">Faltan 14 días para la Navidad</div>
+        </div>
+        <div class="cal-frame">
+          <div class="month-header">AGOSTO 2026</div>
+          <div class="weekday-row"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div>
+          <div class="week-row">
+            <div class="day"><span class="num">17</span></div><div class="day"><span class="num">18</span></div><div class="day"><span class="num">19</span></div><div class="day"><span class="num">20</span></div><div class="day"><span class="num">21</span></div><div class="day"><span class="num">22</span></div><div class="day"><span class="num">23</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="col-label">Tira Cómica</div>
+      <div class="col-note">Estilo genérico de cómic clásico — letra gruesa, contorno negro, colores primarios con un ligero desfase tipo "impresión barata". Ningún logo ni tipografía de marca concreta, es un recurso del género en general.</div>
+      <div class="skin-page tiracomica">
+        <div class="portada">
+          <div class="icon">💥</div>
           <h2>¡Feliz cuenta atrás, equipo!</h2>
           <div class="sub">Faltan 14 días para la Navidad</div>
         </div>

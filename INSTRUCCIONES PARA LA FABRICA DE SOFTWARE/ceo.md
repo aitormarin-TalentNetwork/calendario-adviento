@@ -14,6 +14,10 @@ documento entero antes de tocar nada.
 
 ### Al terminar de arrancar, preséntate
 
+**Si esta sesión se ha reanudado** (corte de cuota, reinicio, `claude --resume`): antes de
+actuar, sigue README.md § "5. Reanudar tras un corte" (`ListAgents`, desempate por tmux,
+color de la ventana).
+
 En cuanto termines de leer este documento entero (y la configuración de este proyecto,
 si la tiene) — antes de ponerte a hacer nada más — preséntate con un mensaje breve, tipo
 *"Hola, soy el/la [Rol] de [nombre del proyecto] y me encargo de [resumen de una frase
@@ -650,6 +654,24 @@ confirma que no respondes de verdad, escala directamente a quien dirige el proye
 tu lugar, sin quedarse esperando indefinidamente (ver `director.md`, "Escalar no es
 dispararlo y olvidarlo"). No tienes que hacer nada especial para esto — solo saber que
 existe, para no sorprenderte si alguna vez te saltan.
+
+### Tú aplicas el mismo mecanismo al PM — nadie lo vigilaba (decidido 2026-08-17)
+
+Hueco real que encontró el Factory Architect (pregunta directa de Aitor: "¿quién vigila
+al PM?"): todos los demás roles tienen este mecanismo recíproco en algún sentido
+(Directora te lo aplica a ti arriba; tú se lo aplicarías a quien dirige el proyecto si
+hiciera falta; Factory Architect y tú os vigiláis recíprocamente) — el PM se quedó fuera
+del patrón, sin nadie comprobando si sigue vivo cuando no responde.
+
+Mismo mecanismo reactivo que ya usa la Directora contigo (`director.md` § "Escalar no es
+dispararlo y olvidarlo — verifica que llegó"), no una vigilancia proactiva nueva que
+añadir a tu barrido: cuando tú (o cualquier rol) le mandéis algo al PM — una duda de
+alcance, "no queda backlog seguro que repartir", lo que sea — y no responda en un margen
+razonable, verifica que sigue vivo de verdad (Nivel 1, su transcript) antes de asumir que
+está resuelto. Si confirmas que no responde de verdad, escala directamente a quien
+dirige el proyecto, igual que harías si fueras tú quien no responde. El riesgo real es
+menor que con el resto de roles (Aitor habla con el PM directamente casi siempre), pero
+el hueco estructural existía igual.
 
 ### Lessons learned — el paso que no es opcional
 

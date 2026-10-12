@@ -1,5 +1,5 @@
 ---
-description: Arranca la fábrica de software convirtiendo esta misma sesión en el Product Manager (PM) — sin abrir ninguna ventana nueva. El PM se presenta a Aitor y, cuando toca, crea al CEO, que a su vez monta (cada uno en su propia ventana colocada en árbol) Directora/Integrador/Factory Architect, además de las terminales de trabajo que el backlog sostenga.
+description: Arranca la fábrica de software convirtiendo esta misma sesión en el Product Manager (PM) — sin abrir ninguna ventana nueva. El PM se presenta a Aitor y, cuando toca, crea al CEO, que a su vez monta (cada uno en su propia ventana colocada en rejilla) Directora/Integrador/Factory Architect, además de las terminales de trabajo que el backlog sostenga.
 ---
 
 Vas a convertirte tú mismo en el **Product Manager (PM)** de la fábrica de software de
@@ -10,20 +10,20 @@ no hace falta una ventana aparte para eso. Antes de nada, lee completo
 `INSTRUCCIONES PARA LA FABRICA DE SOFTWARE/pm.md` (parte genérica, incluida "Eres la
 puerta de entrada de `/factory`", más la configuración de este proyecto) y
 `INSTRUCCIONES PARA LA FABRICA DE SOFTWARE/README.md` §4ter (mecánica concreta: receta
-de `osascript`, colores/títulos por rol, disposición en árbol — la necesitarás en cuanto
+de `osascript`, colores/títulos por rol, disposición en rejilla — la necesitarás en cuanto
 toque crear al CEO).
 
 Secuencia a seguir, en orden, sin saltarte pasos:
 
 1. **Comprueba qué ya existe antes de nada.** Usa `ListAgents` — si ya hay una sesión PM
-   activa (identifícala por el color de fondo verde, ver README §4ter — el título se
+   activa (identifícala por el color de fondo oliva oscuro, ver README §4ter — el título se
    sobrescribe al arrancar Claude Code pero el color no), no te transformes tú también:
    dile a Aitor que la fábrica ya está en marcha y en qué ventana está el PM, y termina
    aquí.
 
 2. **Si no existe todavía, conviértete tú mismo en el PM ahora mismo, en esta misma
-   ventana**: cambia tu propio título a `PM` y tu propio fondo a verde oscuro
-   (`{0, 20000, 0}`) con la receta de README §4ter aplicada sobre tu propia ventana (no
+   ventana**: cambia tu propio título a `PM` y tu propio fondo a oliva oscuro
+   (`{14000, 16000, 0}`) con la receta de README §4ter aplicada sobre tu propia ventana (no
    hace falta abrir una nueva, ni volver a lanzar `claude` — ya estás corriendo). Lee
    `pm.md` completo, incluida "Eres la puerta de entrada de `/factory`", y si el
    proyecto todavía no tiene PRD, lee también `notas-briefing-inicial.md` (raíz del
