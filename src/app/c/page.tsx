@@ -1,8 +1,8 @@
-import Link from "next/link";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { CoverIcon } from "@/components/cover-icon";
+import { UserCalendarsList, type UserCalendarItem } from "@/app/c/user-calendars-list";
 import { SessionIndicator } from "@/components/session-indicator";
-import { listUserModeCalendars } from "@/lib/calendars";
+import { listUserModeCalendars, todayInTimeZone } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { skinBackgroundStyle } from "@/lib/skin-appearance";
 import { loadSkinCatalog } from "@/lib/skin-catalog";
@@ -33,9 +33,23 @@ export default async function UserCalendarsPage() {
   const user = await getAuthorizedUser();
   if (!user) redirect("/login?callbackUrl=/c");
 
-  const calendars = await listUserModeCalendars(user.id);
+  // TAL-73 — "hoy" en la zona horaria del usuario (cookie `tz`, como
+  // `/c/[calendarId]`); sin cookie, la fecha UTC del servidor.
+  const today = todayInTimeZone(new Date(), (await cookies()).get("tz")?.value);
+  const calendars = await listUserModeCalendars(user.id, today, { withProgress: true });
   if (calendars.length === 1) redirect(`/c/${calendars[0].id}`);
   const { catalog } = calendars.length > 0 ? await loadSkinCatalog() : { catalog: [] };
+  const items: UserCalendarItem[] = calendars.map((calendar) => {
+    const skinStyle = resolveSkinStyle(calendar.skinId ?? "", catalog);
+    return {
+      ...calendar,
+      cover: {
+        className: ["calendar-card-cover", skinTreatmentClass(skinStyle)].filter(Boolean).join(" "),
+        skinKey: skinStyle.key,
+        style: { ...skinBackgroundStyle(skinStyle.palette.bg, calendar.backgroundImageUrl), ...skinStyleVars(skinStyle) },
+      },
+    };
+  });
 
   return (
     <main className="session-page-main user-calendars-main">
@@ -49,31 +63,7 @@ export default async function UserCalendarsPage() {
       ) : (
         <>
           <p className="user-calendars-sub">Elige cuál quieres abrir.</p>
-          <ul className="user-calendars-grid">
-            {calendars.map((calendar) => {
-              const skinStyle = resolveSkinStyle(calendar.skinId ?? "", catalog);
-              return (
-                <li key={calendar.id}>
-                  <Link href={`/c/${calendar.id}`} className="calendar-card">
-                    <div
-                      className={["calendar-card-cover", skinTreatmentClass(skinStyle)].filter(Boolean).join(" ")}
-                      aria-hidden="true"
-                      data-skin-style={skinStyle.key}
-                      style={{ ...skinBackgroundStyle(skinStyle.palette.bg, calendar.backgroundImageUrl), ...skinStyleVars(skinStyle) }}
-                    >
-                      {/* TAL-60 — icono Lucide en su recuadro; TAL-62 — colores del skin (--icon-tile-*). */}
-                      <CoverIcon value={calendar.icon} size={26} box={52} />
-                    </div>
-                    <div className="calendar-card-body">
-                      <span className="calendar-card-name">{calendar.title}</span>
-                      <span className="calendar-card-meta num">{calendar.subtitle}</span>
-                      {calendar.isAdmin && <span className="calendar-card-tag">Admin</span>}
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          <UserCalendarsList calendars={items} />
         </>
       )}
     </main>

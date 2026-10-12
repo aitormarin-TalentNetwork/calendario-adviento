@@ -156,17 +156,38 @@ export async function listAdminCalendars(
  * errores que `listAdminCalendars`: un fallo de Convex se deja propagar,
  * `[]` es siempre la lista vacía real.
  */
-export async function listUserModeCalendars(userId: string): Promise<UserModeCard[]> {
-  const rows = await fetchQuery(api.calendars.listUserModeCalendarsPublic, {
-    serverSecret: convexAppServerSecret(),
-    userId: userId as Id<"users">,
-  });
+/** TAL-73 — mensaje exacto de Convex cuando la consulta con progreso no existe (Convex anterior). */
+export function isMissingProgressFunctionError(error: unknown): boolean {
+  return error instanceof Error && /Could not find public function for 'calendars:listUserModeCalendarsWithProgressPublic'/.test(error.message);
+}
+
+// TAL-73 — `today` decide el estado de cada tarjeta (en marcha / próximo /
+// terminado). Por defecto, la fecha UTC del servidor (el menú de la cuenta no
+// usa el estado); "Tus calendarios" pasa la de la zona horaria del usuario.
+export async function listUserModeCalendars(
+  userId: string,
+  today: Date = todayInTimeZone(new Date(), null),
+  options: { withProgress?: boolean } = {}
+): Promise<UserModeCard[]> {
+  const args = { serverSecret: convexAppServerSecret(), userId: userId as Id<"users"> };
+  let rows;
+  if (options.withProgress) {
+    try {
+      rows = await fetchQuery(api.calendars.listUserModeCalendarsWithProgressPublic, args);
+    } catch (error) {
+      // Convex anterior a TAL-73 (rollback): sin progreso, nunca un error.
+      if (!isMissingProgressFunctionError(error)) throw error;
+      rows = await fetchQuery(api.calendars.listUserModeCalendarsPublic, args);
+    }
+  } else {
+    rows = await fetchQuery(api.calendars.listUserModeCalendarsPublic, args);
+  }
   return rows.map((row) =>
     toUserModeCard({
       ...row,
       startDate: parseUtcDateOnly(row.startDate)!,
       endDate: parseUtcDateOnly(row.endDate)!,
-    })
+    }, today)
   );
 }
 

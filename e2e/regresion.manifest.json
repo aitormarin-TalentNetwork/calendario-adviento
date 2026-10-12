@@ -16,6 +16,14 @@
     "title": "8 · caso real (criterio b): la URL de búsqueda reproduce el síntoma del invitado y el editor avisa al guardarla"
   },
   {
+    "file": "tal-73-progreso-filtros.spec.ts",
+    "title": "1 · barra vistos/total de esa persona; «Empieza en 9 días» en el próximo, sin barra"
+  },
+  {
+    "file": "tal-73-progreso-filtros.spec.ts",
+    "title": "3 · chips: filtran por fechas, aria-pressed, teclado (Enter/Espacio) y foco visible"
+  },
+  {
     "file": "tal57-create-calendar-permissions.spec.ts",
     "title": "1 · el Super Admin ve «+ Nuevo calendario» y crea un calendario"
   },
