@@ -226,8 +226,8 @@ Es una denegación de servicio por pila agotada con patrones de llaves muy anida
 - **Por qué no `npm audit fix --force`:** instalaría `eslint-config-next@14.2.35`, dos versiones mayores atrás,
   incompatible con ESLint 9 (config plana) y con Next 16.
 - **Por qué no `overrides`:**
-  - forzar otra versión de `fast-glob` o de `micromatch` es posible, pero **no corrige braces**, porque todas
-    sus versiones dependen de `braces ^3.0.3`;
+  - forzar otra versión de `fast-glob` o de `micromatch` es posible, pero **no corrige braces**, porque las
+    versiones candidatas actuales dependen de `braces ^3.0.3`;
   - forzar `braces` es imposible, porque no hay versión corregida;
   - no se sustituyen por un fork ni por otra implementación, porque cambiaría la API que usa el plugin.
 - **Alcance real:**
