@@ -5,6 +5,18 @@ import { SessionIndicator } from "@/components/session-indicator";
 import { formatCalendarDate, listAdminCalendars } from "@/lib/calendars";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { canUseAdminMode } from "@/lib/roles";
+import { calendarStatus, type CalendarStatus } from "../../../convex/calendarStatus";
+
+// TAL-74 — etiqueta de estado de cada fila (design-system.md § "Estilo 2026 →
+// Progreso, filtros y etiquetas de estado"). Misma regla que /superadmin:
+// `calendarStatus` (convex/calendarStatus.ts), con el mismo "hoy" (día
+// natural UTC, igual que `src/lib/superadmin.ts::toDateOnly`).
+const STATUS_LABEL: Record<CalendarStatus, string> = {
+  live: "En marcha",
+  upcoming: "Próximo",
+  finished: "Terminado",
+};
+const toDateOnly = (date: Date) => date.toISOString().slice(0, 10);
 
 export default async function AdminCalendarsPage() {
   const user = await getAuthorizedUser();
@@ -15,6 +27,7 @@ export default async function AdminCalendarsPage() {
   // la lista vacía real — `[]` aquí siempre significa "todavía no
   // administras ningún calendario", igual que con Prisma.
   const calendars = await listAdminCalendars(user.id);
+  const today = toDateOnly(new Date());
   // TAL-58 — quien no es Admin de ningún calendario ni Super Admin nunca ve
   // administración: va al modo Usuario ("Tus calendarios", `src/app/c/page.tsx`).
   // TAL-59 — la regla vive en `canUseAdminMode` (una sola definición).
@@ -69,7 +82,8 @@ export default async function AdminCalendarsPage() {
               <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
                 <th style={{ padding: "0.5rem 0.75rem 0.5rem 0" }}>Nombre</th>
                 <th style={{ padding: "0.5rem 0.75rem" }}>Fechas</th>
-                <th style={{ padding: "0.5rem 0 0.5rem 0.75rem" }}>Skin</th>
+                <th style={{ padding: "0.5rem 0.75rem" }}>Skin</th>
+                <th style={{ padding: "0.5rem 0 0.5rem 0.75rem" }}>Estado</th>
               </tr>
             </thead>
             <tbody>
@@ -101,7 +115,13 @@ export default async function AdminCalendarsPage() {
                   <td className="num" style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>
                     {formatCalendarDate(calendar.startDate)} a {formatCalendarDate(calendar.endDate)}
                   </td>
-                  <td style={{ padding: "0.5rem 0 0.5rem 0.75rem", whiteSpace: "nowrap" }}>{calendar.skin.name}</td>
+                  <td style={{ padding: "0.5rem 0.75rem", whiteSpace: "nowrap" }}>{calendar.skin.name}</td>
+                  <td style={{ padding: "0.5rem 0 0.5rem 0.75rem", whiteSpace: "nowrap" }}>
+                    {(() => {
+                      const status = calendarStatus(toDateOnly(calendar.startDate), toDateOnly(calendar.endDate), today);
+                      return <span className={`status-pill status-pill--${status}`}>{STATUS_LABEL[status]}</span>;
+                    })()}
+                  </td>
                 </tr>
               ))}
             </tbody>

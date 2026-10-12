@@ -33,7 +33,7 @@ fi
 
 step() { echo; echo "=== $(date '+%H:%M:%S') \$ $*"; "$@"; }
 
-TARGETS=(node_modules .next convex/_generated tsconfig.tsbuildinfo next-env.d.ts
+TARGETS=(node_modules .next convex/_generated src/generated tsconfig.tsbuildinfo next-env.d.ts
   test-results playwright-report blob-report playwright/.cache out build)
 # Listado explícito de cada objetivo (algunos están anidados y `ls -la` no los muestra).
 targets() {
@@ -54,4 +54,7 @@ step npx convex dev --once
 step npm run build
 step npx tsc --noEmit
 step npm run lint
+# Cualquier derivado que quede a la vista en el export. NO se usa `git clean -X`: se
+# llevaría .env.local y otros secretos ignorados.
+step git status --short --ignored
 echo; echo "=== OK: instalación limpia completa ($(date '+%H:%M:%S')). Pega TODA esta salida en el export."
