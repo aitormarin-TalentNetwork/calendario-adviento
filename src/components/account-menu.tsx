@@ -46,9 +46,10 @@ const ITEM_SELECTOR = '[role="menuitem"], [role="menuitemradio"]';
  */
 // TAL-80 — `false` en el HTML del servidor y durante la hidratación, `true`
 // en cuanto React ha hidratado este componente (patrón "estoy en el cliente"
-// sin setState en un efecto). Marca el disparador con `data-hydrated` para
-// que los tests E2E sepan cuándo un clic ya llega a `onClick`
-// (e2e/helpers/account-menu.ts). Cuesta un render de cliente más, despreciable.
+// sin setState en un efecto). Marca el disparador con `data-hydrated`: los
+// tests E2E esperan a esta señal antes del clic, como barrera conservadora de
+// hidratación (e2e/helpers/account-menu.ts). Cuesta un render de cliente más,
+// despreciable.
 const noopSubscribe = () => () => {};
 function useHydrated(): boolean {
   return useSyncExternalStore(noopSubscribe, () => true, () => false);

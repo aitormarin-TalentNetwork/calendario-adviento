@@ -1,14 +1,18 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 
 /**
- * TAL-80 — abrir el menú de la cuenta sin carrera de hidratación. El
- * disparador llega en el HTML del servidor antes de que React lo hidrate; un
- * clic en esa ventana se "completa" (Playwright da «click action done») pero
- * no llega a `onClick` y el menú no se abre. `AccountMenu` marca el
- * disparador con `data-hydrated="true"` solo cuando ya está hidratado
- * (`src/components/account-menu.tsx`): se espera a esa señal explícita, no a
- * `networkidle`. Nunca `force: true`: forzar el clic se saltaría justo las
- * comprobaciones de accionabilidad que delatan un disparador tapado.
+ * TAL-80 — abrir el menú de la cuenta con una barrera conservadora de
+ * hidratación: se espera a `data-hydrated="true"` en el disparador
+ * (`src/components/account-menu.tsx`, aparece en el render que sigue a la
+ * hidratación, así que `onClick` ya está conectado) y solo entonces se hace
+ * clic. Es una estabilización, NO una causa raíz demostrada: el caso 6 de
+ * tal68 falló de forma intermitente (1/39 en el entorno de T3) con «click
+ * action done» y sin menú; una carrera entre el clic y la hidratación es una
+ * hipótesis plausible (sin la barrera, el clic llega solo 10–99 ms después de
+ * la señal), pero ninguna traza ha capturado un fallo con el clic antes de la
+ * señal. Señal explícita en vez de `networkidle`. Nunca `force: true`: forzar
+ * el clic se saltaría las comprobaciones de accionabilidad que delatan un
+ * disparador tapado.
  */
 export const accountMenuTrigger = (page: Page): Locator => page.getByRole("button", { name: "Menú de la cuenta" });
 export const accountMenu = (page: Page): Locator => page.getByRole("menu", { name: "Menú de la cuenta" });
