@@ -4,18 +4,18 @@ import {
   COVER_ICON_CATEGORIES,
   DEFAULT_COVER_ICON,
   FALLBACK_COVER_ICON,
-  LEGACY_EMOJI_TO_COVER_ICON,
   coverIconForWrite,
   isCoverIconName,
   normalizeCoverIcon,
 } from "../convex/coverIconCatalog";
-import { ICON_TILE_BG, contrastRatio, resolveCoverIconColors } from "../src/lib/cover-icon-colors";
 import { COVER_ICON_COMPONENTS } from "../src/lib/cover-icons";
 
 /**
- * TAL-60 — tests puros (sin navegador) del catálogo Lucide, la tabla de
- * emojis antiguos, la normalización de lectura/escritura y el color del
- * icono (contraste ≥ 3:1).
+ * TAL-60 — tests puros (sin navegador) del catálogo Lucide y la
+ * normalización de lectura/escritura. TAL-72 retiró la tabla de emojis
+ * antiguos y el color del icono según el accent del skin: un emoji ya se
+ * trata como cualquier valor fuera del catálogo. El contraste del icono
+ * contra su recuadro lo cubre `tal61-estilo-base.spec.ts` (caso 4).
  */
 
 test.describe("catálogo", () => {
@@ -61,33 +61,14 @@ test.describe("catálogo", () => {
   });
 });
 
-test.describe("tabla de emojis antiguos", () => {
-  test("los 45 emojis del catálogo de TAL-23 dan un nombre válido", () => {
-    const entries = Object.entries(LEGACY_EMOJI_TO_COVER_ICON);
-    expect(entries).toHaveLength(45);
-    for (const [emoji, name] of entries) expect(isCoverIconName(name), `${emoji} → ${name}`).toBe(true);
-  });
-
-  test("ajustes del PM: 🦊🐻🦌 → paw-print, 🦄 → sparkles, 🦋 → flower-2, 🧑‍🎄 → gift (+ 🐼 → paw-print)", () => {
-    expect(normalizeCoverIcon("🦊")).toBe("paw-print");
-    expect(normalizeCoverIcon("🐻")).toBe("paw-print");
-    expect(normalizeCoverIcon("🦌")).toBe("paw-print");
-    expect(normalizeCoverIcon("🦄")).toBe("sparkles");
-    expect(normalizeCoverIcon("🦋")).toBe("flower-2");
-    expect(normalizeCoverIcon("🧑‍🎄")).toBe("gift");
-    expect(normalizeCoverIcon("🐼")).toBe("paw-print");
-  });
-});
-
 test.describe("normalizeCoverIcon (lectura, nunca falla)", () => {
   test("nombre del catálogo → el mismo", () => {
     expect(normalizeCoverIcon("dog")).toBe("dog");
   });
-  test("emoji con y sin U+FE0F → su equivalente", () => {
-    expect(normalizeCoverIcon("❄️")).toBe("snowflake");
-    expect(normalizeCoverIcon("❄")).toBe("snowflake");
-    expect(normalizeCoverIcon("☀️")).toBe("sun");
-    expect(normalizeCoverIcon("🎄")).toBe("tree-pine");
+  test("emoji del catálogo antiguo (con o sin U+FE0F) → regalo, como cualquier desconocido (TAL-72)", () => {
+    expect(normalizeCoverIcon("❄️")).toBe(FALLBACK_COVER_ICON);
+    expect(normalizeCoverIcon("❄")).toBe(FALLBACK_COVER_ICON);
+    expect(normalizeCoverIcon("🎄")).toBe(FALLBACK_COVER_ICON);
   });
   test("ausente o vacío → árbol por defecto", () => {
     expect(normalizeCoverIcon(undefined)).toBe(DEFAULT_COVER_ICON);
@@ -106,32 +87,14 @@ test.describe("coverIconForWrite (escritura)", () => {
   test("nombre del catálogo → el mismo", () => {
     expect(coverIconForWrite("heart-handshake")).toBe("heart-handshake");
   });
-  test("emoji antiguo → el MISMO emoji, sin convertir (compatibilidad con el Next antiguo)", () => {
-    expect(coverIconForWrite("🎁")).toBe("🎁");
-    expect(coverIconForWrite("❄️")).toBe("❄️");
+  test("emoji del catálogo antiguo → null (se rechaza desde TAL-72)", () => {
+    expect(coverIconForWrite("🎁")).toBeNull();
+    expect(coverIconForWrite("❄️")).toBeNull();
+    expect(coverIconForWrite("🎄")).toBeNull();
   });
   test("cualquier otra cosa → null (se rechaza)", () => {
     expect(coverIconForWrite("🚀")).toBeNull();
     expect(coverIconForWrite("")).toBeNull();
     expect(coverIconForWrite("<script>")).toBeNull();
-  });
-});
-
-test.describe("resolveCoverIconColors (contraste ≥ 3:1 contra el recuadro)", () => {
-  test("accent con contraste suficiente en un tema → se usa en ese tema", () => {
-    // #8c2f39 sobre #e6e0ff ≈ 6,4:1 (sí en claro); sobre #2a2645 ≈ 1,7:1 (no en oscuro).
-    expect(resolveCoverIconColors("#8c2f39")).toEqual({ light: "#8c2f39", dark: null });
-  });
-  test("accent sin contraste en un tema → null (cae al token --icon-tile-fg)", () => {
-    // #ffd23f: claro ≈ 1,3:1 (no) · oscuro ≈ 10:1 (sí).
-    expect(resolveCoverIconColors("#ffd23f")).toEqual({ light: null, dark: "#ffd23f" });
-  });
-  test("accent no hex (respaldo var(--gold)) o ausente → null en los dos temas", () => {
-    expect(resolveCoverIconColors("var(--gold)")).toEqual({ light: null, dark: null });
-    expect(resolveCoverIconColors(null)).toEqual({ light: null, dark: null });
-  });
-  test("el token definitivo de TAL-61 (--primary) cumple 3:1 contra --icon-tile-bg", () => {
-    expect(contrastRatio("#7b61ff", ICON_TILE_BG.light)!).toBeGreaterThanOrEqual(3);
-    expect(contrastRatio("#8f7bff", ICON_TILE_BG.dark)!).toBeGreaterThanOrEqual(3);
   });
 });

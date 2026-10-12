@@ -6,18 +6,11 @@ import type { SkinStyle } from "@/lib/skin-style";
 export type SkinOption = {
   id: string;
   name: string;
-  // `v.optional` en convex/schema.ts (TAL-22, hallazgo de auditoría ronda
-  // 1) — un skin sembrado antes de esa tarea puede no tenerlos todavía.
-  // Mismo respaldo que `resolveSkinAppearance` (`skin-appearance.ts`), ver
-  // más abajo.
+  // Solo en modo degradado (rollback de TAL-62, `src/lib/skin-catalog.ts`):
+  // colores de la fila antigua de `skins`; respaldo
+  // `DEFAULT_SKIN_APPEARANCE` si faltan (ver `swatchBackground`).
   background?: string;
   accent?: string;
-  // TAL-47 — no lo usa `SkinPicker` (las muestras solo pintan `background`),
-  // pero viaja en el mismo `SkinOption` porque `edit-calendar-form.tsx`
-  // reutiliza este array para resolver el skin SELECCIONADO EN VIVO y
-  // pasárselo a `CalendarPreview` (ver el comentario completo ahí).
-  textColor?: string;
-  textPill?: boolean;
   /** TAL-62 — muestras del catálogo 2026 (`skinStyles.swatches`); si faltan (modo degradado), se usa `background`. */
   swatches?: string[];
   /** TAL-62 — estilo del skin para la vista previa (catálogo 2026). */
@@ -50,18 +43,15 @@ type SkinPickerProps = {
 /**
  * TAL-37 (design/design-system.md § "Skins", design/propuesta-editor-
  * calendario.html — fila "Skin" con las píldoras de color) — sustituye el
- * `<select>` de texto por una galería de muestras: una píldora por skin
- * con su `background` real (color sólido o degradado, tal cual lo guarda
- * Convex — mismo criterio que `door-grid.tsx`/`days-grid-editor.tsx`, que
- * ya aplican este mismo string de skin directo en CSS sin parsearlo) +
- * el nombre visible junto al swatch (no solo en `title`, que además se
- * añade como redundancia accesible) + anillo `--primary` en el seleccionado (TAL-61).
+ * `<select>` de texto por una galería de muestras: una muestra por skin
+ * (`swatchBackground`) + el nombre (también en `title`, como redundancia
+ * accesible) + anillo `--primary` en el seleccionado (TAL-61).
  *
- * Sigue siendo dinámico — `skins` viene tal cual de `skins.listAllPublic()`
- * (vía `page.tsx`/`edit-calendar-form.tsx`), cero catálogo fijo aquí; con
- * 22+ filas la galería envuelve en varias líneas (`flex-wrap`) y limita su
- * alto con scroll propio en vez de forzar una sola fila o alargar sin
- * límite el resto del formulario.
+ * Sigue siendo dinámico — `skins` llega del catálogo 2026
+ * (`skins.listCatalogPublic`, o las filas antiguas en modo degradado, ver
+ * `src/lib/skin-catalog.ts`) vía `page.tsx`/`edit-calendar-form.tsx`, cero
+ * catálogo fijo aquí. La galería envuelve en varias líneas (`flex-wrap`) y
+ * limita su alto con scroll propio.
  *
  * No es un diálogo (a diferencia de `cover-icon-picker.tsx`, TAL-33): el
  * brief de esta tarea no lo pide, y la galería entera cabe razonablemente

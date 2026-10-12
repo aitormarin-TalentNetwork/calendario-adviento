@@ -181,6 +181,16 @@ export default defineSchema({
     key: v.string(),
     name: v.string(),
     description: v.optional(v.string()),
+    // EN DESUSO (TAL-72): `background`/`accent`/`textColor`/`textPill` son
+    // el shape del catálogo antiguo (TAL-22/TAL-47), retirado en TAL-62.
+    // Hoy solo los tienen las filas antiguas que quedan hasta la fase e de
+    // TAL-62, y solo los leen el Next anterior a TAL-62 y el modo
+    // degradado (`src/lib/skin-catalog.ts`). Se quedan opcionales: quitarlos
+    // haría fallar el push mientras existan esas filas. Retirarlos tras la
+    // fase e. El catálogo y su seed (`SKIN_CATALOG`/`seedSkinCatalog`) y los
+    // scripts `verify-tal22-*`/`verify-tal47-*` que citan los comentarios
+    // de abajo (históricos) se eliminaron en TAL-72.
+    //
     // TAL-22 — el Design System exige, como mínimo, un color/degradado de
     // fondo + un color de acento por skin (design/design-system.md §
     // "Skins"). `background` es el valor CSS completo de la propiedad
@@ -251,7 +261,10 @@ export default defineSchema({
   }).index("by_key", ["key"]),
 
   // TAL-60 — registro duradero de la migración de `coverIcon` (emoji →
-  // nombre Lucide), ver `convex/coverIconMigration.ts` y docs/iconos.md.
+  // nombre Lucide), ver docs/iconos.md. EN DESUSO desde TAL-72: el código
+  // que la escribía y la leía (`convex/coverIconMigration.ts`) se retiró
+  // tras la fase d, pero la tabla se conserva porque tiene documentos en
+  // producción (quitarla del schema haría fallar el push).
   // Cada fila se escribe en la MISMA transacción que el `patch` del
   // calendario: si el lote falla no queda ni el cambio ni su registro; si
   // se escribe, el `from → to` queda guardado aunque falle lo que venga

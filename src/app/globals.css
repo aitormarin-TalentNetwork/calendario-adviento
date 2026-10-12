@@ -11,9 +11,9 @@
      botón primario (texto blanco). --on-sun: todo texto sobre --sun.
    - --coral-ink: texto de peligro. --coral-btn: fondo de los botones de
      peligro (texto blanco).
-   - --accent: el acento que un skin puede sobrescribir dentro del
-     calendario (inline en /c/[id] y en la vista previa); fuera vale
-     --primary.
+   - --accent: el acento que un skin puede sobrescribir (inline en la
+     sección de días del editor, `days-section.tsx`); fuera vale --primary.
+     El calendario del invitado usa los tokens --skin-* (TAL-62).
    Para renombrar tokens viejos en otras ramas: scripts/tal61-rename-tokens.mjs.
    ============================================================ */
 :root {
@@ -41,8 +41,8 @@
   --shadow: 0 2px 6px rgba(29, 35, 32, 0.04), 0 12px 32px rgba(29, 35, 32, 0.08);
 
   /* Recuadro de icono de portada (acordado con TAL-60): fondo pastel e
-     icono en el color de la app; dentro de un calendario, TAL-60 usa el
-     acento del skin si da ≥ 3:1. */
+     icono en el color de la app; dentro de un calendario, TAL-62 los
+     sobrescribe con el par `tile`/`tileInk` del skin (`skinStyleVars`). */
   --icon-tile-bg: var(--primary-soft);
   --icon-tile-fg: var(--primary);
 
@@ -538,7 +538,8 @@ a {
 
 /* TAL-37 — la fila "Skin" reemplaza `align-items: center` de
    `.editor-field` por `flex-start`: `SkinPicker` puede envolver a varias
-   líneas con 22+ skins, más alto que una fila de texto normal, así que la
+   líneas (8 skins del catálogo 2026, más en modo degradado), más alto que
+   una fila de texto normal, así que la
    etiqueta se alinea arriba en vez de quedar centrada contra esa altura
    variable. Clase aparte (no un `style` inline) para poder resetearla
    dentro del propio `@media` de mobile, más abajo — un `style` inline
@@ -606,7 +607,8 @@ a {
 
 /* TAL-35 — link de invitación único (design/design-system.md § "Invitados
    — link de invitación único", design/propuesta-editor-calendario.html
-   `.invite-link-row`/`.btn-icon`/`.toast`). Necesitan `@media` (mobile:
+   `.invite-link-row`/`.toast`; el botón de copiar es `.copy-icon-button`).
+   Necesitan `@media` (mobile:
    la fila se envuelve, la URL pasa a ocupar el ancho completo con
    elipsis) y `:hover`, que un `style` inline de React no puede expresar
    — mismo motivo que el resto de bloques de esta hoja. */
@@ -707,9 +709,10 @@ a {
 
 /* TAL-37 — galería de muestras de skin (design/design-system.md § "Skins",
    design/propuesta-editor-calendario.html — fila "Skin"). `flex-wrap` deja
-   que envuelva a varias líneas con 22+ skins en vez de forzar una sola
-   fila; `max-height`/`overflow-y` es un límite de seguridad para cuando el
-   catálogo (sin tope fijo, TAL-22) crezca mucho más allá de eso. Necesita
+   que envuelva a varias líneas en vez de forzar una sola fila;
+   `max-height`/`overflow-y` es un límite de seguridad si el catálogo (8
+   skins desde TAL-62; todas las filas antiguas en modo degradado) crece
+   mucho. Necesita
    `:hover`/`:focus-visible`, que un `style` inline de React no puede
    expresar. */
 .skin-picker-gallery {
@@ -903,27 +906,17 @@ a {
    var(--primary-soft)` y `--icon-tile-fg: var(--primary)`; aquí ya no se
    redefinen (los provisionales de TAL-60 se retiraron al rebasar).
 
-   `--icon-tile-fg-light`/`--icon-tile-fg-dark` NO son tokens: los pone
-   inline `<CoverIcon>` con el accent del skin cuando da ≥ 3:1 contra el
-   fondo de ese tema (`resolveCoverIconColors`); si no, cae a
-   `--icon-tile-fg`. */
+   TAL-72 — se retiraron `--icon-tile-fg-light`/`--icon-tile-fg-dark` (el
+   color del icono según el accent del skin): ningún `<CoverIcon>` les pasaba
+   el accent desde TAL-62, así que siempre caían a `--icon-tile-fg`, que ya
+   cambia de valor con el tema. */
 .cover-icon-box {
   display: inline-grid;
   place-items: center;
   flex-shrink: 0;
   border-radius: 16px;
   background: var(--icon-tile-bg);
-  color: var(--icon-tile-fg-light, var(--icon-tile-fg));
-}
-
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .cover-icon-box {
-    color: var(--icon-tile-fg-dark, var(--icon-tile-fg));
-  }
-}
-
-:root[data-theme="dark"] .cover-icon-box {
-  color: var(--icon-tile-fg-dark, var(--icon-tile-fg));
+  color: var(--icon-tile-fg);
 }
 
 /* TAL-66 — aviso del editor de días al guardar un vídeo que no se puede

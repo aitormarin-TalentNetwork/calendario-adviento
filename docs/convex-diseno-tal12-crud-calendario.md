@@ -1,5 +1,9 @@
 # Diseño / pseudocódigo — CRUD de Calendario sobre Convex (para TAL-12)
 
+> **Histórico (TAL-72):** documento de diseño previo a TAL-12. El skin por defecto hoy es
+> "Alegre" del catálogo 2026 (TAL-62); "pino" (catálogo anterior, retirado) solo queda
+> como respaldo en `resolveDefaultSkinId` para un deployment sin el catálogo nuevo.
+
 Fichero propio, no toca nada del worktree de T1. **Pseudocódigo y firmas,
 no implementación final** — a petición de la Directora, para no arriesgar
 retrabajo si TAL-9 sigue cambiando (todavía en corrección de auditoría).

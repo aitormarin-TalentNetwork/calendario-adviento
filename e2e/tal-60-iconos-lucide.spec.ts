@@ -9,16 +9,15 @@ import { api, convex, serverSecret } from "./helpers/convex";
 
 /**
  * TAL-60 — iconos Lucide en vez de emojis (portada, login, vista previa,
- * "Tus calendarios", selector, candado, botones de cerrar) + migración de
- * un coverIcon antiguo visto desde la UI.
+ * "Tus calendarios", selector, candado, botones de cerrar) + un coverIcon
+ * antiguo sin migrar visto desde la UI (respaldo, TAL-72).
  *
  * Sembrado: un actor Super Admin crea los calendarios (desde TAL-57 solo él
  * puede); un Admin no Super Admin (`addAdminPublic`) edita el icono; un
  * invitado ve la portada y `/c`. El calendario con un emoji ANTIGUO crudo
  * (🦄) se siembra con `npx convex import --append` — por las mutations no
- * se puede: la escritura nueva solo acepta nombres del catálogo o emojis
- * del catálogo antiguo, y 🦄 lo guardaría tal cual pero aquí queremos
- * reproducir exactamente un dato de antes de TAL-60 sin pasar por ella.
+ * se puede: la escritura solo acepta nombres del catálogo (desde TAL-72
+ * rechaza también los emojis del catálogo antiguo).
  * Todo contra el deployment de desarrollo de la terminal (`.env.local`).
  */
 test.describe.configure({ mode: "serial" });
@@ -226,23 +225,15 @@ test("4 · 'Tus calendarios' (/c): cada tarjeta lleva su icono Lucide", async ({
   await page.context().close();
 });
 
-test("5 · dato antiguo 🦄: se ve como 'sparkles' ANTES de migrar; tras la migración el dato es 'sparkles'", async ({ browser }) => {
+test("5 · dato antiguo 🦄 sin migrar: se pinta con el icono de respaldo ('gift'), sin emoji, y el dato no se toca", async ({ browser }) => {
+  // TAL-72 — sin la tabla emoji → Lucide, un emoji es un valor fuera del
+  // catálogo más: la lectura no falla y pinta el respaldo.
   const page = await newPage(browser);
   await loginAs(page, GUEST_EMAIL);
   await page.goto(`/c/${calendarLegacy}`);
-  await expect(page.locator(".cover-icon-box[data-cover-icon='sparkles']")).toBeVisible();
+  await expect(page.locator(".cover-icon-box[data-cover-icon='gift']")).toBeVisible();
   await expectNoEmoji(page);
   expect(await storedCoverIcon(calendarLegacy)).toBe("🦄");
-
-  const output = execFileSync(
-    "npx",
-    ["convex", "run", "coverIconMigration:runCoverIconMigration", JSON.stringify({ migrationId: `e2e-tal60-${runId}` })],
-    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }
-  );
-  console.log(`runCoverIconMigration → ${output.trim()}`);
-  expect(await storedCoverIcon(calendarLegacy)).toBe("sparkles");
-  await page.reload();
-  await expect(page.locator(".cover-icon-box[data-cover-icon='sparkles']")).toBeVisible();
   await page.context().close();
 });
 
@@ -267,7 +258,7 @@ test("6 · botones de cerrar con 'X' Lucide (vista previa y diálogo de día del
   await page.context().close();
 });
 
-test("7 · escritura en Convex: emoji antiguo se guarda TAL CUAL (compatibilidad); desconocido se rechaza", async () => {
+test("7 · escritura en Convex: emoji del catálogo antiguo se rechaza (TAL-72), igual que un desconocido", async () => {
   const calendar = (await convex.query(api.calendars.getPublic, { serverSecret: serverSecret(), calendarId: calendarB }))!;
   const base = {
     serverSecret: serverSecret(),
@@ -278,8 +269,9 @@ test("7 · escritura en Convex: emoji antiguo se guarda TAL CUAL (compatibilidad
     endDate: calendar.endDate,
     skinId: calendar.skinId,
   };
-  await convex.mutation(api.calendars.updateCalendarPublic, { ...base, coverIcon: "🎁" });
-  expect(await storedCoverIcon(calendarB)).toBe("🎁");
+  const before = await storedCoverIcon(calendarB);
+  await expect(convex.mutation(api.calendars.updateCalendarPublic, { ...base, coverIcon: "🎁" })).rejects.toThrow(/Icono de portada no válido/);
+  expect(await storedCoverIcon(calendarB)).toBe(before);
   await expect(convex.mutation(api.calendars.updateCalendarPublic, { ...base, coverIcon: "🚀" })).rejects.toThrow(/Icono de portada no válido/);
   await convex.mutation(api.calendars.updateCalendarPublic, { ...base, coverIcon: "heart" });
   expect(await storedCoverIcon(calendarB)).toBe("heart");

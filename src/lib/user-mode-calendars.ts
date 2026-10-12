@@ -1,5 +1,4 @@
 import { normalizeCoverIcon, type CoverIconName } from "../../convex/coverIconCatalog";
-import type { SkinLike } from "@/lib/skin-appearance";
 
 /**
  * TAL-58 — normalización de las tarjetas de "Tus calendarios" (modo
@@ -58,7 +57,8 @@ export type UserModeCardInput = {
   startDate: Date;
   endDate: Date;
   isAdmin: boolean;
-  skin: SkinLike | null;
+  /** TAL-72 — solo el `_id`: el estilo lo resuelve la página con el catálogo 2026. */
+  skin: { _id: string } | null;
 };
 
 export type UserModeCard = {
@@ -80,8 +80,8 @@ export function toUserModeCard(row: UserModeCardInput): UserModeCard {
   return {
     id: row.id,
     title: cardTitle(row.coverTitle, row.name),
-    // TAL-60 — nombre Lucide normalizado (emoji antiguo sin migrar → su
-    // equivalente; ausente → árbol por defecto).
+    // TAL-60 — nombre Lucide normalizado (ausente → árbol por defecto;
+    // fuera del catálogo → respaldo).
     icon: normalizeCoverIcon(row.coverIcon),
     skinId: row.skin?._id ?? null,
     backgroundImageUrl: row.backgroundImageUrl ?? null,
