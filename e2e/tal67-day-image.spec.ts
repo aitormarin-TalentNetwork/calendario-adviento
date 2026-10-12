@@ -156,7 +156,7 @@ test.afterAll(async () => {
   }
 });
 
-test("1 · subir JPG, PNG y WebP → vista previa, y la casilla Visto del invitado la usa sea cual sea el proveedor", async ({ browser }) => {
+test("1 · subir JPG, PNG y WebP → vista previa, y la casilla Visto del invitado la usa sea cual sea el proveedor", { tag: "@regresion" }, async ({ browser }) => {
   const cal = await createCalendar(`TAL-67 subida ${runId}`);
   const cases = [
     { date: "2026-09-01", video: YOUTUBE, file: { name: "a.jpg", mimeType: "image/jpeg", buffer: JPEG_1PX } },

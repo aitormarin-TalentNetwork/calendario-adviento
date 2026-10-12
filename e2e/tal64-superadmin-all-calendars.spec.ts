@@ -104,7 +104,7 @@ test.afterAll(async () => {
   expect(failures, "calendarios de prueba sin limpiar").toEqual([]);
 });
 
-test("1 · Super Admin en /admin: ve también los ajenos, con la etiqueta «Super Admin»; el propio sin ella", async ({ browser }) => {
+test("1 · Super Admin en /admin: ve también los ajenos, con la etiqueta «Super Admin»; el propio sin ella", { tag: "@regresion" }, async ({ browser }) => {
   const page = await newPageAs(browser, SA_EMAIL);
   await page.goto("/admin");
 
@@ -160,7 +160,7 @@ test("2 · Super Admin administra un ajeno sin membership: edita, invita, guarda
   await page.context().close();
 });
 
-test("3 · /superadmin: la tarjeta de un calendario abre su editor", async ({ browser }) => {
+test("3 · /superadmin: la tarjeta de un calendario abre su editor", { tag: "@regresion" }, async ({ browser }) => {
   const page = await newPageAs(browser, SA_EMAIL);
   await page.goto("/superadmin");
   const card = page.getByRole("link", { name: new RegExp(NAME.ADMIN_CAL) });

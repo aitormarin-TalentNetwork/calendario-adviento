@@ -168,7 +168,7 @@ test.afterAll(async () => {
   expect(countRows([...createdCalendarIds]), "welcomeViews huérfanas tras borrar").toBe(0);
 });
 
-test("1 · /login genérico, con y sin callbackUrl; entrar conserva el callbackUrl", async ({ browser }) => {
+test("1 · /login genérico, con y sin callbackUrl; entrar conserva el callbackUrl", { tag: "@regresion" }, async ({ browser }) => {
   const calendarId = await createCalendar("login", { coverImageUrl: WHITE_PHOTO });
   const context = await newContext(browser, TZ_A);
   const page = await context.newPage();
@@ -194,7 +194,7 @@ test("1 · /login genérico, con y sin callbackUrl; entrar conserva el callbackU
   await context.close();
 });
 
-test("2 · bienvenida: sale la primera vez del día y queda marcada; mismo día no; otro día sí", async ({ browser }) => {
+test("2 · bienvenida: sale la primera vez del día y queda marcada; mismo día no; otro día sí", { tag: "@regresion" }, async ({ browser }) => {
   const calendarId = await createCalendar("dia", { coverImageUrl: WHITE_PHOTO });
   const dateA = todayIn(TZ_A);
   const dateB = todayIn(TZ_B);

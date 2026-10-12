@@ -139,7 +139,7 @@ test.afterAll(async () => {
   expect(failures, "calendarios de prueba sin limpiar").toEqual([]);
 });
 
-test("1 · un Admin invita como Administrador → esa persona entra y lo ve en «Mis calendarios» con permisos de Admin", async ({
+test("1 · un Admin invita como Administrador → esa persona entra y lo ve en «Mis calendarios» con permisos de Admin", { tag: "@regresion" }, async ({
   browser,
 }) => {
   const adminPage = await newPage(browser);
@@ -167,7 +167,7 @@ test("1 · un Admin invita como Administrador → esa persona entra y lo ve en �
   expect(await personOf(mainCalendar, X_EMAIL)).toMatchObject({ role: "ADMIN", pending: false });
 });
 
-test("2 · invitar como Visitante (por defecto) → entra, pero no tiene acceso al editor", async ({ browser }) => {
+test("2 · invitar como Visitante (por defecto) → entra, pero no tiene acceso al editor", { tag: "@regresion" }, async ({ browser }) => {
   const adminPage = await newPage(browser);
   await loginAs(adminPage, A_EMAIL);
   await adminPage.goto(`/admin/${mainCalendar}`);
@@ -185,7 +185,7 @@ test("2 · invitar como Visitante (por defecto) → entra, pero no tiene acceso 
   expect(await personOf(mainCalendar, V_EMAIL)).toMatchObject({ role: "GUEST", pending: false });
 });
 
-test("3 · cambiar rol desde la UI en los dos sentidos (ya entró y pendiente)", async ({ browser }) => {
+test("3 · cambiar rol desde la UI en los dos sentidos (ya entró y pendiente)", { tag: "@regresion" }, async ({ browser }) => {
   const page = await newPage(browser);
   await loginAs(page, A_EMAIL);
   await page.goto(`/admin/${mainCalendar}`);
@@ -231,7 +231,7 @@ test("4 · «Quitar» a un Visitante y a un Admin (no el último) → fuera de l
   await formerAdmin.context().close();
 });
 
-test("5 · último Admin: desplegable y «Quitar» deshabilitados con aviso; el servidor también lo rechaza", async ({
+test("5 · último Admin: desplegable y «Quitar» deshabilitados con aviso; el servidor también lo rechaza", { tag: "@regresion" }, async ({
   browser,
 }) => {
   // Calendario cuyo único Admin es A (el Super Admin creador se quita a sí mismo).

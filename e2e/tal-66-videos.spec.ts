@@ -107,7 +107,7 @@ test.afterAll(async () => {
   await convex.mutation(api.calendars.deleteCalendarAsUserPublic, { serverSecret: serverSecret(), calendarId, userId: actorId });
 });
 
-test("1 · invitado: cada formato de YouTube se reproduce DENTRO del diálogo (iframe cargado)", async ({ browser }) => {
+test("1 · invitado: cada formato de YouTube se reproduce DENTRO del diálogo (iframe cargado)", { tag: "@regresion" }, async ({ browser }) => {
   test.skip(!youtubeReachable, "Sin salida a youtube.com desde el entorno: se documenta smoke manual con captura.");
   const page = await newPage(browser);
   await loginAs(page, GUEST_EMAIL);
@@ -235,7 +235,7 @@ test("6 · editor: aviso cerrado por el Admin devuelve el foco; guardar una URL 
   await page.context().close();
 });
 
-test("8 · caso real (criterio b): la URL de búsqueda reproduce el síntoma del invitado y el editor avisa al guardarla", async ({ browser }) => {
+test("8 · caso real (criterio b): la URL de búsqueda reproduce el síntoma del invitado y el editor avisa al guardarla", { tag: "@regresion" }, async ({ browser }) => {
   // Síntoma reportado por Aitor: sin vídeo dentro del diálogo, enlace fuera.
   const guest = await newPage(browser);
   await loginAs(guest, GUEST_EMAIL);

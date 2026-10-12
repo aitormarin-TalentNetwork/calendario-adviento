@@ -185,7 +185,7 @@ test("3b · membership ADMIN + invitación pendiente al MISMO calendario → una
   await page.context().close();
 });
 
-test("4 · invitado puro que visita /admin acaba en modo Usuario, sin nada de administración", async ({ browser }) => {
+test("4 · invitado puro que visita /admin acaba en modo Usuario, sin nada de administración", { tag: "@regresion" }, async ({ browser }) => {
   const page = await newPage(browser);
   await loginAs(page, GUEST_MANY_EMAIL);
   const response = await page.goto("/admin");
