@@ -268,6 +268,7 @@ type SkinsTablesStatus = {
   inCatalog: number;
   retired: number;
   withLegacyFields: number;
+  inCatalogWithLegacyFields: number;
   withField: Record<(typeof LEGACY_SKIN_FIELDS)[number], number>;
   skinStylesOrphans: number;
   skinMigrationLog: number;
@@ -293,6 +294,7 @@ export const legacyPhaseESkinsStatus = internalQuery({
       inCatalog: skins.filter((skin) => styled.has(skin._id)).length,
       retired: skins.filter((skin) => !styled.has(skin._id)).length,
       withLegacyFields: skins.filter(hasLegacySkinFields).length,
+      inCatalogWithLegacyFields: skins.filter((skin) => styled.has(skin._id) && hasLegacySkinFields(skin)).length,
       withField,
       skinStylesOrphans: prefix === undefined ? styles.filter((style) => !allSkinIds.has(style.skinId)).length : 0,
       skinMigrationLog: logs.length,

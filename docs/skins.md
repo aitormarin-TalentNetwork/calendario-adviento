@@ -438,6 +438,59 @@ El backup se toma DESPUÉS de sembrar (fase d), así `skinStyles` sigue coherent
   `getByKey` (los usa `scripts/verify-tal62-skin-migration.mjs`). Son la red del rollback
   de TAL-62 y la compatibilidad con el Next anterior durante el despliegue.
 
+### Fase e (TAL-82): retirar los campos antiguos y las tablas de migración
+
+Se hace en **tres pasos**, cada uno compatible con el anterior. El plan completo, auditado por Codex, está en
+el export de TAL-82.
+
+1. **Paso 1 — código (PR 1):**
+   - **Next:** fuera el modo degradado. `loadSkinCatalog` ya no cae a `listAllPublic`; un catálogo vacío es un
+     error claro.
+   - **Convex:** `seedSkinCatalog2026` deja de escribir los campos antiguos (fuera `legacy` de
+     `skinCatalog2026.ts`).
+   - **Operaciones internas nuevas para el paso 2**, todas por lotes, idempotentes y con precondiciones
+     `expect*` que abortan sin escribir:
+     - `skins:legacyPhaseEStatus` (solo lectura);
+     - `skinMigration:runDeleteRetiredSkins`, ahora con `expectRetired` obligatorio;
+     - `skins:runClearLegacySkinFields` (solo quita los 4 campos; nunca borra filas);
+     - `skinMigration:runClearSkinMigrationLog` (solo con 0 retirados, comprobado antes y en cada lote).
+   - **Se quedan hasta el paso 3:** `listAllPublic`, `skinMigration.ts`, `createSkin` y el schema.
+2. **Paso 2 — datos en producción** (solo con el OK de Aitor, transmitido por la Directora). Lo lanza T1, que
+   es la única terminal cuyo `--prod` resuelve a `abundant-badger-144`:
+   ```
+   TAL82_AITOR_OK=si scripts/tal82/export.sh abundant-badger-144 pre-fase-e     # export completo a ~/advcal-backups (fuera del repo)
+   TAL82_AITOR_OK=si scripts/tal82/step2.sh abundant-badger-144 29 8 21 29 8 2 1 0
+   ```
+   - **Cifras esperadas en prod** (medidas el 2026-10-12): 29 skins, 8 vigentes y 21 retiradas; 29 filas con
+     campos antiguos, 8 de ellas vigentes; 2 calendarios, ninguno en un retirado; 1 fila de
+     `skinMigrationLog` y 0 de `coverIconMigrationLog`. Si algo no cuadra, `step2.sh` aborta sin seguir.
+   - **Orden:** borra las 21 retiradas, quita los 4 campos de las 8 vigentes y vacía `skinMigrationLog`.
+     Después de cada fase repite el estado y `auditCalendarSkins`, y al final relee las tablas y las
+     referencias.
+3. **Paso 3 — schema (PR 3):**
+   - fuera los 4 campos de `skins` y las tablas `coverIconMigrationLog` y `skinMigrationLog`;
+   - se retiran `skinMigration.ts`, `listAllPublic`, `createSkin`/`getByKey`, `scripts/tal82/`,
+     `scripts/verify-tal62-skin-migration.mjs` y las ayudas de test de TAL-82.
+
+**Vuelta atrás** (probada en el ensayo de dev con los mismos scripts):
+```
+scripts/tal82/restore-zip.sh <export>.zip ~/advcal-backups/<restore>.zip skins skinMigrationLog
+TAL82_AITOR_OK=si scripts/tal82/restore.sh abundant-badger-144 ~/advcal-backups/<restore>.zip <export>.zip skins skinMigrationLog
+```
+- **Cómo es la restauración:** una sola importación `--replace` con las dos tablas, que se aplica entera o no
+  se aplica (probado en dev con un documento inválido). Después se comparan los documentos completos con el
+  export, con `_id` y `_creationTime` incluidos.
+- **Requisito:** el schema todavía tiene que admitir los campos y la tabla, es decir, antes del paso 3 o con él
+  revertido.
+- **Orden de vuelta atrás:** si hay que volver al código anterior al paso 1 después del paso 2, primero se
+  restauran los datos y después se revierte el código.
+
+**Barrera de las ayudas de test** (`convex/lib/testHelpers.ts`):
+- `ALLOW_TEST_HELPERS=1` **y** un `CONVEX_CLOUD_URL` que no sea de producción. La denylist es la misma que en
+  `scripts/e2e-regresion.mjs`, y un test comprueba que coinciden.
+- Falla cerrado.
+- La usan también las ayudas de TAL-67.
+
 ### Rollback
 - **Convex** a funciones anteriores a TAL-62: seguro en cualquier fase (las tablas nuevas
   se ignoran; el índice nuevo se borra y se recrea al volver). El Next de TAL-62 tolera
