@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent } from "react";
 import { signOutAction, switchModeAction } from "@/app/account-actions";
 import type { AccountMode } from "@/lib/account-modes";
 import { CoverIcon } from "@/components/cover-icon";
@@ -44,8 +44,19 @@ const ITEM_SELECTOR = '[role="menuitem"], [role="menuitemradio"]';
  * El cambio de modo y el logout son Server Actions (`account-actions.ts`)
  * en `<form>`s normales: funcionan igual con teclado que con ratón.
  */
+// TAL-80 — `false` en el HTML del servidor y durante la hidratación, `true`
+// en cuanto React ha hidratado este componente (patrón "estoy en el cliente"
+// sin setState en un efecto). Marca el disparador con `data-hydrated` para
+// que los tests E2E sepan cuándo un clic ya llega a `onClick`
+// (e2e/helpers/account-menu.ts). Cuesta un render de cliente más, despreciable.
+const noopSubscribe = () => () => {};
+function useHydrated(): boolean {
+  return useSyncExternalStore(noopSubscribe, () => true, () => false);
+}
+
 export function AccountMenu({ email, image, mode, modes, calendars, currentCalendarId }: AccountMenuProps) {
   const [open, setOpen] = useState(false);
+  const hydrated = useHydrated();
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -145,6 +156,7 @@ export function AccountMenu({ email, image, mode, modes, calendars, currentCalen
         aria-expanded={open}
         aria-controls={open ? menuId : undefined}
         aria-label="Menú de la cuenta"
+        data-hydrated={hydrated ? "true" : undefined}
         title={email}
         onClick={() => (open ? close(false) : openWith("first"))}
         onKeyDown={onTriggerKeyDown}
