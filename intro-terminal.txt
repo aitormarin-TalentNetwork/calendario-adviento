@@ -104,7 +104,9 @@ una vez que el trabajo pasa auditoría.
        local" con el artefacto derivado ya presente de antes) — borra `node_modules` y
        cualquier artefacto derivado no versionado (cliente de ORM, salida de codegen,
        cachés de build) y reinstala/reconstruye desde cero antes de capturar la
-       evidencia. Aplica a cualquier paso de build/codegen que dependa de algo no
+       evidencia. **Se hace siempre con `scripts/clean-evidence.sh`** (desde la raíz de
+       tu worktree; decidido 2026-10-12), y la evidencia es su salida completa pegada tal
+       cual. Playwright va aparte, con el cerrojo `.e2e-suite-lock`. Aplica a cualquier paso de build/codegen que dependa de algo no
        versionado, no solo a un caso concreto de herramienta. "Ya lo tenía corriendo en
        local" no es evidencia válida — mismo principio que "no te fíes del autoreporte,
        verifica lo real". **Además del build/lint/tests, la evidencia tiene que incluir
