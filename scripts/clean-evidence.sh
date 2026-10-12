@@ -33,11 +33,22 @@ fi
 
 step() { echo; echo "=== $(date '+%H:%M:%S') \$ $*"; "$@"; }
 
+TARGETS=(node_modules .next convex/_generated tsconfig.tsbuildinfo next-env.d.ts
+  test-results playwright-report blob-report playwright/.cache out build)
+# Listado explícito de cada objetivo (algunos están anidados y `ls -la` no los muestra).
+targets() {
+  echo; echo "=== Objetivos de la limpieza ($1)"
+  for p in "${TARGETS[@]}"; do
+    if [ -e "$p" ]; then echo "EXISTE  $p"; else echo "NO      $p"; fi
+  done
+}
+
 echo "=== clean-evidence.sh en $here, rama $(git branch --show-current) @ $(git rev-parse --short HEAD)"
 step ls -la
-step rm -rf node_modules .next convex/_generated tsconfig.tsbuildinfo next-env.d.ts \
-  test-results playwright-report blob-report playwright/.cache out build
+targets antes
+step rm -rf "${TARGETS[@]}"
 step ls -la
+targets después
 step npm ci
 step npx convex dev --once
 step npm run build
