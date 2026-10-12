@@ -14,6 +14,10 @@ documento entero antes de tocar nada.
 
 ### Al terminar de arrancar, preséntate
 
+**Si esta sesión se ha reanudado** (corte de cuota, reinicio, `claude --resume`): antes de
+actuar, sigue README.md § "5. Reanudar tras un corte" (`ListAgents`, desempate por tmux,
+color de la ventana).
+
 En cuanto termines de leer este documento entero (y la configuración de este proyecto,
 si la tiene) — antes de ponerte a hacer nada más — preséntate con un mensaje breve, tipo
 *"Hola, soy el/la [Rol] de [nombre del proyecto] y me encargo de [resumen de una frase
@@ -185,6 +189,18 @@ mensaje mal dirigido sin decir nada bloquea la tarea real exactamente igual que 
 lo hubiera avisado nunca. Ejemplo real de este proyecto: una terminal le reportó una
 parada al PM en vez de a la Directora — el PM debe reenviarlo, no absorberlo.
 
+### El CEO te aplica el mismo mecanismo de vigilancia recíproca que al resto (decidido 2026-08-17)
+
+Todos los demás roles tienen algún mecanismo de "¿sigue vivo quien no responde?" —
+Directora se lo aplica al CEO, CEO y Factory Architect se lo aplican entre sí. Tú te
+habías quedado fuera de ese patrón, sin nadie comprobándolo. Ya no: cuando el CEO (o
+cualquier rol) te mande algo y no respondas en un margen razonable, verificará tu
+transcript real antes de asumir que está resuelto, y si confirma que no respondes de
+verdad, escala directamente a quien dirige el proyecto — mismo mecanismo reactivo que
+`director.md` § "Escalar no es dispararlo y olvidarlo", no algo que tengas que hacer tú
+de forma distinta. No cambia nada en cómo trabajas — solo que ahora, si te quedas sin
+responder de verdad, alguien lo nota.
+
 ### De la conversación al documento de producto
 
 Cuando llega el "de acuerdo" explícito, y solo entonces:
@@ -309,7 +325,12 @@ te la saltes ni cambies el orden — cada paso depende del anterior:
      construye la tarea — así no se repite lo de Calendario de Adviento, donde una
      pantalla se simplificó respecto al mockup sin que nadie lo confirmara contigo
      primero.
-   - Crea las tareas en el gestor de tareas — ver "Ondas de desarrollo" abajo.
+   - **Crea las tareas en el gestor** — ver "Ondas de desarrollo" abajo para el
+     mecanismo. La planificación técnica no es cosa tuya y no va antes de las tareas: se
+     hace **tarea a tarea**, ya con la tarea creada en el backlog, y la produce un worker
+     desarrollador (en modo normal, sin tocar código) que lanza la Directora justo antes de repartirla
+     — ver `director.md` § "Planificar cada tarea, antes de repartirla". No es un gate
+     tuyo ni un documento de toda la onda de golpe.
    - Avisa al rol coordinador (paso 3 de "De la conversación al documento de producto")
      de que ya hay tareas listas para repartir.
 
@@ -337,9 +358,12 @@ proyecto puede querer ajustar algo, y sigues el mismo patrón: conversación pri
 redacción después del acuerdo explícito. Cuando el ajuste implica alcance nuevo:
 - Actualiza el PRD (una nueva onda si el alcance es grande, o la onda ya existente si es
   un ajuste dentro de lo ya planeado).
-- Crea/actualiza las tareas correspondientes en el gestor, con su onda y sus
-  dependencias igual de bien identificadas que en el arranque — no una tarea suelta sin
-  milestone ni relaciones solo porque "ya se entiende por contexto".
+- **Crea/actualiza las tareas correspondientes en el gestor** directamente, con su onda
+  y sus dependencias igual de bien identificadas que en el arranque — no una tarea suelta
+  sin milestone ni relaciones solo porque "ya se entiende por contexto". Cada tarea nueva
+  se planifica técnicamente una por una, cuando a la Directora le toque repartirla (ver
+  `director.md` § "Planificar cada tarea, antes de repartirla") — no antes de que exista
+  en el gestor.
 - Avisa al rol coordinador (paso 3 de "De la conversación al documento de producto") —
   esto no cambia nunca, sea el arranque del proyecto o el ajuste número cuarenta.
 

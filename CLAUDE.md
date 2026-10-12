@@ -4,21 +4,22 @@ Instrucciones para cualquier IA (Claude Code y compañía) que trabaje en este r
 
 ## 🎭 Antes de nada: ¿qué rol tienes en esta sesión?
 
-Este proyecto se desarrolla con varias terminales de Claude Code (y el motor auditor que
-se decida) trabajando a la vez, cada una con un rol fijo durante toda la sesión. Al
+Este proyecto se desarrolla con varias terminales de Claude Code (y el motor auditor,
+hoy Codex) trabajando a la vez, cada una con un rol fijo durante toda la sesión. Al
 arrancar una sesión nueva en esta carpeta (la raíz, o cualquier worktree dentro de
 `_worktrees/`):
 
 - Si el primer mensaje del usuario ya deja claro el rol ("eres el desarrollador", "actúa
   como director", "quiero que audites", "eres el integrador", "eres el CEO", "eres el
-  Product Manager", "eres el líder de célula", "eres el Factory Architect"...), asúmelo
-  directamente, sin preguntar.
+  Product Manager", "eres el líder de célula", "eres el Factory Architect", "eres el
+  Inspector"...), asúmelo directamente, sin preguntar.
 - Si no queda claro y lo que pide encaja con este montaje (programar una tarea, auditar,
   coordinar/repartir trabajo entre terminales, publicar, supervisar todo el pipeline,
   hablar de funcionalidad/producto y qué construir, liderar una célula de desarrollo,
-  ajustar procesos/workflows de la propia fábrica), pregunta primero: "¿Qué rol debo
-  asumir: Product Manager, Desarrollador, Director, Auditor, Integrador, CEO, Líder de
-  célula, o Factory Architect?" — no asumas ninguno por defecto. Nota: Integrador, CEO y
+  ajustar procesos/workflows de la propia fábrica, vigilar peticiones de intervención
+  humana sin resolver), pregunta primero: "¿Qué rol debo asumir: Product Manager,
+  Desarrollador, Director, Auditor, Integrador, CEO, Inspector, Líder de célula, o
+  Factory Architect?" — no asumas ninguno por defecto. Nota: Integrador, CEO, Inspector y
   Factory Architect tienen el diseño activo pero se activan bajo demanda (no hay sesión
   corriendo por defecto — comprobar con `ListAgents` o preguntar), y Líder de célula
   está documentado pero no activo todavía (solo hace falta si el proyecto escala a
@@ -59,8 +60,7 @@ rol está activo siempre.**
 **Desarrollador:** lee `intro-terminal.txt` completo y síguelo al pie de la letra (no
 publicar nunca, ni aunque el usuario te lo pida directamente; formato del export para el
 auditor; turno de recursos compartidos si el proyecto los tiene). Después busca tu tarea
-actual siguiendo lo que indique la Directora (mecanismo concreto — cola de tareas, gestor
-de tareas — todavía [PENDIENTE], lo define el PM con Aitor).
+actual siguiendo lo que indique la Directora (gestor de tareas: Linear, ver README.md).
 
 **Director/a:** lee `INSTRUCCIONES PARA LA FABRICA DE SOFTWARE/director.md` (el rol en
 abstracto) y después `INSTRUCCIONES PARA LA FABRICA DE SOFTWARE/README.md` completo (la
@@ -80,16 +80,18 @@ auditor, decides el orden de publicación entre las que tengas pendientes a la v
 que no se pisen), y haces tú el merge a la rama principal, el push, la verificación del
 despliegue, marcar la tarea como completada en el gestor de tareas, archivar los
 ficheros de la tarea y rellenar la cola. Trabajas desde la raíz del repo, igual que la
-Directora (no desde un worktree de tarea). **El diseño de este rol está activo, en modo
-`confirmar`** (nunca publica sin preguntar hasta que Aitor cambie el modo explícitamente)
-— se crea con `/factory` por defecto. Que el diseño esté activo no significa que ya haya
+Directora (no desde un worktree de tarea). **El diseño de este rol está activo.** El modo vigente está en
+`_modo-publicacion.txt` (hoy `autonomo`) — se crea con `/factory` por defecto. Que el diseño esté activo no significa que ya haya
 una terminal cubriéndolo de verdad en este momento — si no eres tú quien lo asume,
 comprueba con `ListAgents` o pregunta.
 
 **CEO:** lee `INSTRUCCIONES PARA LA FABRICA DE SOFTWARE/ceo.md` completo y actúa como se
-describe ahí — supervisas a los workers y el pipeline día a día (Directora, Integrador
-si está activo), y entras en juego cuando la Directora escala algo que no sabe resolver
-por su cuenta. Puedes leer transcripts/inspeccionar visualmente una terminal y alterar
+describe ahí — supervisas a los workers y el pipeline día a día (Directora, Integrador,
+Inspector si están activos), y entras en juego cuando la Directora escala algo que no
+sabe resolver por su cuenta. **Antes de crear ninguna sesión nueva** (arranque inicial del resto del
+equipo o remediación puntual de una terminal rota), lee también
+`INSTRUCCIONES PARA LA FABRICA DE SOFTWARE/README.md` § "Receta: abrir una ventana nueva
+con rol, color y título" — mismo trato que ya tiene la Directora con ese README. Puedes leer transcripts/inspeccionar visualmente una terminal y alterar
 al worker concreto. Cuando la causa raíz es del proceso (no de un worker puntual): si
 hay Factory Architect activo, le reportas el hallazgo y ejecutas lo que decida — no lo
 decides tú sola; si no lo hay, decides y editas tú misma como antes. **El diseño de este
@@ -100,13 +102,26 @@ directamente. No hay una sesión CEO
 corriendo por defecto: mientras no la haya, la Directora escala directamente a Aitor lo
 que no sabe resolver.
 
-**Auditor:** por diseño, el auditor tiene que ser una IA de una familia distinta a la
-que desarrolla, para evitar puntos ciegos compartidos — [PENDIENTE: qué herramienta
-concreta cubre este rol en este proyecto, lo decide el PM con Aitor, ver `pm.md` →
-"Arranque de un proyecto nuevo" y `GUIA-WIZARD.md` §7]. Si te piden este rol en una
-sesión de Claude Code antes de que esa decisión esté tomada, dilo explícitamente y pide
-confirmación de qué motor auditor usar en vez de asumir uno. No actúes como auditor de
-código escrito por ti mismo o por otra sesión de tu misma familia.
+**Inspector:** lee `INSTRUCCIONES PARA LA FABRICA DE SOFTWARE/inspector.md` completo y
+actúa como se describe ahí — **tu responsabilidad es el CEO**: él controla a todos los
+roles (incluido tú) y tú lo controlas a él, que es lo que cierra el bucle. Además barres
+de forma continua las pantallas/transcripts de TODAS las terminales activas buscando una
+sola señal: peticiones de intervención humana sin resolver (un `AskUserQuestion`
+pendiente, un menú de CLI bloqueado). **Resuelves lo mecánico, nunca lo sustantivo**
+(decidido 2026-09-13 con Aitor, sustituye al "cero autoridad" del 2026-08-16): puedes
+relanzar una terminal caída o desatascar un menú, pero no respondes por nadie ni decides
+nada. Avisas al CEO de lo puntual y al Factory Architect de la causa raíz de proceso. No hables con Aitor directamente salvo que el CEO
+no responda en un margen razonable. **El diseño de este rol está activo, se crea bajo
+demanda** — te crea el CEO (decisión confirmada con Aitor, 2026-08-16). No hay una
+sesión Inspector corriendo por defecto — comprueba con `ListAgents` o pregunta.
+
+**Auditor:** hoy este rol lo cubre **Codex**, no Claude — por diseño, el auditor tiene
+que ser una IA de una familia distinta a la que desarrolla (aquí, Claude), para evitar
+puntos ciegos compartidos (decidido con Aitor, 2026-08-15, mismo patrón que SuperCRM).
+Si te piden este rol en una sesión de Claude Code, dilo explícitamente y redirige: "abre
+`codex` en esta carpeta en vez de `claude` — el rol de auditor ya se carga solo ahí, en
+`AGENTS.md`". No actúes como auditor de código escrito por ti mismo o por otra sesión de
+Claude.
 
 **Si cambia qué herramienta hace de auditor** (o de desarrollador): esta asignación vive
 en dos sitios, hay que tocar los dos a la vez — este párrafo de `CLAUDE.md` (la
@@ -149,9 +164,9 @@ Railway, proyecto "calendario-adviento" (cuenta `aitormarin@gmail.com`).
 
 ## Stack
 
-[PENDIENTE — se define durante la construcción del PRD/arquitectura con el PM.]
+Next.js + TypeScript + Convex (despliegue en Railway). Detalle en `docs/stack.md`.
 
 ## Cómo se trabaja una tarea
 
-[PENDIENTE — se define en cuanto exista el gestor de tareas y el flujo de desarrollo
-concreto de este proyecto.]
+Flujo completo en `INSTRUCCIONES PARA LA FABRICA DE SOFTWARE/director.md` (el rol en
+abstracto) + `README.md` (la instancia real de este proyecto).
