@@ -1403,6 +1403,34 @@ a {
   outline: none;
 }
 
+/* TAL-74 — etiqueta de estado en "Mis calendarios" (design-system.md §
+   "Estilo 2026 → Progreso, filtros y etiquetas de estado"; mockup
+   propuesta-estilo-moderno.html, .pill): En marcha --mint-soft, Próximo
+   --primary-soft, Terminado --surface-2; texto --ink (≥ 12:1 en claro y
+   oscuro, caso 4 de tal61-estilo-base). */
+.status-pill {
+  display: inline-block;
+  padding: 5px 9px;
+  border-radius: var(--radius-pill);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1.2;
+  white-space: nowrap;
+  color: var(--ink);
+}
+
+.status-pill--live {
+  background: var(--mint-soft);
+}
+
+.status-pill--upcoming {
+  background: var(--primary-soft);
+}
+
+.status-pill--finished {
+  background: var(--surface-2);
+}
+
 /* TAL-73 — "Tus calendarios": chips de filtro y barra de progreso
    (design/design-system.md § "Estilo 2026 → Progreso, filtros y etiquetas
    de estado"). Pista en --surface-2 con borde --line (aprobado por el PM:
