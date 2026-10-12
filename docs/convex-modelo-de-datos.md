@@ -81,7 +81,9 @@ mismas relaciones. Diferencias de traducción, tabla por tabla:
 - **invitations** — `email`/`calendarId` igual.
   TAL-65 añade `role` opcional (`ADMIN | GUEST`; sin rol = Visitante, sin
   migración). Ver docs/invitados.md § "Invitar con rol (TAL-65)".
-- **skins** — `key`/`name`/`description` igual. **TAL-22** añade
+- **skins** — `key`/`name`/`description` igual. *(Histórico: desde TAL-62 el
+  estilo de cada skin vive en `skinStyles`, y los campos de color de abajo están en
+  desuso — se retiran tras la fase e de TAL-62, ver `docs/skins.md`.)* **TAL-22** añade
   `background` (`v.optional(v.string())`, valor CSS completo de la
   propiedad `background` — color sólido o cualquier `*-gradient(...)`,
   sin modelar stops por separado) y `accent` (`v.optional(v.string())`,

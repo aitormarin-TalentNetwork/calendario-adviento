@@ -31,8 +31,9 @@ type AdminCalendar = {
 };
 
 /**
- * TAL-12 — reconectada contra Convex (`calendars.getPublic` +
- * `skins.listAllPublic`, en paralelo). `null` significa "este calendario
+ * TAL-12 — reconectada contra Convex (`calendars.getPublic` + el catálogo
+ * de skins, en paralelo; desde TAL-62 `loadSkinCatalog`, que solo cae a
+ * `skins.listAllPublic` en modo degradado). `null` significa "este calendario
  * no existe de verdad" (mismo hecho que `notFound()` representaba con
  * Prisma) — distinto de un fallo de la capa de datos, que ahora se deja
  * propagar tal cual (no hay ningún resultado parcial honesto que mostrar

@@ -361,7 +361,8 @@ verdad, solo destruye datos compartidos.
 
 > **TAL-60:** los emojis de esta sección pasaron a iconos Lucide, con migración de los
 > datos existentes — ver `docs/iconos.md` (catálogo, compatibilidad, runbook de
-> producción y rollback).
+> producción y rollback). **TAL-72:** sección **histórica** — la escritura ya solo acepta
+> nombres Lucide y el respaldo emoji → Lucide se retiró.
 
 **Antes**: el 🎄 iba incrustado a mano dentro del texto por defecto de
 `coverTitle` ("¡Feliz cuenta atrás, equipo! 🎄") — ni campo propio ni
@@ -734,6 +735,10 @@ fichero de Convex (schema/mutations/queries) tocado — tarea puramente de
 presentación, tal como confirmaba la investigación previa del ticket.
 
 ## Selector visual de skin en el editor (TAL-37)
+
+> **Histórico (TAL-72):** desde TAL-62 el selector muestra el catálogo 2026 (8 skins,
+> `skins.listCatalogPublic`, muestras de `skinStyles.swatches`); las filas antiguas de
+> `skins.listAllPublic` solo aparecen en modo degradado. Ver `docs/skins.md`.
 
 Brief (design/design-system.md § "Skins", design/propuesta-editor-
 calendario.html — fila "Skin" con píldoras de color): sustituye el

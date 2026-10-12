@@ -14,7 +14,7 @@
 //
 // Para A hace falta quitar el rol a un usuario, y eso no existe en el
 // código desplegado (a propósito). Patrón `_scratch_*` (mismo que
-// scripts/verify-tal22-skin-schema-migration.mjs): escribe una mutation
+// scripts/verify-tal22-skin-schema-migration.mjs, retirado en TAL-72): escribe una mutation
 // temporal en convex/_scratch_tal68_stale_mode.ts, la despliega SOLO en el
 // deployment de desarrollo, la usa y, en el finally, la borra, vuelve a
 // desplegar y verifica que ya no existe.
