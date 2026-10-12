@@ -4,7 +4,7 @@ import { expect, test, type Browser, type Page, type Request } from "@playwright
 import type { Id } from "../convex/_generated/dataModel";
 import { loginAs, loginAsWithoutCallback, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
-import { accountMenu, openAccountMenu } from "./helpers/account-menu";
+import { accountMenu, installHydrationTrace, openAccountMenu } from "./helpers/account-menu";
 
 /**
  * TAL-68 — opción «Super Admin» (→ /superadmin) en el menú de la cuenta,
@@ -188,6 +188,8 @@ test("5 · un Admin normal que fuerza la Server Action con «superadmin» acaba 
 for (const scheme of ["light", "dark"] as const) {
   test(`6 · 375px (${scheme === "light" ? "claro" : "oscuro"}): menú con las tres opciones dentro de pantalla, filas ≥ 44px`, async ({ browser }) => {
     const page = await newPage(browser, { viewport: { width: 375, height: 812 }, colorScheme: scheme });
+    // TAL-80 — medición opcional de la evidencia (sin la variable no hace nada).
+    if (process.env.E2E_HYDRATION_TRACE === "1") await installHydrationTrace(page);
     await loginAs(page, SA_EMAIL);
     await page.goto("/superadmin");
     await openMenu(page);
