@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react";
+
 /**
  * TAL-24 — resuelve qué `background`/`accent` de skin (TAL-22) aplica a
  * un calendario concreto, con el respaldo del Design System cuando el
@@ -224,4 +226,20 @@ export function resolveCoverTextTreatment(
     return { kind: "pill", color: appearance.textColor, pillBackground: TEXT_PILL_BACKGROUND };
   }
   return { kind: "flat", color: appearance.textColor };
+}
+
+/**
+ * TAL-70 — la imagen de fondo del calendario deja de ser la base visual
+ * (TAL-39, con capa oscura) y pasa a ser casi transparente encima del fondo
+ * del skin (design-system.md § "Bienvenida con foto… + imagen de fondo
+ * tenue"; valores del mockup `design/propuesta-bienvenida.html`: opacidad
+ * 0.1 y `saturate(0.7)`, en `.faint-bg-layer` de `globals.css`). Devuelve el
+ * estilo de esa capa (un `<div className="faint-bg-layer" aria-hidden>`
+ * dentro de un contenedor `.faint-bg-host`), o `null` sin imagen. El fondo
+ * del skin se pinta igual que sin imagen (`skinBackgroundStyle(bg)`) y el
+ * texto usa el tratamiento normal del skin, no el «photo».
+ */
+export function faintBackgroundLayer(backgroundImageUrl: string | null | undefined): CSSProperties | null {
+  if (!backgroundImageUrl) return null;
+  return { backgroundImage: `url(${JSON.stringify(backgroundImageUrl)})` };
 }

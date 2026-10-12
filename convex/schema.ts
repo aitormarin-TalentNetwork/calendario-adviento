@@ -72,9 +72,7 @@ export default defineSchema({
     // obligatorio incluso con esta imagen puesta. `v.optional()` porque la
     // mayoría de calendarios no la tendrán — el skin solo sigue siendo
     // suficiente por defecto. Deliberadamente NO llega a `/login` (página
-    // sin autenticar) — ver `getPublicCoverInfoForLogin` más abajo,
-    // restricción de seguridad ya existente desde TAL-25 que esta tarea no
-    // ensancha. Confirmado como decisión final (no provisional) por la
+    // sin autenticar; desde TAL-70 `/login` no lee ningún calendario). Confirmado como decisión final (no provisional) por la
     // Directora y el PM el mismo día — design-system.md § "Imagen de fondo
     // del calendario" ya lo refleja así.
     backgroundImageUrl: v.optional(v.string()),
@@ -382,4 +380,19 @@ export default defineSchema({
   })
     .index("by_migration_and_day", ["migrationId", "dayId"])
     .index("by_migration", ["migrationId"]),
+
+  // TAL-70 — "ya vio hoy la bienvenida con foto de este calendario" (por
+  // persona, calendario y día natural en su zona horaria, `YYYY-MM-DD`).
+  // Tabla nueva y aditiva: el schema anterior la acepta con datos (no
+  // bloquea un rollback). Una fila por persona, calendario y día; se borra
+  // en cascada con el calendario (`calendars.ts::deleteCalendarHandler`).
+  // El índice no es único: la unicidad la da `welcomeViews.ts::markSeenPublic`
+  // (leer e insertar en la misma mutation, OCC). Ver docs/bienvenida.md.
+  welcomeViews: defineTable({
+    userId: v.id("users"),
+    calendarId: v.id("calendars"),
+    date: v.string(),
+  })
+    .index("by_user_calendar_date", ["userId", "calendarId", "date"])
+    .index("by_calendar", ["calendarId"]),
 });

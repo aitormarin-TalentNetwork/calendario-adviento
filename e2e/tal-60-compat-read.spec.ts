@@ -111,7 +111,9 @@ async function guestPage(browser: Browser) {
 }
 
 for (const c of CASES) {
-  test(`portada y login: ${String(c.coverIcon)} → ${c.expected}`, async ({ browser }) => {
+  // TAL-70 — `/login` es genérico: ya no pinta el icono del calendario (ni
+  // con `callbackUrl`); se comprueba que no sale.
+  test(`portada (y login genérico): ${String(c.coverIcon)} → ${c.expected}`, async ({ browser }) => {
     const page = await guestPage(browser);
     await page.goto(`/c/${ids[c.key]}`);
     const icon = page.locator(`.cover-icon-box[data-cover-icon='${c.expected}'] svg.lucide`);
@@ -121,7 +123,8 @@ for (const c of CASES) {
 
     const anon = await (await browser.newContext()).newPage();
     await anon.goto(`/login?callbackUrl=/c/${ids[c.key]}`);
-    await expect(anon.locator(`.cover-icon-box[data-cover-icon='${c.expected}'] svg.lucide`)).toBeVisible();
+    await expect(anon.getByRole("heading", { level: 1, name: "Calendario de Adviento" })).toBeVisible();
+    await expect(anon.locator("[data-cover-icon]")).toHaveCount(0);
     await expectStoredValueNotAsText(anon);
     await anon.context().close();
     await page.context().close();
