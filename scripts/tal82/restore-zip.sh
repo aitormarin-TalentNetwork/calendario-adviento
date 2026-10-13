@@ -4,6 +4,8 @@
 # Uso: scripts/tal82/restore-zip.sh <export.zip> <salida.zip> <tabla>…
 source "$(dirname "$0")/lib.sh"
 snap="${1:?export.zip}"; out="${2:?salida.zip}"; shift 2; [ "$#" -gt 0 ] || die "faltan tablas"
+validate_backups
+case "$snap" in "$TAL82_BACKUPS"/*.zip) ;; *) die "el export debe estar en $TAL82_BACKUPS: $snap" ;; esac
 case "$out" in "$TAL82_BACKUPS"/*.zip) ;; *) die "la salida debe ir en $TAL82_BACKUPS" ;; esac
 [ ! -e "$out" ] || die "ya existe $out"
 W=$(mktemp -d "$TAL82_BACKUPS/restore-XXXXXX")

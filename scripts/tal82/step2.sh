@@ -1,19 +1,27 @@
 #!/bin/bash
-# TAL-82 — PASO 2 de la fase e (plan §4): limpieza de datos. NO se ejecuta en producción sin
-# el OK de Aitor (TAL82_AITOR_OK=si, ver lib.sh) y DESPUÉS de export.sh verificado.
+# TAL-82 — PASO 2 de la fase e (plan §4): limpieza de datos. En producción no se lanza suelto: lo
+# lanza Aitor con `!` a través de run-step2.sh (export → verificación → paso 2 → auditorías, con log).
 #
 # Uso:
-#   scripts/tal82/step2.sh <slug> SKINS CATALOG RETIRED LEGACY LEGACY_IN_CATALOG CALENDARS LOG COVERLOG
-# Cifras esperadas de producción (plan §2/§4, medidas el 2026-10-12):
-#   scripts/tal82/step2.sh abundant-badger-144 29 8 21 29 8 2 1 0
+#   scripts/tal82/step2.sh <slug> SKINS CATALOG RETIRED LEGACY LEGACY_IN_CATALOG CALENDARS LOG COVERLOG <export.zip>
+# El export es OBLIGATORIO y se verifica antes de tocar nada (verify_export_fresh): de este deployment,
+# en TAL82_BACKUPS, checksum del manifiesto, ZIP íntegro, de hace ≤ 30 min con el mismo HEAD y con
+# los recuentos esperados de skins, calendars, skinMigrationLog y coverIconMigrationLog.
+# Cifras esperadas de producción (plan §2/§4, medidas el 2026-10-12): 29 8 21 29 8 2 1 0
 #
 # Cada cifra es una PRECONDICIÓN: si el estado real no coincide con la fila esperada, aborta sin
 # seguir. Después de cada fase: estado (legacyPhaseEStatus) y auditCalendarSkins.
 source "$(dirname "$0")/lib.sh"
-[ "$#" -eq 9 ] || die "uso: step2.sh <slug> SKINS CATALOG RETIRED LEGACY LEGACY_IN_CATALOG CALENDARS LOG COVERLOG"
-slug="$1" SKINS="$2" CATALOG="$3" RETIRED="$4" LEGACY="$5" LEGACY_IN_CATALOG="$6" CALENDARS="$7" LOG="$8" COVERLOG="$9"
+[ "$#" -eq 10 ] || die "uso: step2.sh <slug> SKINS CATALOG RETIRED LEGACY LEGACY_IN_CATALOG CALENDARS LOG COVERLOG <export.zip>"
+slug="$1" SKINS="$2" CATALOG="$3" RETIRED="$4" LEGACY="$5" LEGACY_IN_CATALOG="$6" CALENDARS="$7" LOG="$8" COVERLOG="$9" EXPORT="${10}"
+for n in "$SKINS" "$CATALOG" "$RETIRED" "$LEGACY" "$LEGACY_IN_CATALOG" "$CALENDARS" "$LOG" "$COVERLOG"; do
+  case "$n" in ""|*[!0-9]*) die "cifra no válida: $n" ;; esac
+done
 guard_deployment "$slug"
 echo "=== TAL-82 paso 2 — $slug — $(date -u +%Y-%m-%dT%H:%M:%SZ) — repo $TAL82_ROOT"
+
+# 0 · el export previo, verificado ANTES de cualquier lectura o escritura en el deployment
+verify_export_fresh "$slug" "$EXPORT" "$SKINS" "$CALENDARS" "$LOG" "$COVERLOG"
 
 # expect_status <fase> skins inCatalog retired withLegacyFields calendars calendarsOnRetired skinMigrationLog coverIconMigrationLog
 expect_status() {
@@ -32,7 +40,7 @@ expect_audit() {
 }
 
 set -x
-# 0 · solo NOMBRES de las variables de entorno: nunca ALLOW_TEST_HELPERS en este deployment de destino de prod.
+# 0b · solo NOMBRES de las variables de entorno: nunca ALLOW_TEST_HELPERS en este deployment de destino de prod.
 if [ "$slug" = "$TAL82_PROD_SLUG" ]; then
   cx "$slug" env list 2>/dev/null | cut -d= -f1 | sort
   [ "$(cx "$slug" env list 2>/dev/null | cut -d= -f1 | grep -c '^ALLOW_TEST_HELPERS$' || true)" = "0" ] || die "ALLOW_TEST_HELPERS definida en producción"

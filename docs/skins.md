@@ -455,12 +455,27 @@ el export de TAL-82.
      - `skins:runClearLegacySkinFields` (solo quita los 4 campos; nunca borra filas);
      - `skinMigration:runClearSkinMigrationLog` (solo con 0 retirados, comprobado antes y en cada lote).
    - **Se quedan hasta el paso 3:** `listAllPublic`, `skinMigration.ts`, `createSkin` y el schema.
-2. **Paso 2 — datos en producción** (solo con el OK de Aitor, transmitido por la Directora). Lo lanza T1, que
-   es la única terminal cuyo `--prod` resuelve a `abundant-badger-144`:
+2. **Paso 2 — datos en producción.** Lo lanza **Aitor él mismo**, con `!` en la sesión de T1 (la única
+   terminal cuyo `.env.local` es del proyecto de `abundant-badger-144`), nunca un agente. Un solo comando,
+   que hace export → verificación del export → paso 2 → auditorías:
    ```
-   TAL82_AITOR_OK=si scripts/tal82/export.sh abundant-badger-144 pre-fase-e     # export completo a ~/advcal-backups (fuera del repo)
-   TAL82_AITOR_OK=si scripts/tal82/step2.sh abundant-badger-144 29 8 21 29 8 2 1 0
+   ! TAL82_PROD_CONFIRM=abundant-badger-144 scripts/tal82/run-step2.sh abundant-badger-144 29 8 21 29 8 2 1 0
    ```
+   - **Qué acredita el OK:** que el comando conste como `!` de Aitor en la sesión de T1, más su log completo
+     (`run-step2.sh` lo guarda, 600, en `TAL82_BACKUPS`) pegado en la evidencia. `TAL82_PROD_CONFIRM` es
+     solo una barrera contra accidentes: un agente podría escribirla, así que no acredita nada por sí sola.
+   - **Barreras de los scripts** (`scripts/tal82/lib.sh`, probadas sin tocar ningún deployment con
+     `scripts/tal82/selftest.sh`):
+     - HEAD limpio (sin cambios en ficheros versionados ni ficheros nuevos en `convex/`, `src/`, `scripts/`
+       ni `e2e/`); el HEAD sale en la cabecera.
+     - `TAL82_BACKUPS` (por defecto `~/advcal-backups`) se valida por su ruta canónica: ni dentro del repo
+       (worktree o repo principal) ni un padre suyo, ni en `~/Documents`, `~/Desktop` o el almacenamiento de
+       iCloud/nube.
+     - Etiqueta del export: solo `A-Z`, `a-z`, `0-9` y `-`, como mucho 40 caracteres.
+     - `step2.sh` exige el export como último argumento y lo verifica **antes de tocar nada**: de este
+       deployment y en `TAL82_BACKUPS`, fichero normal 600 con su manifiesto 600 (que escribe `export.sh`),
+       checksum del manifiesto, ZIP íntegro, de hace 30 minutos como mucho, con el mismo HEAD y con los
+       recuentos esperados de `skins`, `calendars`, `skinMigrationLog` y `coverIconMigrationLog`.
    - **Cifras esperadas en prod** (medidas el 2026-10-12): 29 skins, 8 vigentes y 21 retiradas; 29 filas con
      campos antiguos, 8 de ellas vigentes; 2 calendarios, ninguno en un retirado; 1 fila de
      `skinMigrationLog` y 0 de `coverIconMigrationLog`. Si algo no cuadra, `step2.sh` aborta sin seguir.
@@ -472,10 +487,11 @@ el export de TAL-82.
    - se retiran `skinMigration.ts`, `listAllPublic`, `createSkin`/`getByKey`, `scripts/tal82/`,
      `scripts/verify-tal62-skin-migration.mjs` y las ayudas de test de TAL-82.
 
-**Vuelta atrás** (probada en el ensayo de dev con los mismos scripts):
+**Vuelta atrás** (probada en el ensayo de dev con los mismos scripts; en producción la lanza Aitor con `!`, y
+`restore.sh` comprueba antes la integridad del export de origen):
 ```
 scripts/tal82/restore-zip.sh <export>.zip ~/advcal-backups/<restore>.zip skins skinMigrationLog
-TAL82_AITOR_OK=si scripts/tal82/restore.sh abundant-badger-144 ~/advcal-backups/<restore>.zip <export>.zip skins skinMigrationLog
+! TAL82_PROD_CONFIRM=abundant-badger-144 scripts/tal82/restore.sh abundant-badger-144 ~/advcal-backups/<restore>.zip <export>.zip skins skinMigrationLog
 ```
 - **Cómo es la restauración:** una sola importación `--replace` con las dos tablas, que se aplica entera o no
   se aplica (probado en dev con un documento inválido). Después se comparan los documentos completos con el
