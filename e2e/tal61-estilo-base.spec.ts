@@ -4,6 +4,7 @@ import { expect, test, type Browser, type Page } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { openAccountMenu } from "./helpers/account-menu";
 import { measureEditor, measureGuestCalendar, type Box, type Geometry } from "./helpers/tal61-geometry";
 
 /**
@@ -282,7 +283,7 @@ test("1 · ninguna serifa ni monoespaciada en ninguna pantalla (diálogos y men�
   await page.getByRole("dialog", { name: "Elegir icono de portada" }).getByRole("button", { name: "Cerrar" }).click();
 
   await page.goto("/admin");
-  await page.getByRole("button", { name: "Menú de la cuenta" }).click();
+  await openAccountMenu(page);
   await check("menú de la cuenta abierto");
   await page.context().close();
 });
@@ -338,7 +339,7 @@ for (const scheme of ["light", "dark"] as const) {
     await page.goto("/c");
     await page.screenshot({ path: path.join(EVIDENCE_DIR, `usuario-${scheme}.png`), fullPage: false });
     await page.goto("/admin");
-    await page.getByRole("button", { name: "Menú de la cuenta" }).click();
+    await openAccountMenu(page);
     await page.screenshot({ path: path.join(EVIDENCE_DIR, `menu-${scheme}.png`) });
     await page.context().close();
 

@@ -5,6 +5,7 @@ import { STUB_IMAGE_URL, STUB_PAGE_URL } from "../src/lib/image-checker";
 import { IMAGE_URL_WARNING } from "../src/lib/image-url-warning";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { deleteCalendarsAs } from "./helpers/cleanup";
 
 /**
  * TAL-69 — aviso en el editor cuando la URL de "Foto de portada" o "Imagen
@@ -59,9 +60,7 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  for (const calendarId of created) {
-    await convex.mutation(api.calendars.deleteCalendarAsUserPublic, { serverSecret: serverSecret(), calendarId, userId: adminId });
-  }
+  await deleteCalendarsAs(adminId, created);
 });
 
 test("0 · el stub está activo (si no, el servidor reutilizado no tiene E2E_IMAGE_CHECK_STUB=1)", async ({ page }) => {
