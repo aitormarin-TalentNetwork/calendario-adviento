@@ -13,13 +13,12 @@ import { CoverIcon } from "@/components/cover-icon";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveDoors } from "@/lib/guest-calendar";
 import { resolveCalendarAccess } from "@/lib/roles";
-import { faintBackgroundLayer, skinBackgroundStyle } from "@/lib/skin-appearance";
+import { faintBackgroundLayer, faintBackgroundUrl, skinBackgroundStyle } from "@/lib/skin-appearance";
 import { loadSkinCatalog } from "@/lib/skin-catalog";
 import { resolveSkinStyle, skinStyleVars, skinTreatmentClass, type SkinStyle } from "@/lib/skin-style";
 import { CalendarCoverHeader } from "@/components/calendar-cover-header";
 import { CountdownHero } from "@/components/countdown-hero";
 import { auth } from "@/lib/auth";
-import { hasSeenWelcomeToday } from "@/lib/welcome";
 import { WelcomeOverlay } from "@/app/c/[calendarId]/welcome-overlay";
 
 /**
@@ -73,7 +72,8 @@ async function getCalendarForGuestPage(
     // `appearance` arriba.
     backgroundImageUrl: calendar.backgroundImageUrl ?? null,
     // TAL-70 — la foto de portada ya no sale en `/login` (genérico): solo en
-    // la bienvenida de esta página, ya autenticada y con acceso.
+    // la bienvenida de esta página, ya autenticada y con acceso. TAL-85 —
+    // también es el respaldo del fondo tenue (`faintBackgroundUrl`).
     coverImageUrl: calendar.coverImageUrl ?? null,
   };
 }
@@ -130,19 +130,13 @@ export default async function GuestCalendarPage({
   // mismo patrón ya establecido, sin reinventarlo.
   const daysRemaining = tz ? daysUntil(todayInTimeZone(new Date(), tz), endDate) : null;
 
-  // TAL-70 — bienvenida con foto: solo si el calendario tiene foto de
-  // portada, hay cookie `tz` (el día natural de la persona; sin ella —caso
-  // raro, el layout la pone antes— no hay bienvenida) y aún no la ha visto
-  // hoy en este calendario. Si la lectura falla, no se enseña: nunca bloquea
-  // el calendario.
-  let showWelcome = false;
-  if (calendar.coverImageUrl && tz) {
-    try {
-      showWelcome = !(await hasSeenWelcomeToday(user.id, calendarId, tz));
-    } catch {
-      showWelcome = false;
-    }
-  }
+  // TAL-70 — bienvenida con foto, si el calendario tiene foto de portada.
+  // TAL-85 — en CADA entrada, sin marca en Convex ni cookie `tz` (sin ella,
+  // sin la línea de la cuenta atrás): ver `welcome-overlay.tsx`. `renderId`
+  // cambia en cada render del servidor; junto con el contador de navegaciones
+  // del cliente distingue "entrar otra vez" de un `router.refresh()`.
+  const showWelcome = Boolean(calendar.coverImageUrl);
+  const renderId = crypto.randomUUID();
   // "Hola, <nombre>": el primer nombre de la sesión de Google. El login de
   // desarrollo usa el email como nombre si no se da uno → solo "Hola".
   const sessionName = showWelcome ? (await auth())?.user?.name?.trim() : undefined;
@@ -158,9 +152,10 @@ export default async function GuestCalendarPage({
   //
   // TAL-70 — la imagen de fondo ya no sustituye al skin: capa casi
   // transparente encima (`faintLayer`), y con ella la tarjeta del mes y el
-  // modal pasan a semiopacos (`--skin-card-surface`, 85 %).
+  // modal pasan a semiopacos (`--skin-card-surface`, 85 %). TAL-85 — sin
+  // imagen de fondo, la capa usa la foto de portada.
   const mainBackgroundStyle: React.CSSProperties = skinBackgroundStyle(skinStyle.palette.bg);
-  const faintLayer = faintBackgroundLayer(backgroundImageUrl);
+  const faintLayer = faintBackgroundLayer(faintBackgroundUrl(backgroundImageUrl, calendar.coverImageUrl));
 
   return (
     <main
@@ -244,7 +239,8 @@ export default async function GuestCalendarPage({
       <SessionIndicator user={user} mode="user" currentCalendarId={calendarId} />
       {showWelcome && calendar.coverImageUrl && (
         <WelcomeOverlay
-          calendarId={calendarId}
+          key={calendarId}
+          renderId={renderId}
           photoUrl={calendar.coverImageUrl}
           firstName={firstName}
           title={calendar.coverTitle}

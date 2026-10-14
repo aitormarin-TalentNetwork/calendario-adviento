@@ -74,6 +74,8 @@ export type UserModeCardInput = {
   coverTitle: string;
   coverIcon?: string;
   backgroundImageUrl?: string;
+  /** TAL-85 — opcional: falta en un Convex anterior a TAL-85. */
+  coverImageUrl?: string;
   startDate: Date;
   endDate: Date;
   isAdmin: boolean;
@@ -95,6 +97,8 @@ export type UserModeCard = {
    */
   skinId: string | null;
   backgroundImageUrl: string | null;
+  /** TAL-85 — foto de portada de la tarjeta (`null` sin foto). */
+  coverImageUrl: string | null;
   subtitle: string;
   isAdmin: boolean;
   status: CalendarStatus;
@@ -116,6 +120,7 @@ export function toUserModeCard(row: UserModeCardInput, today: Date): UserModeCar
     icon: normalizeCoverIcon(row.coverIcon),
     skinId: row.skin?._id ?? null,
     backgroundImageUrl: row.backgroundImageUrl ?? null,
+    coverImageUrl: row.coverImageUrl ?? null,
     subtitle: cardSubtitle(row.isAdmin, row.startDate, row.endDate),
     isAdmin: row.isAdmin,
     status,

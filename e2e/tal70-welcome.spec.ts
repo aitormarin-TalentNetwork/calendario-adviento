@@ -3,15 +3,19 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { deflateSync } from "node:zlib";
 import { ConvexHttpClient } from "convex/browser";
-import { expect, request as playwrightRequest, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
+import { expect, test, type Browser, type BrowserContext, type Page } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
 import { seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
 import { openAccountMenu } from "./helpers/account-menu";
 
 /**
- * TAL-70 — login genérico, bienvenida con foto (primera vez de cada día, por
- * persona y calendario) e imagen de fondo tenue. Las fotos las sirve el
+ * TAL-70 — login genérico, bienvenida con foto e imagen de fondo tenue.
+ * TAL-85 — la bienvenida sale en CADA entrada (se retiró "una vez al día");
+ * `welcomeViews` queda sin uso pero se conserva por compatibilidad con el
+ * Next anterior, así que sus pruebas de autorización y concurrencia (6, 7,
+ * 8) siguen aquí mientras exista. Lo nuevo de TAL-85, en
+ * `tal85-foto-portada.spec.ts`. Las fotos las sirve el
  * propio test (`page.route`), así que no depende de la red: blanca pura
  * (peor caso de contraste), y una URL que da 404 (foto rota). El "día" lo
  * controla la zona horaria del navegador y su cookie `tz`: Kiritimati
@@ -195,11 +199,9 @@ test("1 · /login genérico, con y sin callbackUrl; entrar conserva el callbackU
   await context.close();
 });
 
-test("2 · bienvenida: sale la primera vez del día y queda marcada; mismo día no; otro día sí", { tag: "@regresion" }, async ({ browser }) => {
+test("2 · bienvenida: sale en cada entrada, también varias veces el mismo día y otro día, sin marcar nada", { tag: "@regresion" }, async ({ browser }) => {
   const calendarId = await createCalendar("dia", { coverImageUrl: WHITE_PHOTO });
-  const dateA = todayIn(TZ_A);
-  const dateB = todayIn(TZ_B);
-  expect(dateA).not.toBe(dateB);
+  expect(todayIn(TZ_A)).not.toBe(todayIn(TZ_B));
 
   const page = await guestPage(browser, TZ_A);
   await page.goto(`/c/${calendarId}`);
@@ -208,21 +210,22 @@ test("2 · bienvenida: sale la primera vez del día y queda marcada; mismo día 
   await expect(page.getByRole("heading", { level: 2, name: "dia: una sorpresa cada día para ti" })).toBeVisible();
   await expect(page.locator(".welcome-countdown")).toHaveText(/^Faltan \d+ días para la Navidad$/);
   await expect(page.getByRole("button", { name: "Abrir mi calendario" })).toBeFocused();
-  await expect.poll(() => hasSeen(gId, calendarId, dateA)).toBe(true);
-  expect(await hasSeen(gId, calendarId, dateB)).toBe(false);
-
-  await page.goto(`/c/${calendarId}`);
-  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "Abrir mi calendario" }).click();
   await expect(welcome(page)).toHaveCount(0);
+
+  // Mismo día, otra entrada (antes de TAL-85 ya no salía) → sale otra vez.
+  await page.goto(`/c/${calendarId}`);
+  await expect(welcome(page)).toHaveAttribute("data-welcome-phase", "shown");
   await page.context().close();
 
-  // Otro día natural (otra zona horaria) → vuelve a salir.
+  // Otro día natural (otra zona horaria) → también sale.
   const pageB = await guestPage(browser, TZ_B);
   await pageB.goto(`/c/${calendarId}`);
   await expect(welcome(pageB)).toHaveAttribute("data-welcome-phase", "shown");
-  await expect.poll(() => hasSeen(gId, calendarId, dateB)).toBe(true);
   await pageB.context().close();
-  expect(countRows([calendarId])).toBe(2);
+  // Ya no se escribe ninguna marca.
+  expect(await hasSeen(gId, calendarId, todayIn(TZ_A))).toBe(false);
+  expect(countRows([calendarId])).toBe(0);
 });
 
 test("3 · sin foto → directo al calendario; foto rota (404) → sin bienvenida y sin marcar", async ({ browser }) => {
@@ -390,55 +393,6 @@ test("6 · autorización: sin secreto, secreto incorrecto, sin acceso o calendar
   await expect(page).toHaveURL(/\/unauthorized/);
   await context.close();
   expect(countRows([calendarId, other])).toBe(0);
-});
-
-test("6b · markWelcomeSeenAction directa: sin sesión, sin cookie tz y con el acceso revocado → rechazo y nada marcado", async ({ browser }) => {
-  const calendarId = await createCalendar("accion", { coverImageUrl: WHITE_PHOTO });
-  const page = await guestPage(browser, TZ_A);
-  // La llamada real de la bienvenida (Server Action): se captura para repetirla por HTTP.
-  const actionRequest = page.waitForRequest((r) => r.method() === "POST" && !!r.headers()["next-action"]);
-  await page.goto(`/c/${calendarId}`);
-  const captured = await actionRequest;
-  await expect.poll(() => hasSeen(gId, calendarId, todayIn(TZ_A))).toBe(true);
-  const headers = await captured.allHeaders();
-  const replayHeaders = {
-    "next-action": headers["next-action"],
-    "content-type": headers["content-type"],
-    accept: "text/x-component",
-    ...(headers["next-router-state-tree"] ? { "next-router-state-tree": headers["next-router-state-tree"] } : {}),
-  };
-  const body = captured.postData() ?? "";
-  const replay = async (ctx: { post: BrowserContext["request"]["post"] }) => (await ctx.post(captured.url(), { headers: replayHeaders, data: body, maxRedirects: 0 })).text();
-  const base = `http://localhost:${process.env.E2E_PORT ?? 3000}`;
-
-  // Control positivo: la misma llamada con sesión y cookie responde ok.
-  expect(await replay(page.context().request)).toContain('{"ok":true}');
-
-  // a) Sin sesión (solo la cookie tz de otro día): el proxy de /c/* corta
-  // antes de ejecutar la acción (redirección a /login); y si llegara a
-  // ejecutarse, la acción responde not-authorized (getAuthorizedUser → null).
-  const anon = await playwrightRequest.newContext({ baseURL: base, storageState: { cookies: [{ name: "tz", value: TZ_B, domain: "localhost", path: "/", expires: -1, httpOnly: false, secure: false, sameSite: "Lax" }], origins: [] } });
-  const anonResponse = await anon.post(captured.url(), { headers: replayHeaders, data: body, maxRedirects: 0 });
-  expect(anonResponse.status()).toBe(307);
-  expect(anonResponse.headers()["location"]).toMatch(/\/login\?callbackUrl=/);
-  await anon.dispose();
-
-  // b) Con sesión pero sin cookie tz.
-  const state = await page.context().storageState();
-  const noTz = await playwrightRequest.newContext({ baseURL: base, storageState: { ...state, cookies: state.cookies.filter((c) => c.name !== "tz") } });
-  expect(await replay(noTz)).toContain('"error":"no-timezone"');
-  await noTz.dispose();
-
-  // c) Acceso revocado (sin membership), con la cookie tz de otro día aún sin marcar.
-  await convex.mutation(api.guests.removeGuestFromCalendarPublic, { serverSecret: serverSecret(), calendarId, email: G_EMAIL });
-  const revoked = await playwrightRequest.newContext({ baseURL: base, storageState: { ...state, cookies: state.cookies.map((c) => (c.name === "tz" ? { ...c, value: TZ_B } : c)) } });
-  expect(await replay(revoked)).toContain('"error":"not-authorized"');
-  await revoked.dispose();
-
-  expect(await hasSeen(sId, calendarId, todayIn(TZ_B))).toBe(false);
-  // Solo la marca legítima (TZ_A): 1 fila.
-  expect(countRows([calendarId])).toBe(1);
-  await page.context().close();
 });
 
 test("7 · concurrencia: 5 marcas simultáneas, N=10 → exactamente 1 fila cada vez", async () => {

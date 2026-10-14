@@ -75,6 +75,8 @@ test("toUserModeCard compone título, icono por defecto, skin de respaldo y lín
     icon: "tree-pine",
     skinId: null,
     backgroundImageUrl: null,
+    // TAL-85 — sin foto de portada.
+    coverImageUrl: null,
     subtitle: "28 dic 2026 – 6 ene 2027",
     isAdmin: false,
     // TAL-73 — próximo (empieza en 8 días), sin barra.

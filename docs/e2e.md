@@ -56,6 +56,13 @@ de Convex de `.env.local`.
   export al auditor.
 - `test-results/`, `playwright-report/`, `blob-report/` y `playwright/.cache/`
   están en `.gitignore`.
+- **Harness de navegación (TAL-85):** con `E2E_ROUTER_HARNESS=1` (solo la define el
+  `webServer` de `playwright.config.ts`) y fuera de producción, `src/app/layout.tsx`
+  monta `src/components/e2e-router-harness.tsx`, que expone `useRouter().push/refresh`
+  como `window.__e2eRouter` para probar navegaciones de cliente que la UI no ofrece
+  (p. ej. `/c/<id>` → `/c`). No pinta nada. Igual que `E2E_IMAGE_CHECK_STUB`: con un
+  servidor reutilizado sin la variable, el test 0 de `tal85-foto-portada.spec.ts` lo
+  dice.
 
 ## Batería de regresión (TAL-71)
 

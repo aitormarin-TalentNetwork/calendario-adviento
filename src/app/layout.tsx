@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import "./fonts/plus-jakarta-sans";
 import { ConvexClientProvider } from "@/components/convex-client-provider";
+import { E2ERouterHarness } from "@/components/e2e-router-harness";
 import { TimezoneSync } from "@/components/timezone-sync";
+import { shouldMountRouterHarness } from "@/lib/e2e-router-harness";
 import "./globals.css";
 
 /*
@@ -24,6 +26,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body>
         <ConvexClientProvider>
           <TimezoneSync />
+          {/* TAL-85 — solo en el servidor de dev de Playwright (doble guarda). */}
+          {shouldMountRouterHarness() ? <E2ERouterHarness /> : null}
           {children}
         </ConvexClientProvider>
       </body>

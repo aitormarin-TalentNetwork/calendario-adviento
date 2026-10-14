@@ -13,6 +13,12 @@ import { deleteCalendarsAs } from "./helpers/cleanup";
  * `E2E_IMAGE_CHECK_STUB=1` y el comprobador es el stub determinista
  * (src/lib/image-checker.ts). Un calendario por caso (el enfriamiento por
  * calendario es de 10 s).
+ *
+ * TAL-85 — en "Foto de portada" este aviso lo sustituye la vista previa
+ * (`tal85-foto-portada.spec.ts`): aquí se comprueba el aviso en "Imagen de
+ * fondo" y que en "Foto de portada" ya no sale. El aviso se busca por su
+ * clase (`.day-video-warning`), porque la vista previa de la portada también
+ * tiene mensajes con `role="status"`.
  */
 test.describe.configure({ mode: "serial" });
 
@@ -42,6 +48,7 @@ const BACKGROUND = "#calendar-backgroundImageUrl";
 // anunciador de rutas con role="alert" fuera del formulario.
 const formError = (page: Page) => page.locator("form", { has: page.locator(COVER) }).getByRole("alert");
 const field = (page: Page, input: string) => page.locator(".editor-field", { has: page.locator(input) });
+const warningIn = (page: Page, input: string) => field(page, input).locator(".day-video-warning");
 
 async function saveWith(page: Page, calendarId: string, values: { cover?: string; background?: string }) {
   await page.goto(`/admin/${calendarId}`);
@@ -66,31 +73,33 @@ test.afterAll(async () => {
 test("0 · el stub está activo (si no, el servidor reutilizado no tiene E2E_IMAGE_CHECK_STUB=1)", async ({ page }) => {
   const id = await newCalendar("sonda");
   await loginAs(page, ADMIN_EMAIL);
-  await saveWith(page, id, { cover: "https://tal69.invalid/stub-page" });
-  await expect(field(page, COVER).getByRole("status"), "levanta el dev server desde Playwright (con la variable del webServer)").toHaveText(IMAGE_URL_WARNING);
+  await saveWith(page, id, { background: "https://tal69.invalid/stub-page" });
+  await expect(warningIn(page, BACKGROUND), "levanta el dev server desde Playwright (con la variable del webServer)").toHaveText(IMAGE_URL_WARNING);
 });
 
-test("1 · la URL de fcbarcelona.com (página) avisa; la .jpg directa no; las dos se guardan", async ({ page }) => {
+test("1 · la URL de fcbarcelona.com (página) avisa en «Imagen de fondo» y ya no en «Foto de portada» (TAL-85); las dos se guardan", async ({ page }) => {
   const id = await newCalendar("fcb");
   await loginAs(page, ADMIN_EMAIL);
-  await saveWith(page, id, { cover: STUB_PAGE_URL, background: STUB_IMAGE_URL });
-  const warning = field(page, COVER).getByRole("status");
+  await saveWith(page, id, { cover: STUB_PAGE_URL, background: STUB_PAGE_URL });
+  const warning = warningIn(page, BACKGROUND);
   await expect(warning).toHaveText(IMAGE_URL_WARNING);
-  await expect(warning).toHaveClass("day-video-warning");
-  // El aviso de la portada demuestra que la comprobación ya terminó: el fondo (imagen) no avisa.
-  await expect(field(page, BACKGROUND).getByRole("status")).toHaveCount(0);
+  await expect(warning).toHaveAttribute("role", "status");
+  // El aviso del fondo demuestra que la comprobación ya terminó: en la
+  // portada (misma URL, misma respuesta del stub) no sale.
+  await expect(warningIn(page, COVER)).toHaveCount(0);
+  await expect(field(page, COVER).getByText(IMAGE_URL_WARNING)).toHaveCount(0);
   await expect(formError(page)).toHaveCount(0);
-  expect(await stored(id)).toEqual({ cover: STUB_PAGE_URL, background: STUB_IMAGE_URL });
+  expect(await stored(id)).toEqual({ cover: STUB_PAGE_URL, background: STUB_PAGE_URL });
 });
 
 test("2 · la página en «Imagen de fondo» avisa en ese campo; editar el campo oculta el aviso", async ({ page }) => {
   const id = await newCalendar("fondo");
   await loginAs(page, ADMIN_EMAIL);
   await saveWith(page, id, { background: STUB_PAGE_URL });
-  await expect(field(page, BACKGROUND).getByRole("status")).toHaveText(IMAGE_URL_WARNING);
-  await expect(field(page, COVER).getByRole("status")).toHaveCount(0);
+  await expect(warningIn(page, BACKGROUND)).toHaveText(IMAGE_URL_WARNING);
+  await expect(warningIn(page, COVER)).toHaveCount(0);
   await page.locator(BACKGROUND).fill(STUB_IMAGE_URL);
-  await expect(field(page, BACKGROUND).getByRole("status")).toHaveCount(0);
+  await expect(warningIn(page, BACKGROUND)).toHaveCount(0);
 });
 
 test("3 · comprobación lenta: el guardado no la espera, persiste y no hay aviso ni error (plazo de 3 s)", async ({ page }) => {
@@ -98,15 +107,15 @@ test("3 · comprobación lenta: el guardado no la espera, persiste y no hay avis
   await loginAs(page, ADMIN_EMAIL);
   const slow = "https://tal69.invalid/stub-slow.jpg";
   const started = Date.now();
-  await saveWith(page, id, { cover: slow });
+  await saveWith(page, id, { background: slow });
   // El stub lento tarda 10 s: si el guardado lo esperara, el botón no volvería
   // antes de 10 s. Margen de 8 s (antes 2 s, intermitente con la máquina
   // cargada: el botón muestra "…" mientras guarda y no se encontraba a tiempo).
   await expect(page.getByRole("button", { name: "Guardar cambios" })).toBeEnabled({ timeout: 8_000 });
   expect(Date.now() - started).toBeLessThan(9_000); // goto + rellenar + guardar, sin esperar a los 10 s del stub
-  expect((await stored(id)).cover).toBe(slow);
+  expect((await stored(id)).background).toBe(slow);
   await page.waitForTimeout(4_000); // pasado el plazo de 3 s de la acción
-  await expect(field(page, COVER).getByRole("status")).toHaveCount(0);
+  await expect(warningIn(page, BACKGROUND)).toHaveCount(0);
   await expect(formError(page)).toHaveCount(0);
 });
 
@@ -114,11 +123,11 @@ test("4 · el comprobador lanza: guardado, sin aviso y sin error de formulario",
   const id = await newCalendar("lanza");
   await loginAs(page, ADMIN_EMAIL);
   const throwing = "https://tal69.invalid/stub-throw.jpg";
-  await saveWith(page, id, { cover: throwing });
+  await saveWith(page, id, { background: throwing });
   await expect(page.getByRole("button", { name: "Guardar cambios" })).toBeEnabled();
-  expect((await stored(id)).cover).toBe(throwing);
+  expect((await stored(id)).background).toBe(throwing);
   await page.waitForTimeout(1_500);
-  await expect(field(page, COVER).getByRole("status")).toHaveCount(0);
+  await expect(warningIn(page, BACKGROUND)).toHaveCount(0);
   await expect(formError(page)).toHaveCount(0);
 });
 
@@ -127,13 +136,13 @@ test("5 · capturas a 375 px (claro y oscuro) con el aviso, sin scroll horizonta
     const id = await newCalendar(`captura-${colorScheme}`);
     const page = await (await browser.newContext({ colorScheme, viewport: { width: 375, height: 900 } })).newPage();
     await loginAs(page, ADMIN_EMAIL);
-    await saveWith(page, id, { cover: STUB_PAGE_URL });
-    const warning = field(page, COVER).getByRole("status");
+    await saveWith(page, id, { background: STUB_PAGE_URL });
+    const warning = warningIn(page, BACKGROUND);
     await expect(warning).toHaveText(IMAGE_URL_WARNING);
     const { scrollWidth, clientWidth } = await page.evaluate(() => ({ scrollWidth: document.documentElement.scrollWidth, clientWidth: document.documentElement.clientWidth }));
     expect(scrollWidth).toBeLessThanOrEqual(clientWidth);
-    await field(page, COVER).scrollIntoViewIfNeeded();
-    await page.screenshot({ path: path.join(EVIDENCE_DIR, `aviso-portada-${colorScheme}-375.png`) });
+    await field(page, BACKGROUND).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: path.join(EVIDENCE_DIR, `aviso-fondo-${colorScheme}-375.png`) });
     await page.context().close();
   }
 });

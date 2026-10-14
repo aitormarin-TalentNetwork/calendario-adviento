@@ -93,7 +93,7 @@
   },
   {
     "file": "tal70-welcome.spec.ts",
-    "title": "2 · bienvenida: sale la primera vez del día y queda marcada; mismo día no; otro día sí"
+    "title": "2 · bienvenida: sale en cada entrada, también varias veces el mismo día y otro día, sin marcar nada"
   },
   {
     "file": "tal74-estado-mis-calendarios.spec.ts",

@@ -39,7 +39,9 @@ export default defineConfig({
     // TAL-69 — stub determinista del comprobador de URLs de imagen (sin red
     // en la suite). SOLO se define aquí; el código lo ignora en producción
     // (`selectImageChecker`, src/lib/image-checker.ts).
-    env: { E2E_IMAGE_CHECK_STUB: "1" },
+    // TAL-85 — harness de navegación (`window.__e2eRouter`), misma regla:
+    // solo aquí, ignorado en producción (src/lib/e2e-router-harness.ts).
+    env: { E2E_IMAGE_CHECK_STUB: "1", E2E_ROUTER_HARNESS: "1" },
     timeout: 180_000,
   },
 });
