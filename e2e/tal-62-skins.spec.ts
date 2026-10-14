@@ -1,12 +1,11 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { expect, test, type Browser, type Locator, type Page } from "@playwright/test";
 import type { Id } from "../convex/_generated/dataModel";
 import type { SkinPalette } from "../convex/skinCatalog2026";
 import { loginAs, seedUser, uniqueRunId } from "./helpers/auth";
 import { api, convex, serverSecret } from "./helpers/convex";
+import { convexEnvRemove, convexEnvSet, convexRun } from "./helpers/convex-cli";
 import HERO_TEXT from "../scripts/tal62-hero-text-sizes.json";
 
 /**
@@ -25,6 +24,7 @@ import HERO_TEXT from "../scripts/tal62-hero-text-sizes.json";
 test.describe.configure({ mode: "serial" });
 
 const runId = uniqueRunId();
+const FIXTURE_PREFIX = `tal62v-${runId}-`;
 const ACTOR_EMAIL = `e2e-tal62v-actor-${runId}@example.com`;
 const GUEST_EMAIL = `e2e-tal62v-guest-${runId}@example.com`;
 const EVIDENCE_DIR = path.resolve(__dirname, "..", "docs", "evidence", "tal62");
@@ -128,18 +128,15 @@ test.beforeAll(async ({ browser }) => {
   }
   defaultCalendar = await createCalendar("Por defecto");
 
-  // Calendario con un skin ANTIGUO (sin estilo), como uno de producción antes
-  // de migrar: crudo con `import --append` (la barrera de escritura lo
-  // convertiría a Alegre si pasara por las mutations).
-  const all = await convex.query(api.skins.listAllPublic, { serverSecret: serverSecret() });
-  const legacySkin = all.find((s) => !catalog.some((c) => c._id === s._id));
-  expect(legacySkin, "hace falta un skin antiguo en el deployment de desarrollo").toBeTruthy();
-  const file = path.join(mkdtempSync(path.join(tmpdir(), "tal62v-")), "legacy.jsonl");
-  writeFileSync(file, JSON.stringify({ name: `tal62v-legacy-${runId}`, coverTitle: "Antiguo sin migrar", startDate: START, endDate: END, updatedAt: Date.now(), skinId: legacySkin!._id }) + "\n");
-  execFileSync("npx", ["convex", "import", "--table", "calendars", "--append", "-y", file], { stdio: "pipe" });
-  const listed = await convex.query(api.superadmin.listCalendarsWithStatsPublic, { serverSecret: serverSecret(), actorUserId: actorId, now: TODAY });
-  legacyCalendar = listed.find((c) => c.name === `tal62v-legacy-${runId}`)!.id;
-  createdIds.add(legacyCalendar);
+  // Calendario con un skin ANTIGUO (sin estilo): la pantalla del invitado
+  // tiene que caer al respaldo Alegre. TAL-82 — dev ya no tiene skins
+  // antiguos (fase e): el skin y el calendario son fixtures creados con las
+  // ayudas de test (`ALLOW_TEST_HELPERS` solo durante el spec) y se borran
+  // en `afterAll` por su prefijo.
+  convexEnvSet("ALLOW_TEST_HELPERS", "1");
+  const legacySkinId = convexRun<string>("skins:insertRetiredSkinForTests", { key: `${FIXTURE_PREFIX}retirado` });
+  legacyCalendar = convexRun<Id<"calendars">>("calendars:insertCalendarForTests", { name: `${FIXTURE_PREFIX}legacy`, skinId: legacySkinId });
+  convexEnvRemove("ALLOW_TEST_HELPERS");
   await convex.mutation(api.invitations.inviteGuestPublic, { serverSecret: serverSecret(), calendarId: legacyCalendar, email: GUEST_EMAIL });
 
   // Marcar como visto el 29/9 de cada calendario (abrir y cerrar el día).
@@ -153,6 +150,12 @@ test.beforeAll(async ({ browser }) => {
 });
 
 test.afterAll(async () => {
+  convexEnvSet("ALLOW_TEST_HELPERS", "1");
+  try {
+    for (let i = 0; i < 20 && !convexRun<{ isDone: boolean }>("skins:deleteTestFixtures", { keyPrefix: FIXTURE_PREFIX }).isDone; i++);
+  } finally {
+    convexEnvRemove("ALLOW_TEST_HELPERS");
+  }
   const failures: string[] = [];
   for (const id of createdIds) {
     try {

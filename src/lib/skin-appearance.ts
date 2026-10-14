@@ -27,8 +27,7 @@ export type SkinAppearance = {
 
 /**
  * Respaldo cuando el skin no tiene colores propios (p. ej. la muestra de
- * una fila antigua sin `background` en el modo degradado del selector,
- * `skin-picker.tsx::swatchBackground`). Los tokens del
+ * un skin sin `swatches`, `skin-picker.tsx::swatchBackground`). Los tokens del
  * Design System en vez de un hex fijo: si algún día cambian de valor, este
  * respaldo los sigue automáticamente sin tocar código. TAL-61 — el
  * respaldo es el skin "Alegre" (nº 1 del DS "Estilo 2026"): fondo `--bg`

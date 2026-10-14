@@ -123,15 +123,14 @@ type EditCalendarFieldsProps = {
  * cuenta, mismo criterio, ver `calendar-preview.tsx`). El fondo que le
  * pasamos es el del skin SELECCIONADO EN VIVO en el formulario
  * (`fieldValues.skinId`), no el guardado en servidor; sin estilo del
- * catálogo 2026 (modo degradado o skin fuera del catálogo), el respaldo
- * Alegre (TAL-62).
+ * catálogo 2026 (skin fuera del catálogo), el respaldo Alegre (TAL-62).
  */
 function EditCalendarFields({ fieldValues, setField, skins, imageWarnings }: EditCalendarFieldsProps) {
   const coverPreviewUrl = previewableImageUrl(fieldValues.coverImageUrl);
   const { pending } = useFormStatus();
   const selectedSkin = skins.find((skin) => skin.id === fieldValues.skinId);
   // TAL-62 — estilo del skin seleccionado en vivo (catálogo 2026); sin él
-  // (modo degradado o skin fuera del catálogo), el respaldo Alegre.
+  // (skin fuera del catálogo), el respaldo Alegre.
   const previewSkinStyle = selectedSkin?.skinStyle ?? ALEGRE_FALLBACK_STYLE;
 
   return (

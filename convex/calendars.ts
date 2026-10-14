@@ -6,6 +6,7 @@ import { MAX_CALENDAR_NAME_LENGTH } from "./calendarNameConstants";
 import { MAX_COUNTDOWN_LABEL_LENGTH } from "./countdownLabelConstants";
 import { DEFAULT_COVER_ICON, coverIconForWrite } from "./coverIconCatalog";
 import { assertValidCalendarDate } from "./dates";
+import { assertTestHelpersAllowed } from "./lib/testHelpers";
 import { requireServerSecret } from "./serverAuth";
 import { getCatalogDefaultSkinId, getSkinStyle, isCatalog2026Seeded } from "./skins";
 import { deleteDayFilesForDay } from "./dayFiles";
@@ -1017,5 +1018,39 @@ export const listUserModeCalendarsWithProgressPublic = query({
   handler: async (ctx, args) => {
     await requireServerSecret(args.serverSecret);
     return await listUserModeCalendarsHandler(ctx, { userId: args.userId }, { withProgress: true });
+  },
+});
+
+// --- Ayudas SOLO para tests en dev (TAL-82; `assertTestHelpersAllowed()` primero; se retiran en el paso 3) ---
+
+/**
+ * Calendario de fixture apuntando al `skinId` indicado, SIN pasar por la
+ * barrera de skins retirados de `resolveSkinForWrite` (mismo efecto que el
+ * `convex import --append` que usan otros specs). Su `name` lleva el prefijo
+ * del spec, que es lo que mira `testScope`.
+ */
+export const insertCalendarForTests = internalMutation({
+  args: { name: v.string(), skinId: v.id("skins") },
+  handler: async (ctx, args): Promise<Id<"calendars">> => {
+    assertTestHelpersAllowed();
+    return await ctx.db.insert("calendars", {
+      name: args.name,
+      coverTitle: args.name,
+      startDate: "2026-12-01",
+      endDate: "2026-12-24",
+      updatedAt: Date.now(),
+      skinId: args.skinId,
+    });
+  },
+});
+
+/** Reasigna el skin de un calendario de fixture (solo si su `name` lleva el prefijo). */
+export const setCalendarSkinForTests = internalMutation({
+  args: { calendarId: v.id("calendars"), skinId: v.id("skins"), keyPrefix: v.string() },
+  handler: async (ctx, args) => {
+    assertTestHelpersAllowed();
+    const calendar = await ctx.db.get(args.calendarId);
+    if (!calendar || !calendar.name.startsWith(args.keyPrefix)) throw new Error("Solo calendarios de fixture (prefijo).");
+    await ctx.db.patch(args.calendarId, { skinId: args.skinId });
   },
 });

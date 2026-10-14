@@ -526,8 +526,12 @@ RGB real.
 
 Un cambio de proceso no está terminado hasta que está en `main` (decidido por el Factory
 Architect, 2026-10-11; detalle en `factory-architect.md` § "De la decisión al proceso
-en marcha", punto 5). Nada de proceso se queda sin commitear en la raíz: va a la rama de
-proceso y la Directora la publica junto a la siguiente tarea. Motivo: con lo de proceso
+en marcha", punto 5). Los cambios de proceso o de diseño que solo tocan documentación
+se pueden commitear en `main` local, en la raíz, y llegan a origin con el siguiente
+`scripts/publish.sh`. Si un cambio de proceso es urgente para los workers antes de esa
+publicación, la Directora se lo transmite por mensaje mientras tanto. Lo decidió el
+Factory Architect el 2026-10-14 y sustituye a la rama de proceso propia. Lo que nunca
+puede pasar es dejarlos sin commitear. Motivo: con lo de proceso
 apilado sin commitear, los worktrees leían copias desfasadas, cada regla dependía de
 que alguien la transmitiera a mano, y `scripts/publish.sh` abortaba en cuanto una tarea
 tocaba uno de esos ficheros.
@@ -555,6 +559,28 @@ la ventana equivocada pensando que era el PM.
    como un duplicado y no lo usa.
 5. **El barrido del CEO**, después de cualquier corte, busca roles duplicados en
    `ListAgents`.
+6. **Estado de la fábrica:** antes de actuar, toda sesión que se reanude o arranque lee
+   `_estado-fabrica.txt` en la raíz. Si dice `halt`, no hace nada salvo responder y espera
+   a que se levante. Ver «HALT y su levantamiento» más abajo.
+
+### HALT y su levantamiento
+
+Lo decidió el Factory Architect el 2026-10-14. Caso real: Aitor ordenó "HALT THE FACTORY"
+el 2026-10-12 y la orden se difundió a todos. Al levantarse la parada el 2026-10-14, al
+Integrador sí le llegó el aviso, pero al FA no. El FA siguió en pausa hasta que el
+vigilante de silencio del CEO lo detectó.
+
+1. **El estado vive en un fichero**, igual que el modo de publicación:
+   `_estado-fabrica.txt` en la raíz, fuera de git (está en `.gitignore`). Contiene una
+   sola línea: `activo` o `halt`, seguido de la fecha y el motivo. Por ejemplo:
+   `halt 2026-10-12 — incidente de secreto en TAL-82, orden de Aitor`. Quien reciba la
+   orden de Aitor lo actualiza en ese mismo momento.
+2. **La difusión es del CEO**, sea quien sea el que reciba la orden: avisa de la parada y
+   de su levantamiento a TODOS los roles vivos que salgan en `ListAgents` (FA, Inspector,
+   Integrador, PM y Directora). A los workers les llega a través de la Directora. Si no
+   hay CEO activo, difunde quien haya recibido la orden.
+3. **En cada barrido, el CEO comprueba** que todos los roles vivos actúan según ese
+   fichero: nadie trabajando con `halt` y nadie en pausa con `activo`.
 
 ## 6. Estado del reparto (última foto — mirar el gestor de tareas real)
 

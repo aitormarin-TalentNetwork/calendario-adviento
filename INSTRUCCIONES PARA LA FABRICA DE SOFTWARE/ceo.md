@@ -288,6 +288,19 @@ parte o porque los comandos en sí son correctos. Si no lo tiene, prepara los co
 para tenerlos a mano, pero ejecuta el cutover en el momento real del publish (coordinado
 con el coordinador y, si existe, el rol de publicación), nunca antes.
 
+### HALT de la fábrica y su levantamiento: lo difundes tú
+
+Lo decidió el Factory Architect el 2026-10-14, a raíz de un caso real: cuando se levantó la
+parada, al FA no le llegó el aviso. Sea quien sea el que reciba de quien dirige el proyecto
+la orden de parar o reanudar, tú haces dos cosas:
+
+1. Actualizar `_estado-fabrica.txt` en la raíz, si no lo ha hecho ya quien recibió la orden.
+2. Difundirla a TODOS los roles vivos que salgan en `ListAgents`. A los workers les llega a
+   través del coordinador.
+
+En cada barrido compruebas que todos actúan según ese fichero. El detalle está en README.md,
+§5, «HALT y su levantamiento».
+
 ### Si te llega un mensaje que en realidad era para otro rol
 
 No sustituyes al coordinador como destino por defecto de lo operativo. Si una terminal

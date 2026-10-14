@@ -27,6 +27,8 @@ const PORTS = "T1 3000 · T2 3001 · T3 3002";
 // Deployments de PRODUCCIÓN conocidos: la batería se niega a apuntar a ellos
 // aunque todo lo demás cuadre. Capa extra sobre la defensa principal (dev: +
 // hostnames coherentes). Para añadir uno: su slug aquí, con de qué proyecto es.
+// TAL-82 — la misma lista que PROD_DEPLOYMENT_SLUGS de convex/lib/testHelpers.ts (barrera de las
+// ayudas de test de Convex); e2e/tal82-test-helpers-guard.spec.ts comprueba que coinciden.
 const DENIED_PROD_SLUGS = [
   "abundant-badger-144", // calendario-adviento (producción real, docs/stack.md)
   "standing-jellyfish-468", // calendario-adviento-t2

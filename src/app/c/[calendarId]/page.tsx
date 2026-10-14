@@ -48,8 +48,7 @@ async function getCalendarForGuestPage(
   coverImageUrl: string | null;
 } | null> {
   const serverSecret = convexAppServerSecret();
-  // TAL-62 — catálogo 2026 (`loadSkinCatalog`, con modo degradado si el
-  // Convex desplegado es anterior a TAL-62): el estilo del skin del
+  // TAL-62 — catálogo 2026 (`loadSkinCatalog`): el estilo del skin del
   // calendario, o el respaldo Alegre si su skin no está en el catálogo.
   const [calendar, skinCatalog] = await Promise.all([
     fetchQuery(api.calendars.getPublic, { serverSecret, calendarId: calendarId as Id<"calendars"> }),
