@@ -435,8 +435,9 @@ foto de portada no se veía en ningún sitio.
   arriba (`130px` de alto, `background-size: cover`, degradado inferior
   `rgba(10,8,30,0.55)` → transparente al 60%). La etiqueta de estado **En marcha**
   (`--mint-soft`) / **Próximo** (`--primary-soft`) va en una píldora arriba a la izquierda,
-  sobre la foto. Sin foto, o si la foto no carga: portada como hasta ahora (color del skin
-  + icono Lucide). La barra de progreso y los filtros no cambian.
+  sobre la foto. Sin foto, o si la foto no carga: portada exactamente como hasta ahora, es
+  decir, `backgroundImageUrl` si existe y, si no, color del skin + icono Lucide (aclarado
+  por el PM, 2026-10-14). La barra de progreso y los filtros no cambian.
 - **Un solo calendario:** se mantiene que se salta la lista y se abre directamente ese
   calendario, que empieza por su bienvenida con foto (recordado por Aitor, 2026-10-14).
 - **Bienvenida:** sale **cada vez** que se abre el calendario (`/c/<id>`) desde fuera, no
