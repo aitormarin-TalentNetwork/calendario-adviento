@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { deflateSync } from "node:zlib";
 import { expect, test, type Browser, type BrowserContext, type Locator, type Page } from "@playwright/test";
@@ -46,15 +46,17 @@ const PHOTO = `${PHOTO_HOST}/portada.png`;
 const BG_PHOTO = `${PHOTO_HOST}/fondo.png`;
 const PAGE_URL = `${PHOTO_HOST}/noticias/una-pagina-web`;
 const MISSING = `${PHOTO_HOST}/no-existe.png`;
+/** Foto con dibujo (rayas anchas), para que el fondo tenue se vea a simple vista en las capturas. */
+const STRIPES = `${PHOTO_HOST}/rayas.png`;
 const VIDEO_URL = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
 
-/** PNG de 32x32 de un color (RGB), para servir como foto. */
-function solidPng([r, g, b]: [number, number, number]): Buffer {
+/** PNG de 32x32: de un color, o (con `stripes`) en rayas verticales anchas de dos colores. */
+function solidPng([r, g, b]: [number, number, number], stripes?: [number, number, number]): Buffer {
   const size = 32;
   const raw = Buffer.alloc((size * 3 + 1) * size);
   for (let y = 0; y < size; y++) {
     raw[y * (size * 3 + 1)] = 0;
-    for (let x = 0; x < size; x++) raw.set([r, g, b], y * (size * 3 + 1) + 1 + x * 3);
+    for (let x = 0; x < size; x++) raw.set(stripes && Math.floor(x / 4) % 2 ? stripes : [r, g, b], y * (size * 3 + 1) + 1 + x * 3);
   }
   const crcTable = Array.from({ length: 256 }, (_, n) => {
     let c = n;
@@ -83,6 +85,7 @@ function solidPng([r, g, b]: [number, number, number]): Buffer {
 }
 const PHOTO_PNG = solidPng([214, 64, 69]);
 const BG_PNG = solidPng([40, 120, 200]);
+const STRIPES_PNG = solidPng([20, 30, 120], [250, 200, 40]);
 
 let sId: Id<"users">;
 const created = new Set<Id<"calendars">>();
@@ -124,6 +127,7 @@ async function newContext(browser: Browser, extra: Parameters<Browser["newContex
     const url = route.request().url();
     if (url === PHOTO) return route.fulfill({ status: 200, contentType: "image/png", body: PHOTO_PNG });
     if (url === BG_PHOTO) return route.fulfill({ status: 200, contentType: "image/png", body: BG_PNG });
+    if (url === STRIPES) return route.fulfill({ status: 200, contentType: "image/png", body: STRIPES_PNG });
     if (url === PAGE_URL) return route.fulfill({ status: 200, contentType: "text/html", body: "<!doctype html><title>Noticia</title><p>Una página web</p>" });
     return route.fulfill({ status: 404, body: "no" });
   });
@@ -219,6 +223,7 @@ let photoNext: Id<"calendars">;
 let bgOnly: Id<"calendars">;
 let photoWithBg: Id<"calendars">;
 let plain: Id<"calendars">;
+let stripes: Id<"calendars">;
 let single: Id<"calendars">;
 let adminCal: Id<"calendars">;
 
@@ -238,6 +243,7 @@ test.beforeAll(async () => {
   await createCalendar("fondo-con-portada-404", many, { coverImageUrl: MISSING, backgroundImageUrl: BG_PHOTO });
   photoWithBg = await createCalendar("foto-con-fondo", many, { coverImageUrl: PHOTO, backgroundImageUrl: BG_PHOTO });
   plain = await createCalendar("sin-nada", many);
+  stripes = await createCalendar("rayas", many, { coverImageUrl: STRIPES });
   // Un día con vídeo (ya pasado) en el calendario con foto, para abrir su diálogo.
   await convex.mutation(api.days.upsertDayPublic, { serverSecret: serverSecret(), calendarId: photoLive, date: "2026-09-01", videoUrl: VIDEO_URL });
   single = await createCalendar("unico", [ONE_EMAIL], { coverImageUrl: PHOTO });
@@ -275,6 +281,8 @@ test("1 · «Tus calendarios»: foto de portada con degradado y píldora; sin fo
   // Con foto válida: la foto se ve, 130 px, degradado y píldora según estado.
   for (const [name, pill] of [["foto-en-marcha", "En marcha"], ["foto-proximo", "Próximo"], ["foto-terminado", null], ["foto-con-fondo", "En marcha"]] as const) {
     const cover = coverOf(page, name);
+    // `loading="lazy"`: la foto solo se pide al acercarse la tarjeta.
+    await cover.scrollIntoViewIfNeeded();
     await expect(cover, name).toHaveAttribute("data-cover-photo", "loaded");
     await expect(cover.locator(".calendar-card-photo")).toHaveCSS("opacity", "1");
     expect((await cover.boundingBox())!.height, name).toBeCloseTo(130, 0);
@@ -297,6 +305,7 @@ test("1 · «Tus calendarios»: foto de portada con degradado y píldora; sin fo
   // Portada que es una página web o 404: la de siempre (skin + icono), sin píldora ni degradado.
   for (const name of ["portada-pagina", "portada-404"]) {
     const cover = coverOf(page, name);
+    await cover.scrollIntoViewIfNeeded();
     await expect(cover, name).toHaveAttribute("data-cover-photo", "error");
     await expect(cover.locator(".calendar-card-photo")).toHaveCSS("opacity", "0");
     await expect(cover.locator("[data-cover-icon]")).toBeVisible();
@@ -308,6 +317,7 @@ test("1 · «Tus calendarios»: foto de portada con degradado y píldora; sin fo
   // Decisión del PM (opción A): sin portada, o rota, con imagen de fondo → la imagen de fondo de siempre.
   for (const name of ["solo-fondo", "fondo-con-portada-404"]) {
     const cover = coverOf(page, name);
+    await cover.scrollIntoViewIfNeeded();
     await expect(cover, name).toHaveAttribute("data-cover-photo", name === "solo-fondo" ? "none" : "error");
     expect(await cover.evaluate((el) => getComputedStyle(el).backgroundImage), name).toBe(
       `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)), url("${BG_PHOTO}")`
@@ -486,6 +496,139 @@ test("4 · fondo tenue: sin imagen de fondo, la foto de portada; con las dos, ga
   await page.context().close();
 });
 
+/** Píxel de la captura en (x, y) del viewport, decodificado en el propio navegador. */
+async function pixelAt(page: Page, x: number, y: number): Promise<number[]> {
+  const png = await page.screenshot({ clip: { x: Math.round(x), y: Math.round(y), width: 1, height: 1 } });
+  return await page.evaluate(async (b64) => {
+    const img = new Image();
+    img.src = `data:image/png;base64,${b64}`;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = canvas.height = 1;
+    const ctx = canvas.getContext("2d")!;
+    ctx.drawImage(img, 0, 0);
+    return Array.from(ctx.getImageData(0, 0, 1, 1).data.slice(0, 3));
+  }, png.toString("base64"));
+}
+
+/** `saturate(s)` de CSS (matriz de Filter Effects) sobre un color sRGB. */
+function saturate([r, g, b]: readonly number[], s: number): number[] {
+  return [
+    (0.213 + 0.787 * s) * r + (0.715 - 0.715 * s) * g + (0.072 - 0.072 * s) * b,
+    (0.213 - 0.213 * s) * r + (0.715 + 0.285 * s) * g + (0.072 - 0.072 * s) * b,
+    (0.213 - 0.213 * s) * r + (0.715 - 0.715 * s) * g + (0.072 + 0.928 * s) * b,
+  ];
+}
+
+for (const colorScheme of ["light", "dark"] as const) {
+  test(`4b · ${colorScheme}: la capa tenue SE VE (píxeles compuestos, no solo el estilo) y el texto sigue en AA sobre ella`, async ({ browser }) => {
+    const page = await pageAs(browser, MANY_EMAIL, "/start", { viewport: { width: 1280, height: 860 }, colorScheme });
+    const rows: string[] = [];
+    for (const [id, label, photo] of [[photoLive, "portada (sin imagen de fondo)", [214, 64, 69]], [bgOnly, "imagen de fondo", [40, 120, 200]]] as const) {
+      await page.goto(`/c/${id}`);
+      if (id === photoLive) await closeWelcome(page);
+      await expect(page.locator(".skin-month-card")).toBeVisible();
+      // La foto de la capa tiene que estar cargada antes de medir.
+      await expect
+        .poll(() =>
+          page.evaluate(async (url) => {
+            const img = new Image();
+            img.src = url;
+            await img.decode().catch(() => undefined);
+            return img.naturalWidth;
+          }, id === photoLive ? PHOTO : BG_PHOTO)
+        )
+        .toBeGreaterThan(0);
+      await page.waitForTimeout(300);
+
+      const main = (await page.locator("#calendar-main").boundingBox())!;
+      const title = (await page.getByRole("heading", { level: 1 }).boundingBox())!;
+      const card = (await page.locator(".skin-month-card").boundingBox())!;
+      // Margen izquierdo del <main> (sin contenido) a la altura del título, y
+      // el relleno izquierdo de la tarjeta del mes (al 85 % sobre la página).
+      const pagePoint = { x: main.x + 8, y: title.y + title.height / 2 };
+      const cardPoint = { x: card.x + 4, y: card.y + card.height / 2 };
+      const withLayer = { page: await pixelAt(page, pagePoint.x, pagePoint.y), card: await pixelAt(page, cardPoint.x, cardPoint.y) };
+      await page.evaluate(() => ((document.querySelector("#calendar-main > .faint-bg-layer") as HTMLElement).style.display = "none"));
+      const withoutLayer = { page: await pixelAt(page, pagePoint.x, pagePoint.y), card: await pixelAt(page, cardPoint.x, cardPoint.y) };
+      await page.evaluate(() => ((document.querySelector("#calendar-main > .faint-bg-layer") as HTMLElement).style.display = ""));
+
+      // Composición esperada en la página: 10 % de la foto con saturate(0.7) sobre el fondo del skin.
+      const tinted = saturate(photo, 0.7);
+      const expected = withoutLayer.page.map((base, i) => 0.1 * tinted[i] + 0.9 * base);
+      const maxDelta = Math.max(...withLayer.page.map((v, i) => Math.abs(v - withoutLayer.page[i])));
+      rows.push(
+        `${label}: sin capa ${JSON.stringify(withoutLayer.page)} → con capa ${JSON.stringify(withLayer.page)} (esperado ${JSON.stringify(expected.map(Math.round))}, Δmáx ${maxDelta})`
+      );
+      expect(maxDelta, `${label}: la capa cambia los píxeles de la página`).toBeGreaterThanOrEqual(8);
+      withLayer.page.forEach((v, i) => expect(Math.abs(v - expected[i]), `${label} canal ${i}: ${rows.at(-1)}`).toBeLessThanOrEqual(4));
+      // La tarjeta del mes, al 85 %, también deja ver la capa (un poco).
+      expect(Math.max(...withLayer.card.map((v, i) => Math.abs(v - withoutLayer.card[i]))), `${label}: tarjeta al 85 %`).toBeGreaterThanOrEqual(1);
+
+      // Contraste REAL con la capa visible: título sobre la página compuesta,
+      // cabecera del mes sobre la tarjeta compuesta.
+      const titleColor = rgb(await page.getByRole("heading", { level: 1 }).evaluate((el) => getComputedStyle(el).color));
+      const monthColor = rgb(await page.locator(".skin-month-card").evaluate((el) => getComputedStyle(el).color));
+      const titleRatio = contrast(titleColor, withLayer.page);
+      const monthRatio = contrast(monthColor, withLayer.card);
+      rows.push(`  título ${JSON.stringify(titleColor)} sobre página ${JSON.stringify(withLayer.page)} → ${titleRatio.toFixed(2)}:1; tarjeta ${JSON.stringify(monthColor)} sobre ${JSON.stringify(withLayer.card)} → ${monthRatio.toFixed(2)}:1`);
+      expect(titleRatio, rows.at(-1)).toBeGreaterThanOrEqual(4.5);
+      expect(monthRatio, rows.at(-1)).toBeGreaterThanOrEqual(4.5);
+      await page.screenshot({ path: path.join(EVIDENCE_DIR, `fondo-visible-${id === photoLive ? "portada" : "fondo"}-${colorScheme}.png`) });
+    }
+    test.info().annotations.push({ type: `capa visible ${colorScheme}`, description: rows.join(" · ") });
+    console.log(`capa visible ${colorScheme}:\n  ${rows.join("\n  ")}`);
+    await page.context().close();
+  });
+}
+
+for (const [label, viewport] of [["375", { width: 375, height: 812 }], ["escritorio", { width: 1280, height: 860 }]] as const) {
+  for (const colorScheme of ["light", "dark"] as const) {
+    test(`4c · ${label} ${colorScheme}: captura lado a lado con foto de rayas, con la capa tenue y con la capa oculta`, async ({ browser }) => {
+      const page = await pageAs(browser, MANY_EMAIL, "/start", { viewport, colorScheme });
+      await page.goto(`/c/${stripes}`);
+      await closeWelcome(page);
+      await expect(page.locator("#calendar-main > .faint-bg-layer")).toHaveCSS("background-image", `url("${STRIPES}")`);
+      await page.waitForTimeout(300);
+      const withLayer = await page.screenshot();
+      await page.evaluate(() => ((document.querySelector("#calendar-main > .faint-bg-layer") as HTMLElement).style.display = "none"));
+      const withoutLayer = await page.screenshot();
+      await page.evaluate(() => ((document.querySelector("#calendar-main > .faint-bg-layer") as HTMLElement).style.display = ""));
+      expect(withLayer.equals(withoutLayer), "la capa cambia lo que se ve").toBe(false);
+      // Las dos capturas en una sola imagen: izquierda con capa, derecha con la capa oculta.
+      const combined = await page.evaluate(
+        async ([a, b]) => {
+          const load = async (b64: string) => {
+            const img = new Image();
+            img.src = `data:image/png;base64,${b64}`;
+            await img.decode();
+            return img;
+          };
+          const [left, right] = [await load(a), await load(b)];
+          const gap = 24;
+          const header = 36;
+          const canvas = document.createElement("canvas");
+          canvas.width = left.width + gap + right.width;
+          canvas.height = left.height + header;
+          const ctx = canvas.getContext("2d")!;
+          ctx.fillStyle = "#808080";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.fillStyle = "#ffffff";
+          ctx.font = "bold 18px sans-serif";
+          ctx.fillText("CON la capa tenue (foto de portada al 10 %)", 8, 24);
+          ctx.fillText("SIN la capa (oculta con display:none)", left.width + gap + 8, 24);
+          ctx.drawImage(left, 0, header);
+          ctx.drawImage(right, left.width + gap, header);
+          return canvas.toDataURL("image/png").split(",")[1];
+        },
+        [withLayer.toString("base64"), withoutLayer.toString("base64")]
+      );
+      writeFileSync(path.join(EVIDENCE_DIR, `fondo-lado-a-lado-${label}-${colorScheme}.png`), Buffer.from(combined, "base64"));
+      await page.context().close();
+    });
+  }
+}
+
 test("5 · editor: vista previa en vivo (correcta / página web), sin el aviso de TAL-69 en la portada, y ayuda en «Imagen de fondo»", async ({ browser }) => {
   const page = await pageAs(browser, ADM_EMAIL, `/admin/${adminCal}`);
   await page.goto(`/admin/${adminCal}`);
@@ -553,6 +696,12 @@ for (const [label, viewport] of [["375", { width: 375, height: 812 }], ["escrito
 
       // Tarjetas.
       const page = await pageAs(browser, MANY_EMAIL, "/c", { viewport, colorScheme });
+      // `loading="lazy"`: se recorre cada portada con foto hasta que resuelve (carga o error).
+      for (const photoCover of await page.locator(".calendar-card-cover--photo").all()) {
+        await photoCover.scrollIntoViewIfNeeded();
+        await expect(photoCover).not.toHaveAttribute("data-cover-photo", "loading");
+      }
+      await page.evaluate(() => window.scrollTo(0, 0));
       await expect(coverOf(page, "foto-en-marcha")).toHaveAttribute("data-cover-photo", "loaded");
       await expect(coverOf(page, "foto-proximo")).toHaveAttribute("data-cover-photo", "loaded");
       expect(await noHorizontalScroll(page), "tarjetas").toBe(true);
@@ -573,9 +722,11 @@ for (const [label, viewport] of [["375", { width: 375, height: 812 }], ["escrito
       expect(await noHorizontalScroll(page), "bienvenida").toBe(true);
       await page.screenshot({ path: path.join(EVIDENCE_DIR, `bienvenida-${tag}.png`) });
 
-      // Dentro, con la portada como fondo tenue.
+      // Dentro, con la portada (de rayas, para que se vea) como fondo tenue.
       await page.getByRole("button", { name: "Abrir mi calendario" }).click();
-      await expect(page.locator("#calendar-main > .faint-bg-layer")).toHaveCSS("background-image", `url("${PHOTO}")`);
+      await page.goto(`/c/${stripes}`);
+      await closeWelcome(page);
+      await expect(page.locator("#calendar-main > .faint-bg-layer")).toHaveCSS("background-image", `url("${STRIPES}")`);
       expect(await noHorizontalScroll(page), "fondo tenue").toBe(true);
       await page.screenshot({ path: path.join(EVIDENCE_DIR, `fondo-portada-${tag}.png`), fullPage: true });
       await page.context().close();

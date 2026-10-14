@@ -22,6 +22,8 @@ const STATUS_LABEL: Partial<Record<CalendarStatus, string>> = { live: "En marcha
  *   Si no carga, queda la capa base.
  * - Con `coverImageUrl` la portada mide 130px desde el principio (no salta
  *   al cargar); sin ella, 110px como siempre.
+ * - `loading="lazy"`: las portadas de fuera de pantalla no se descargan
+ *   hasta acercarse; mientras, se ve la capa base.
  */
 export function CalendarCardCover({
   cover,
@@ -58,6 +60,7 @@ export function CalendarCardCover({
           className="calendar-card-photo"
           src={coverImageUrl}
           alt=""
+          loading="lazy"
           decoding="async"
           onLoad={onLoad}
           onError={onError}

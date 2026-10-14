@@ -51,6 +51,8 @@ invitación — su acceso global no los hace "suyos".
   foto, la portada exactamente como antes: `backgroundImageUrl` (con su capa oscura) si
   existe y, si no, el color del skin con el icono (decisión del PM, 2026-10-14). Con foto
   la portada mide 130 px desde el principio (sin salto al cargar); sin ella, 110 px.
+  La foto va con `loading="lazy"`: fuera de pantalla no se pide hasta acercarse (mientras,
+  la capa base; `useImageStatus` no lo toma por error porque aún no hay `currentSrc`).
 
 ## Aterrizaje
 

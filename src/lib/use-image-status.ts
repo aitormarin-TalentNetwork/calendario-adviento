@@ -32,7 +32,9 @@ export function useImageStatus({ timeoutMs }: { timeoutMs?: number } = {}) {
     (img: HTMLImageElement | null) => {
       if (!img?.complete) return;
       if (img.naturalWidth > 0) onLoad();
-      else onError();
+      // Sin `currentSrc` aún no se ha pedido nada (p. ej. `loading="lazy"`
+      // fuera de pantalla): no es un error, se espera a `load`/`error`.
+      else if (img.currentSrc) onError();
     },
     [onLoad, onError]
   );

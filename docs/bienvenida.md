@@ -107,6 +107,15 @@ exista:
 - **TAL-85 — respaldo:** si el calendario no tiene `backgroundImageUrl`, la capa usa la
   foto de portada (`skin-appearance.ts::faintBackgroundUrl`), en los mismos tres sitios
   y con el mismo tratamiento (10 %, ya cubierto por la puerta de contraste de abajo).
+- **Por qué se ve con `z-index: -1`** (duda del auditor en TAL-85, loop 1): `.faint-bg-host`
+  crea un contexto de apilamiento (`isolation: isolate`) y, por el orden de pintado de CSS
+  (CSS 2.1, apéndice E), dentro de él se pinta primero el fondo de la raíz (el fondo del
+  skin del `<main>`) y después los hijos con `z-index` negativo, antes que el contenido en
+  flujo. La capa queda encima del fondo y debajo del contenido. Lo comprueba en píxeles
+  `e2e/tal85-foto-portada.spec.ts` (caso 4b: el píxel con la capa frente al mismo píxel
+  con la capa oculta coincide con 10 % de la foto con `saturate(0.7)` sobre el fondo, y el
+  texto sigue en AA sobre ese compuesto; caso 4c: capturas lado a lado con una foto de
+  rayas).
 - El texto ya no usa el tratamiento "photo" (blanco con sombra): usa el normal del skin.
 - **Tarjetas al 85 %:** con imagen, `<main>` define `--skin-card-surface:
   color-mix(in srgb, var(--skin-card) 85%, transparent)`, que usan la tarjeta del mes
