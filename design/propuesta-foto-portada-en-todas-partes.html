@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foto de portada visible</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#fff8ee; --surface:#ffffff; --surface-2:#f6f1ff; --ink:#1d2320; --ink-dim:#6b726e; --line:#ebe8e1;
+  --primary:#7b61ff; --primary-ink:#6b52f5; --primary-soft:#e6e0ff; --mint-soft:#cdf7e3; --sun:#ffd23f; --on-sun:#1d2320;
+  --coral-ink:#d0353a; --weekend:#cc3338;
+  --shadow:0 2px 6px rgba(29,35,32,0.04), 0 12px 32px rgba(29,35,32,0.08);
+  --font:"Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --bg:#111513; --surface:#1a201d; --surface-2:#212825; --ink:#f2f1ec; --ink-dim:#a3aba6; --line:#2a322e; --primary-soft:#2a2645; --mint-soft:#1f3a2e; --primary-ink:#9d8cff; --coral-ink:#ff7a7e; }
+}
+:root[data-theme="dark"] { --bg:#111513; --surface:#1a201d; --surface-2:#212825; --ink:#f2f1ec; --ink-dim:#a3aba6; --line:#2a322e; --primary-soft:#2a2645; --mint-soft:#1f3a2e; --primary-ink:#9d8cff; --coral-ink:#ff7a7e; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font-family:var(--font); -webkit-font-smoothing:antialiased; }
+header { max-width:1240px; margin:0 auto; padding:32px 16px 8px; }
+header h1 { margin:0 0 6px; font-size:1.6rem; font-weight:800; letter-spacing:-0.02em; }
+header p { margin:0; color:var(--ink-dim); max-width:780px; line-height:1.5; }
+.phones { max-width:1240px; margin:0 auto; padding:24px 16px 64px; display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); gap:28px; justify-items:center; }
+.wrap { display:flex; flex-direction:column; gap:10px; align-items:center; width:100%; max-width:360px; }
+.cap { font-size:0.85rem; font-weight:700; color:var(--ink-dim); text-align:center; }
+.phone { width:100%; max-width:360px; height:720px; border-radius:40px; border:8px solid #101412; overflow:hidden; position:relative; box-shadow:var(--shadow); background:var(--bg); }
+.screen { position:relative; height:100%; overflow:auto; padding:18px 18px 40px; }
+.topbar { display:flex; justify-content:flex-end; margin-bottom:6px; }
+.avatar { width:40px; height:40px; border-radius:50%; border:2px solid var(--surface); box-shadow:0 0 0 2px var(--sun); background:url("https://i.pravatar.cc/80?img=12") center/cover; }
+h2.t { margin:0 0 2px; font-size:1.5rem; font-weight:800; letter-spacing:-0.02em; }
+.sub { margin:0 0 12px; color:var(--ink-dim); font-size:0.9rem; }
+.chips { display:flex; gap:6px; margin-bottom:14px; }
+.chip { font-size:0.8rem; font-weight:700; padding:6px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); }
+.chip.on { background:var(--ink); color:var(--bg); border-color:var(--ink); }
+
+/* 1 · Tarjetas con foto */
+.cards { display:flex; flex-direction:column; gap:14px; }
+.card { background:var(--surface); border-radius:24px; overflow:hidden; box-shadow:var(--shadow); }
+.cover { height:130px; position:relative; background-size:cover; background-position:center; }
+.cover::after { content:""; position:absolute; inset:0; background:linear-gradient(to top, rgba(10,8,30,0.55), rgba(10,8,30,0) 60%); }
+.cover .tag { position:absolute; top:10px; left:10px; z-index:1; font-size:0.7rem; font-weight:800; padding:4px 10px; border-radius:999px; background:var(--mint-soft); color:var(--ink); }
+.cover .tag.next { background:var(--primary-soft); }
+.cover.noimg { background:#ff8a8d; display:grid; place-items:center; }
+.cover.noimg::after { display:none; }
+.cover .ic { width:56px; height:56px; border-radius:18px; background:rgba(255,255,255,0.85); color:#d0353a; display:grid; place-items:center; }
+.body { padding:12px 14px 14px; }
+.body b { display:block; font-size:1rem; font-weight:800; letter-spacing:-0.01em; }
+.body small { color:var(--ink-dim); font-size:0.8rem; }
+.prog { display:flex; align-items:center; gap:10px; margin-top:10px; }
+.track { flex:1; height:8px; border-radius:999px; background:var(--surface-2); border:1px solid var(--line); overflow:hidden; }
+.fill { height:100%; background:var(--ink); border-radius:999px; }
+.prog span { font-size:0.8rem; font-weight:700; font-variant-numeric:tabular-nums; }
+
+/* 2 · Bienvenida */
+.photo { position:absolute; inset:0; background-size:cover; background-position:center; }
+.shade { position:absolute; inset:0; background:linear-gradient(to top, rgba(10,8,30,0.85) 0%, rgba(10,8,30,0.6) 50%, rgba(10,8,30,0.1) 100%); }
+.welcome { position:absolute; left:0; right:0; bottom:0; padding:28px 24px 36px; color:#fff; }
+.welcome small { font-weight:700; opacity:0.9; }
+.welcome h3 { margin:6px 0 8px; font-size:2rem; font-weight:800; line-height:1.1; letter-spacing:-0.03em; }
+.welcome p { margin:0 0 20px; line-height:1.45; opacity:0.95; }
+.btn { font:inherit; font-weight:800; font-size:1rem; border:0; border-radius:999px; padding:14px 22px; background:var(--sun); color:var(--on-sun); width:100%; }
+.phone .avatar.abs { position:absolute; top:18px; right:18px; border-color:#fff; box-shadow:none; }
+
+/* 3 · Dentro con fondo tenue */
+.cal .photo { opacity:0.12; filter:saturate(0.7); }
+.top { display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; }
+.top small { display:block; font-size:0.78rem; font-weight:600; color:var(--ink-dim); }
+.top strong { font-size:1.1rem; font-weight:800; }
+.hero { border-radius:24px; padding:18px; background:var(--primary); color:#fff; margin-bottom:12px; }
+.hero .big { font-size:2.4rem; font-weight:800; letter-spacing:-0.04em; line-height:1; margin:4px 0; }
+.hero .big span { color:#ffe27a; }
+.month { border-radius:22px; padding:12px; background:rgba(255,255,255,0.85); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .month { background:rgba(26,32,29,0.85); } }
+:root[data-theme="dark"] .month { background:rgba(26,32,29,0.85); }
+.wd, .days { display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+.wd span { text-align:center; font-size:0.65rem; font-weight:700; color:var(--ink-dim); }
+.wd span:nth-child(n+6) { color:var(--weekend); }
+.d { aspect-ratio:1; border-radius:10px; display:grid; place-items:center; font-weight:800; font-size:0.8rem; background:var(--surface-2); }
+.d.today { background:var(--sun); color:var(--on-sun); }
+.d.locked { background:transparent; border:1.5px dashed var(--line); color:var(--ink-dim); }
+.d.seen { background:linear-gradient(140deg,#ff8a8d,#ff5a5f); color:#fff; }
+
+/* 4 · Editor */
+.field { margin-bottom:18px; }
+.field label { display:block; font-weight:700; font-size:0.85rem; margin-bottom:6px; }
+.field input { width:100%; font:inherit; font-size:0.85rem; padding:11px 13px; border-radius:14px; border:1px solid var(--line); background:var(--surface); color:var(--ink); }
+.field input.bad { border-color:var(--coral-ink); }
+.preview { margin-top:8px; height:120px; border-radius:16px; background-size:cover; background-position:center; border:1px solid var(--line); }
+.preview.broken { background:var(--surface-2); display:grid; place-items:center; color:var(--ink-dim); font-size:0.8rem; font-weight:600; text-align:center; padding:12px; }
+.ok { margin-top:6px; font-size:0.78rem; font-weight:700; color:#1f7a50; }
+.warn { margin-top:6px; font-size:0.78rem; font-weight:700; color:var(--coral-ink); line-height:1.4; }
+.hint { margin-top:6px; font-size:0.75rem; color:var(--ink-dim); line-height:1.4; }
+.sec { font-size:1.1rem; font-weight:800; margin:4px 0 14px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>La foto de portada, visible en todas partes</h1>
+  <p>Al entrar, la lista <b>«Tus calendarios»</b> enseña la foto de portada en cada tarjeta. Al abrir un calendario sale <b>siempre</b> la bienvenida a pantalla completa con su foto, no solo la primera vez del día. Dentro, si el calendario no tiene una imagen de fondo propia, la <b>foto de portada hace de fondo tenue</b>. En el editor, la foto se ve en pequeño, así que una dirección que no es una imagen se detecta al momento.</p>
+</header>
+<div class="phones">
+
+  <div class="wrap"><div class="cap">1 · Al entrar: tarjetas con la foto de portada</div>
+    <div class="phone"><div class="screen">
+      <div class="topbar"><div class="avatar"></div></div>
+      <h2 class="t">Tus calendarios</h2>
+      <p class="sub">Elige cuál quieres abrir.</p>
+      <div class="chips"><span class="chip on">Todos</span><span class="chip">En marcha</span><span class="chip">Próximos</span></div>
+      <div class="cards">
+        <div class="card"><div class="cover" style="background-image:url('https://images.unsplash.com/photo-1512389142860-9c449e58a543?w=700&q=70')"><span class="tag">En marcha</span></div>
+          <div class="body"><b>Aupa! Tienes un invitado cada día, amatxu!</b><small>1 dic – 24 dic 2026</small>
+          <div class="prog"><div class="track"><div class="fill" style="width:33%"></div></div><span>8/24</span></div></div></div>
+        <div class="card"><div class="cover" style="background-image:url('https://images.unsplash.com/photo-1543589077-47d81606c1bf?w=700&q=70')"><span class="tag next">Próximo</span></div>
+          <div class="body"><b>Navidad en familia</b><small>Lo administras tú</small>
+          <div class="prog"><small>Empieza en 12 días</small></div></div></div>
+        <div class="card"><div class="cover noimg"><div class="ic"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="8" width="18" height="4" rx="1"/><path d="M12 8v13M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7"/><path d="M7.5 8a2.5 2.5 0 0 1 0-5C10 3 12 8 12 8s2-5 4.5-5a2.5 2.5 0 0 1 0 5"/></svg></div></div>
+          <div class="body"><b>Calendario sin foto</b><small>Sin foto de portada: color del skin + icono, como hoy</small></div></div>
+      </div>
+    </div></div></div>
+
+  <div class="wrap"><div class="cap">2 · Al abrir un calendario: bienvenida, cada vez</div>
+    <div class="phone"><div class="photo" style="background-image:url('https://images.unsplash.com/photo-1512389142860-9c449e58a543?w=800&q=70')"></div><div class="shade"></div><div class="avatar abs"></div>
+      <div class="welcome"><small>Hola, Aitor</small><h3>Aupa! Tienes un invitado cada día, amatxu!</h3><p>Faltan 16 días. Hoy hay una sorpresa esperándote.</p><button class="btn">Abrir mi calendario</button></div>
+    </div></div>
+
+  <div class="wrap"><div class="cap">3 · Dentro: la foto de portada como fondo tenue</div>
+    <div class="phone"><div class="cal" style="position:absolute;inset:0"><div class="photo" style="background-image:url('https://images.unsplash.com/photo-1512389142860-9c449e58a543?w=800&q=70')"></div></div>
+      <div class="screen">
+        <div class="top"><div><small>Aupa! Tienes un invitado cada día</small><strong>¡Hoy toca sorpresa!</strong></div><div class="avatar"></div></div>
+        <div class="hero"><small style="font-weight:700">Cuenta atrás</small><div class="big"><span>16</span> días</div><div style="font-weight:700">para la Navidad</div></div>
+        <div class="month"><div class="wd"><span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span></div><div class="days" id="days"></div></div>
+      </div>
+    </div></div>
+
+  <div class="wrap"><div class="cap">4 · Editor: la foto se ve al pegar la dirección</div>
+    <div class="phone"><div class="screen">
+      <div class="sec">Portada</div>
+      <div class="field"><label>Foto de portada</label>
+        <input value="https://images.unsplash.com/photo-1512389142860…">
+        <div class="preview" style="background-image:url('https://images.unsplash.com/photo-1512389142860-9c449e58a543?w=700&q=70')"></div>
+        <div class="ok">✓ Imagen correcta. Se verá en la tarjeta, en la bienvenida y de fondo.</div></div>
+      <div class="field"><label>Foto de portada (dirección que no es una imagen)</label>
+        <input class="bad" value="https://www.fcbarcelona.com/es/noticias/…">
+        <div class="preview broken">No se puede mostrar: esta dirección es una página web, no una imagen</div>
+        <div class="warn">Pega la dirección de la imagen. En el navegador: clic derecho sobre la foto → «Copiar dirección de imagen».</div></div>
+      <div class="field"><label>Imagen de fondo (opcional)</label>
+        <input placeholder="Vacío = se usa la foto de portada, muy tenue">
+        <div class="hint">Si la dejas vacía, dentro del calendario se usa la foto de portada como fondo tenue.</div></div>
+    </div></div></div>
+
+</div>
+<script>
+let h = '<span></span>';
+for (let d = 1; d <= 27; d++) { let c = 'd'; if (d === 8) c += ' today'; else if (d < 8) c += ' seen'; else c += ' locked'; h += `<span class="${c}">${d}</span>`; }
+document.getElementById('days').innerHTML = h;
+</script>
+</body>
+</html>

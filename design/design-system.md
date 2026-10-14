@@ -423,6 +423,38 @@ mostrar.
   el tratamiento de § "Imagen de fondo del calendario" (que la usaba como base visual con
   capa oscura).
 
+### Foto de portada visible en todas partes (ajusta la sección anterior)
+
+**Validado con Aitor, 2026-10-14.** Fuente: `design/propuesta-foto-portada-en-todas-partes.html`.
+Motivo: con varios calendarios, la persona entra a "Tus calendarios", que no enseñaba la
+foto; la bienvenida solo salía una vez al día y se perdía sola con una dirección que no es
+imagen; y el fondo tenue usaba `backgroundImageUrl` (casi siempre vacío). Resultado: la
+foto de portada no se veía en ningún sitio.
+
+- **"Tus calendarios":** cada tarjeta con `coverImageUrl` muestra la **foto de portada**
+  arriba (`130px` de alto, `background-size: cover`, degradado inferior
+  `rgba(10,8,30,0.55)` → transparente al 60%). La etiqueta de estado **En marcha**
+  (`--mint-soft`) / **Próximo** (`--primary-soft`) va en una píldora arriba a la izquierda,
+  sobre la foto. Sin foto, o si la foto no carga: portada como hasta ahora (color del skin
+  + icono Lucide). La barra de progreso y los filtros no cambian.
+- **Un solo calendario:** se mantiene que se salta la lista y se abre directamente ese
+  calendario, que empieza por su bienvenida con foto (recordado por Aitor, 2026-10-14).
+- **Bienvenida:** sale **cada vez** que se abre el calendario (`/c/<id>`) desde fuera, no
+  solo la primera del día. Se retira la regla "una vez al día"; dejan de hacer falta la
+  tabla `welcomeViews` y su marca. No sale al volver dentro del mismo calendario (p. ej.
+  cerrar el diálogo de un vídeo). Si no hay foto o no carga, no hay bienvenida (sin cambio).
+- **Fondo tenue dentro del calendario:** usa `backgroundImageUrl` si existe; si está
+  vacío, usa **`coverImageUrl`** con el mismo tratamiento (~`12%` de opacidad, saturación
+  reducida).
+- **Editor, campo "Foto de portada":** debajo del campo, **vista previa** de la imagen
+  (`120px` de alto, radio `16px`). Si carga: "✓ Imagen correcta. Se verá en la tarjeta, en
+  la bienvenida y de fondo." (verde). Si no carga: recuadro `--surface-2` con "No se puede
+  mostrar: esta dirección es una página web, no una imagen" y, debajo, en `--coral-ink`:
+  "Pega la dirección de la imagen. En el navegador: clic derecho sobre la foto → «Copiar
+  dirección de imagen»." Sustituye al aviso de TAL-69 en este campo. En "Imagen de fondo",
+  la ayuda: "Si la dejas vacía, dentro del calendario se usa la foto de portada como fondo
+  tenue."
+
 ### Imagen de fondo del calendario (nuevo campo, distinto de "Foto de portada")
 
 **Pedido explícito de Aitor, 2026-08-17.** Hoy `coverImageUrl` ("Foto de portada") solo
