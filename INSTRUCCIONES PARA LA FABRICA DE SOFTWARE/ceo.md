@@ -401,7 +401,7 @@ escalada** (decidido 2026-08-16, endurecido el mismo día por Aitor: "asegúrate
 única salida es intervención humana antes de implicarme a mí, no lo asumas" — caso real
 que lo motivó más abajo). Sirve para DOS cosas, no solo una:
 1. **Duda de escalada** — dudas de verdad entre "esto lo decido yo" y "esto necesita a
-   Aitor": pide una segunda opinión a un LLM de familia distinta (Codex) antes de
+   Aitor": pide una segunda opinión a un LLM de familia distinta (el motor auditor) antes de
    decidir — mismo principio por el que el Auditor ya es de otra familia (evitar puntos
    ciegos compartidos), aplicado ahora también al momento de decidir si escalar.
 2. **Sanity-check técnico** — antes de concluir que estás parado, sea "necesito que
@@ -418,18 +418,20 @@ que lo motivó más abajo). Sirve para DOS cosas, no solo una:
    haber aclarado antes de darlo por bloqueado, sin necesidad de llegar a Aitor en
    absoluto.
 
-Mecanismo, igual en los dos casos: `codex exec` desde tu propia sesión, sin ventana
-separada ni interactiva (mismo patrón que ya usas para disparar auditorías), con
-`-s read-only` (el consultor nunca ejecuta ni escribe nada, solo opina):
+Mecanismo, igual en los dos casos: el motor auditor (hoy Gemini CLI; antes Codex, hasta
+el 2026-10-14, cuando se quedó sin cuota), lanzado desde tu propia sesión en modo no
+interactivo y de solo lectura, sin ventana aparte. Es el mismo patrón que se usa para las
+auditorías (README.md § "Disparar al auditor"). El consultor nunca ejecuta ni escribe nada,
+solo opina. No le pases secretos en el contexto:
 ```bash
-codex exec -s read-only "Eres un consultor externo para el CEO de un pipeline de
+gemini --approval-mode plan -p "Eres un consultor externo para el CEO de un pipeline de
 desarrollo multi-agente. Contexto: <resumen de la situación>. Pregunta: <qué decisión
 está en duda>. Dame tu opinión honesta: ¿esto requiere el juicio de un humano, o es algo
 que el CEO puede decidir con confianza? Sé directo, no des largas."
 ```
 No asumas un modelo concreto por nombre en este documento (cambia con el tiempo) —
-comprueba `codex exec --help` o `~/.codex/models_cache.json` para el modelo más potente
-disponible ahora mismo si quieres fijarlo explícitamente con `-m`.
+comprueba `gemini --help` para ver qué modelos hay disponibles ahora mismo, si quieres fijar
+uno explícitamente con `-m`.
 
 **Cuándo usarlo — para que no se convierta en otra capa de dilación, que es justo el
 problema que motivó la versión original de esta regla:**
@@ -437,7 +439,7 @@ problema que motivó la versión original de esta regla:**
   "esto necesita el juicio de Aitor" o "esto no tiene salida, sigo sin ello/lo dejo
   así". No es ya un recurso opcional solo para decisiones normales — es el paso previo
   antes de dar cualquier bloqueo por definitivo, precisamente para no implicar a Aitor
-  (ni rendirte) cuando la salida real estaba a un `codex exec` de distancia.
+  (ni rendirte) cuando la salida real estaba a una consulta al motor auditor de distancia.
 - No hace falta para decisiones normales que sabes resolver sin duda — sigue sin ser un
   paso rutinario para todo, solo para el momento en que estás a punto de parar o
   escalar.
@@ -501,15 +503,14 @@ distingue algo importante:
 
 **Nunca escribas ni teclees en una ventana ajena, en ningún caso** (decidido
 2026-08-16, corrige una versión anterior de esta misma regla: un tercer incidente real
-—ver README.md → "Disparar al auditor (Codex): `codex exec`, no la ventana
-interactiva"— confirmó que ni siquiera verificar la `tty` justo antes de escribir es
+—ver README.md → "Disparar al auditor: modo no interactivo, nunca una ventana"— confirmó que ni siquiera verificar la `tty` justo antes de escribir es
 fiable del todo; un `keystroke` puede aterrizar en la ventana equivocada igualmente. Ya
 no depende de si el prompt tiene o no un canal alternativo de respuesta — antes se
 permitía teclear cuando no lo había, ahora no se permite en ningún caso). Leer
 (`contents of window`) sigue siendo siempre seguro y es la única forma sancionada de
 inspeccionar una ventana ajena. Según qué tenga bloqueada la ventana:
-- **Auditor (Codex) esperando input:** no uses la ventana interactiva — dispara la
-  ronda con `codex exec` (no interactivo) desde tu propia sesión, ver README.md.
+- **Motor auditor esperando input:** no uses la ventana interactiva. Dispara la ronda
+  en modo no interactivo desde tu propia sesión (ver README.md).
 - **Menú de arranque de la propia Claude Code bloqueado** (p. ej. "Set up auto mode"):
   cierra la ventana y relánzala con el flag correcto, ver arriba.
 - **Sesión Claude Code par con un prompt propio bloqueado** (`AskUserQuestion` u otro
@@ -729,4 +730,4 @@ Resolver el problema puntual no es suficiente. Después de cada intervención:
 - **Despliegue**: Railway, proyecto "calendario-adviento" (cuenta `aitormarin@gmail.com`).
 
 [Recurso(s) compartido(s) y motor auditor ya decididos, no pendientes — ver README.md §
-"3bis. Recurso compartido: Chrome" y CLAUDE.md/AGENTS.md (auditor: Codex).]
+"3bis. Recurso compartido: Chrome" y CLAUDE.md/AGENTS.md (motor auditor: hoy Gemini CLI; antes Codex, hasta el 2026-10-14, cuando se quedó sin cuota).]

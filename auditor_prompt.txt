@@ -83,7 +83,7 @@ Factory Architect, directriz explícita de Aitor): antes de que exista código p
 tarea, un worker desarrollador (en modo normal, sin tocar código) produce el plan técnico de ESA tarea
 ya creada en el backlog (desglose, enfoque, dependencias con otras tareas de la misma
 onda, orden si aplica), y la Directora te lo manda para que lo valides como documento.
-**Revisas en solo lectura** (ya te lanzan con `codex exec -s read-only`): no tocas nada. Es una revisión distinta
+**Revisas en solo lectura** (ya te lanzan en modo de solo lectura, ver README.md § "Disparar al auditor"): no tocas nada. Es una revisión distinta
 de tu revisión de código habitual, evalúa otra cosa:
 - ¿El enfoque es técnicamente sólido — la tarea tiene un alcance claro y realizable?
 - ¿Faltan dependencias reales con otras tareas, o hay dependencias declaradas que no lo
@@ -105,5 +105,5 @@ Directora lo comprueba en git antes de dar la salida; ya no se usa el modo plani
 - Nombre: Calendario de Adviento
 - Idioma de trabajo: español.
 - Repo: `github.com/aitormarin-TalentNetwork/calendario-adviento` (público).
-- **Auditor: Codex.** Desarrollador: Claude (principio de independencia — decidido con
+- **Auditor: el motor auditor** (hoy Gemini CLI; antes Codex, hasta el 2026-10-14, cuando se quedó sin cuota). Desarrollador: Claude (principio de independencia — decidido con
   Aitor, 2026-08-15, mismo patrón que SuperCRM).

@@ -245,7 +245,7 @@ juntos, son:
 | Directora | índigo `{6000, 0, 18000}` | fila 2, col 2 — `{465, 580, 890, 1100}` |
 | Desarrollador (`T<n>`) | por defecto (negro) | fila 3 en adelante, mismo tamaño de celda (`T1` en col 1, `T2` en col 2…); si no caben en pantalla, pueden solaparse |
 
-El auditor no tiene ventana: lo lanza la Directora con `codex exec` (ver §"Disparar al auditor").
+El auditor no tiene ventana: lo lanza la Directora en modo no interactivo (ver §"Disparar al auditor").
 
 Rejilla fija de **2×4** (ampliada desde 2×3 el 2026-08-16 al añadir el rol Inspector —
 si otros roles nuevos vuelven a llenar la rejilla, amplíala de nuevo en vez de reutilizar
@@ -391,7 +391,14 @@ como arriba) y confirma que lo enviado aparece de verdad como recibido/en proces
 solo como texto sentado en la caja de entrada. Si no coincide con lo que creías haber
 enviado, no está enviado — no lo asumas y sigas adelante.
 
-### Disparar al auditor (Codex): `codex exec`, no la ventana interactiva
+### Disparar al auditor: modo no interactivo, nunca una ventana
+
+**El motor auditor** es hoy Gemini CLI. Antes fue Codex, hasta el 2026-10-14, cuando se
+quedó sin cuota y Aitor decidió no pagar más a OpenAI. Esta sección es **el único sitio
+donde vive el comando concreto**: el resto de documentos dicen «el motor auditor» y
+remiten aquí. Si vuelve a cambiar el motor, se cambia esta sección, el párrafo Auditor de
+`CLAUDE.md` y la sección `auditor-role` de `AGENTS.md`. El principio no cambia: el auditor
+tiene que ser de una familia distinta a Claude.
 
 Un tercer incidente (2026-08-15, reenvío de la ronda 1 de TAL-3) confirmó que ni
 siquiera verificando el `tty` justo antes de escribir es fiable del todo — un
@@ -400,30 +407,55 @@ siquiera verificando el `tty` justo antes de escribir es fiable del todo — un
 caso — ni con `do script` ni con `keystroke`.** Leer (`contents of window`) sigue siendo
 seguro y es la única forma sancionada de inspeccionar una ventana ajena.
 
-Para disparar una ronda de auditoría con Codex, usa en su lugar `codex exec` (modo no
-interactivo, ver `codex exec --help`) directamente desde tu propia sesión — sin tocar
-ninguna ventana de nadie:
+Las rondas de auditoría se disparan siempre en modo no interactivo, directamente desde tu
+propia sesión y sin tocar la ventana de nadie. **Son dos pasos y el primero es
+obligatorio:**
 
 ```bash
-cd _worktrees/T<n> && codex exec -s read-only "Revisa la tarea <TAL-X> de la terminal
-T<n>. El fichero de exportación de esta ronda está en la ruta ABSOLUTA
-'/ruta/completa/hasta/calendario-adviento/codigo para auditar/T<n>_<TAL-X>_..._loopN-para-auditor.txt'.
-Da tu veredicto GO/NO-GO siguiendo el rol de auditor cargado desde AGENTS.md."
+cd _worktrees/T<n>
+EXPORT='/ruta/completa/hasta/calendario-adviento/codigo para auditar/T<n>_<TAL-X>_..._loopN-para-auditor.txt'
+
+# 1 · OBLIGATORIO: grep de secretos sobre el export y sobre el diff. Si sale cualquier
+#     coincidencia, NO se lanza: se avisa al CEO. Los valores nunca se imprimen.
+( set +x
+  vals=$(for f in .env .env.local; do [ -f "$f" ] && sed -nE 's/^[A-Z0-9_]*(SECRET|KEY|TOKEN)[A-Z0-9_]*=["'\'']?([^"'\'']{8,}).*/\2/p' "$f"; done)
+  [ -z "$vals" ] && { echo "secretos: 0 valores en .env*"; exit 0; }
+  n=$({ cat "$EXPORT"; git diff main...HEAD; } | grep -cF -- "$vals")
+  echo "secretos: $n coincidencias"; [ "$n" = 0 ] ) || exit 1
+
+# 2 · Auditoría, en solo lectura
+gemini --approval-mode plan \
+  --include-directories "/ruta/completa/hasta/calendario-adviento/codigo para auditar" \
+  -p "Revisa la tarea <TAL-X> de la terminal T<n>. El fichero de exportación de esta ronda
+está en la ruta ABSOLUTA '$EXPORT'. Da tu veredicto GO/NO-GO siguiendo el rol de auditor
+cargado desde AGENTS.md."
 ```
+
+- **Solo lectura, siempre:** `--approval-mode plan`. Nunca `--yolo` ni `auto_edit`.
+- **`--include-directories`** da acceso a la carpeta «codigo para auditar» de la raíz,
+  donde están los planes y los veredictos anteriores, aunque se lance desde un worktree.
+- **Fichero de contexto:** Gemini lee `AGENTS.md` porque así lo fija
+  `.gemini/settings.json` (`context.fileName`). No hay `GEMINI.md`: `AGENTS.md` es la
+  única fuente.
+- **Secretos, doble barrera** (en el nivel gratuito, Google puede usar lo que se le
+  envía): el grep del paso 1, y `.geminiignore`, versionado, que impide que el auditor
+  lea `.env*` y `*.pem` aunque se lo pidan. Recordatorio de TAL-82: nunca hacer `source`
+  de un `.env` con `set -x`.
+- **Si el motor auditor se queda sin cuota,** las auditorías esperan y la Directora lo
+  apunta en la cola «pendiente de Aitor». **Nunca se audita con Claude**, porque es la
+  misma familia que quien desarrolla.
 
 **Usa siempre ruta absoluta al fichero de export, nunca relativa.** Un incidente real
 (2026-08-15, ronda 2 de TAL-3): la instrucción decía "subiendo un nivel desde este
 worktree", pero un worktree vive en `_worktrees/T<n>` — son DOS niveles hasta la raíz
-del repo, no uno. Codex tomó la instrucción al pie de la letra, no encontró el fichero
+del repo, no uno. El auditor tomó la instrucción al pie de la letra, no encontró el fichero
 en esa ruta relativa incorrecta, y devolvió NO-GO por "no puedo verificar nada" — un
 fallo de instrucción de quien dispara la auditoría, no un hallazgo real. La ruta
 absoluta elimina esta clase de error por completo.
 
-`-s read-only` respeta la restricción del rol auditor (nunca escribe/modifica nada). El
-resultado llega como salida de comando normal, con el veredicto completo — sin
-ambigüedad de si "se envió" o no. La ventana interactiva de Codex (`codex`, sin `exec`)
-puede seguir abierta para que quien dirige el proyecto la inspeccione visualmente si
-quiere, pero ningún rol debe escribir en ella — solo Aitor, a mano, si la usa.
+El resultado llega como salida de comando normal, con el veredicto completo, así que no
+hay ambigüedad sobre si «se envió» o no. Si alguien abre la ventana interactiva del motor
+auditor, solo puede escribir en ella Aitor, a mano. Ningún rol lo hace.
 
 Para roles de raíz (PM, Directora, Integrador, CEO — `CLAUDE.md` no los distingue solo
 por carpeta, a diferencia de un Desarrollador en su worktree): no hace falta pasar el
