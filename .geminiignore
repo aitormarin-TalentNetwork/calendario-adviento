@@ -1,0 +1,4 @@
+# El motor auditor (Gemini CLI) nunca lee secretos, aunque se lo pidan (README § "Disparar al auditor")
+.env*
+*.pem
+_worktrees/*/.env*

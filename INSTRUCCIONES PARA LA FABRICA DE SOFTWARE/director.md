@@ -105,7 +105,7 @@ Para cada tarea:
    (`~/.claude/plans/...` u otro), te avisa por `SendMessage` con la ruta y espera sin
    tocar código. No escribe en Linear: tú copias el plan a `codigo para auditar/<tarea>_plan-
    loopN-para-auditor.md`, lo publicas como comentario en el issue y se lo pasas al auditor.
-2. **Lanza al auditor** (`codex exec -s read-only`) para que lo valide.
+2. **Lanza al motor auditor** (hoy Gemini CLI; antes Codex, hasta el 2026-10-14, cuando se quedó sin cuota) para que lo valide. Antes, el grep de secretos es obligatorio. El comando está en README.md § "Disparar al auditor".
 3. **El cerrojo del GO lo tienes tú.** Antes de dar el GO, comprueba en el worktree del
    worker (`git status` / `git diff`) que no hay cambios de código, solo el plan. Después
    dale el GO por `SendMessage`: a partir de ese momento, y no antes, ese mismo worker
@@ -134,7 +134,7 @@ comprobación tuya en git antes de cada GO.
   repartir) y qué orden se sigue de ahí.
 - Cualquier decisión de arquitectura/enfoque específica de esa tarea.
 
-**El plan va al auditor por el mismo mecanismo que ya usas para código** (`codex exec`).
+**El plan va al auditor por el mismo mecanismo que ya usas para código** (README.md § "Disparar al auditor").
 El auditor lo valida igual que valida código, pero sobre el texto del plan, no sobre nada
 ejecutable, porque todavía no existe código para esa tarea. Ver `auditor_prompt.txt` para
 qué evalúa exactamente en un plan.
@@ -517,4 +517,4 @@ infraestructura de despliegue sigue viva.
 - **Despliegue**: Railway, proyecto "calendario-adviento" (cuenta `aitormarin@gmail.com`).
 
 [Recurso(s) compartido(s) y motor auditor ya decididos, no pendientes — ver README.md §
-"3bis. Recurso compartido: Chrome" y CLAUDE.md/AGENTS.md (auditor: Codex).]
+"3bis. Recurso compartido: Chrome" y CLAUDE.md/AGENTS.md (motor auditor: hoy Gemini CLI; antes Codex, hasta el 2026-10-14, cuando se quedó sin cuota).]
