@@ -11,6 +11,7 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import type { Doc, Id } from "./_generated/dataModel";
 import { isCalendarAdminActor } from "./calendarPeople";
+import { assertTestHelpersAllowed } from "./lib/testHelpers";
 import { requireServerSecret } from "./serverAuth";
 import {
   ALLOWED_IMAGE_TYPES,
@@ -71,9 +72,8 @@ export function dayImagesFrozen(): boolean {
   return process.env.DAY_IMAGES_FROZEN === "1";
 }
 
-function testHelpersAllowed(): void {
-  if (process.env.ALLOW_TEST_HELPERS !== "1") throw new Error("Solo para tests en dev (ALLOW_TEST_HELPERS=1).");
-}
+// TAL-82 — la barrera de las ayudas de test vive en `./lib/testHelpers`
+// (`ALLOW_TEST_HELPERS=1` Y un deployment que no sea de producción).
 
 /**
  * Ganchos de fallo y pausa SOLO para los tests de dev
@@ -653,7 +653,7 @@ export const countDaysWithImageFields = internalQuery({
 export const storeUntrackedFileForTests = internalAction({
   args: { base64: v.string(), contentType: v.string() },
   handler: async (ctx, args): Promise<Id<"_storage">> => {
-    testHelpersAllowed();
+    assertTestHelpersAllowed();
     const bytes = Uint8Array.from(atob(args.base64), (c) => c.charCodeAt(0));
     return await ctx.storage.store(new Blob([bytes], { type: args.contentType }));
   },
@@ -663,7 +663,7 @@ export const storeUntrackedFileForTests = internalAction({
 export const referenceFromOtherTableForTests = internalMutation({
   args: { storageId: v.id("_storage"), dayId: v.id("days") },
   handler: async (ctx, args) => {
-    testHelpersAllowed();
+    assertTestHelpersAllowed();
     return await ctx.db.insert("dayThumbnailMigrationLog", {
       migrationId: "test-foreign-reference",
       dayId: args.dayId,
@@ -678,7 +678,7 @@ export const referenceFromOtherTableForTests = internalMutation({
 export const storageInfoForTests = internalQuery({
   args: { storageIds: v.array(v.id("_storage")) },
   handler: async (ctx, args) => {
-    testHelpersAllowed();
+    assertTestHelpersAllowed();
     const total = (await ctx.db.system.query("_storage").collect()).length;
     const exists: Record<string, boolean> = {};
     for (const id of args.storageIds) exists[id] = await storageExists(ctx, id);
@@ -696,7 +696,7 @@ export const seedExpiredIntentsForTests = internalAction({
     ageMs: v.optional(v.number()),
   },
   handler: async (ctx, args): Promise<Id<"_storage">[]> => {
-    testHelpersAllowed();
+    assertTestHelpersAllowed();
     const storageIds: Id<"_storage">[] = [];
     for (let i = 0; i < args.count; i++) {
       const storageId = args.registered
@@ -722,7 +722,7 @@ export const insertIntentForTests = internalMutation({
     expiresAt: v.number(),
   },
   handler: async (ctx, args) => {
-    testHelpersAllowed();
+    assertTestHelpersAllowed();
     return await ctx.db.insert("dayFileIntents", {
       owner: "TAL-67",
       kind: "thumbnail",
@@ -737,7 +737,7 @@ export const insertIntentForTests = internalMutation({
 export const leaseForTests = internalQuery({
   args: {},
   handler: async (ctx) => {
-    testHelpersAllowed();
+    assertTestHelpersAllowed();
     return await ctx.db.query("dayFileReconcileLease").first();
   },
 });
@@ -746,7 +746,7 @@ export const leaseForTests = internalQuery({
 export const expireLeaseForTests = internalMutation({
   args: {},
   handler: async (ctx) => {
-    testHelpersAllowed();
+    assertTestHelpersAllowed();
     const lease = await ctx.db.query("dayFileReconcileLease").first();
     if (lease) await ctx.db.patch(lease._id, { expiresAt: Date.now() - 1 });
     return lease?.token ?? null;

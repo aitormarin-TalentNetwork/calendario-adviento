@@ -60,11 +60,6 @@ export type SkinCatalogEntry = {
   treatment?: SkinTreatment;
   /** Muestras del selector, exactas del array `sw` del mockup (no se derivan de la paleta). */
   swatches: string[];
-  /**
-   * Campos antiguos para las filas NUEVAS (compatibilidad con el Next
-   * anterior a TAL-62, que solo lee estos). En las conservadas se ignoran.
-   */
-  legacy: { background: string; accent: string; textColor: string; textPill?: boolean };
 };
 
 export const PALETTE_KEYS: readonly (keyof SkinPalette)[] = [
@@ -91,7 +86,6 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
       seenA: "#ff8a8d", seenB: "#ff5a5f", weekend: "#cc3338",
     },
     swatches: ["#7b61ff", "#ffd23f", "#ff5a5f", "#3ddc97"],
-    legacy: { background: "#fff8ee", accent: "#7b61ff", textColor: "#1d2320" },
   },
   {
     key: "navidad-pop",
@@ -106,7 +100,6 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
       seenA: "#3fd394", seenB: "#1fb57a", weekend: "#d1142c",
     },
     swatches: ["#f2374b", "#1fb57a", "#ffc23d"],
-    legacy: { background: "#fff7f2", accent: "#f2374b", textColor: "#2a1a1c" },
   },
   {
     key: "caramelo",
@@ -121,7 +114,6 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
       seenA: "#ff9bcb", seenB: "#ff6fb5", weekend: "#c2185b",
     },
     swatches: ["#ff6fb5", "#4f8dff", "#ffe45c", "#4fc3f7"],
-    legacy: { background: "#fffaf3", accent: "#4f8dff", textColor: "#24202a" },
   },
   {
     key: "noche",
@@ -136,7 +128,6 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
       todayShadow: "rgba(245,196,81,0.45)", seenA: "#8f7bff", seenB: "#5b3fd1", weekend: "#ff8fb1",
     },
     swatches: ["#10142a", "#5b3fd1", "#f5c451"],
-    legacy: { background: "#10142a", accent: "#f5c451", textColor: "#f3f1ff" },
   },
   {
     key: "nieve",
@@ -151,7 +142,6 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
       todayShadow: "rgba(47,107,255,0.4)", seenA: "#9fd0ff", seenB: "#5aa9ff", weekend: "#1f58f0",
     },
     swatches: ["#f2f8ff", "#5aa9ff", "#2f6bff"],
-    legacy: { background: "#f2f8ff", accent: "#2f6bff", textColor: "#14233a" },
   },
   {
     key: "minimal",
@@ -166,7 +156,6 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
       seenA: "#3a3a3a", seenB: "#111111", weekend: "#cc3516",
     },
     swatches: ["#ffffff", "#111111", "#ff4d2e"],
-    legacy: { background: "#ffffff", accent: "#ff4d2e", textColor: "#111111" },
   },
   {
     key: "tira-comica",
@@ -182,7 +171,6 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
     },
     treatment: "comic",
     swatches: ["#e63946", "#2fa8e0", "#ffd23f", "#1a1a1a"],
-    legacy: { background: "#fdf8ec", accent: "#e63946", textColor: "#1a1a1a" },
   },
   {
     key: "rojiblanco",
@@ -198,6 +186,5 @@ export const SKIN_CATALOG_2026: readonly SkinCatalogEntry[] = [
     },
     treatment: "stripes-pill",
     swatches: ["#d61f26", "#ffffff", "#1a1a1a"],
-    legacy: { background: "#ffffff", accent: "#1a1a1a", textColor: "#1a1a1a" },
   },
 ];

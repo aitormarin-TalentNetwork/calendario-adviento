@@ -6,13 +6,8 @@ import type { SkinStyle } from "@/lib/skin-style";
 export type SkinOption = {
   id: string;
   name: string;
-  // Solo en modo degradado (rollback de TAL-62, `src/lib/skin-catalog.ts`):
-  // colores de la fila antigua de `skins`; respaldo
-  // `DEFAULT_SKIN_APPEARANCE` si faltan (ver `swatchBackground`).
-  background?: string;
-  accent?: string;
-  /** TAL-62 — muestras del catálogo 2026 (`skinStyles.swatches`); si faltan (modo degradado), se usa `background`. */
-  swatches?: string[];
+  /** TAL-62 — muestras del catálogo 2026 (`skinStyles.swatches`). TAL-82: sin modo degradado, siempre vienen del catálogo. */
+  swatches: string[];
   /** TAL-62 — estilo del skin para la vista previa (catálogo 2026). */
   skinStyle?: SkinStyle;
 };
@@ -25,12 +20,13 @@ export type SkinOption = {
  * (Design System § "Selector de skin en el editor", TAL-37).
  */
 export function swatchBackground(skin: SkinOption): string {
-  if (skin.swatches && skin.swatches.length > 0) {
+  if (skin.swatches.length > 0) {
     const step = 100 / skin.swatches.length;
     const stops = skin.swatches.map((color, i) => `${color} ${(i * step).toFixed(2)}% ${((i + 1) * step).toFixed(2)}%`);
     return `linear-gradient(90deg, ${stops.join(", ")})`;
   }
-  return skin.background ?? DEFAULT_SKIN_APPEARANCE.background;
+  // Respaldo defensivo (un skin del catálogo siempre tiene muestras).
+  return DEFAULT_SKIN_APPEARANCE.background;
 }
 
 type SkinPickerProps = {
@@ -48,8 +44,7 @@ type SkinPickerProps = {
  * accesible) + anillo `--primary` en el seleccionado (TAL-61).
  *
  * Sigue siendo dinámico — `skins` llega del catálogo 2026
- * (`skins.listCatalogPublic`, o las filas antiguas en modo degradado, ver
- * `src/lib/skin-catalog.ts`) vía `page.tsx`/`edit-calendar-form.tsx`, cero
+ * (`skins.listCatalogPublic`, ver `src/lib/skin-catalog.ts`) vía `page.tsx`/`edit-calendar-form.tsx`, cero
  * catálogo fijo aquí. La galería envuelve en varias líneas (`flex-wrap`) y
  * limita su alto con scroll propio.
  *

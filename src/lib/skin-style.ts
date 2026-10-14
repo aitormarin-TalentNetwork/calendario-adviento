@@ -38,8 +38,8 @@ const ALEGRE = SKIN_CATALOG_2026.find((entry) => entry.key === "alegre")!;
 
 /**
  * Respaldo cuando el skin del calendario no está en el catálogo nuevo (skin
- * antiguo sin migrar, retirado, inexistente) o el catálogo no se puede
- * cargar (modo degradado): los valores de Alegre, el destino de migración
+ * antiguo sin migrar, retirado, inexistente) o el catálogo llega vacío: los
+ * valores de Alegre, el destino de migración
  * de cualquier skin antiguo — así un calendario sin migrar ya se ve como
  * se verá después. Mismo papel que `DEFAULT_SKIN_APPEARANCE`.
  */

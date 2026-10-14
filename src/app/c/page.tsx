@@ -27,7 +27,7 @@ import { resolveSkinStyle, skinStyleVars, skinTreatmentClass } from "@/lib/skin-
  * TAL-62 — la portada de cada tarjeta se pinta como la pantalla del
  * invitado: fondo del skin (o la imagen de fondo) y recuadro del icono con
  * su par `tile`/`tileInk`, vía las mismas variables `--skin-*`; skin fuera
- * del catálogo o modo degradado → respaldo Alegre (`data-skin-style`).
+ * del catálogo → respaldo Alegre (`data-skin-style`).
  */
 export default async function UserCalendarsPage() {
   const user = await getAuthorizedUser();
