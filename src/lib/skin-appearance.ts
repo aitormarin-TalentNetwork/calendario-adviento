@@ -121,3 +121,16 @@ export function faintBackgroundLayer(backgroundImageUrl: string | null | undefin
   if (!backgroundImageUrl) return null;
   return { backgroundImage: `url(${JSON.stringify(backgroundImageUrl)})` };
 }
+
+/**
+ * TAL-85 — qué imagen va en la capa tenue de dentro del calendario
+ * (design-system.md § "Foto de portada visible en todas partes"): la imagen
+ * de fondo si existe; si está vacía, la foto de portada, con el mismo
+ * tratamiento (`faintBackgroundLayer`). Ninguna de las dos → `null`.
+ */
+export function faintBackgroundUrl(
+  backgroundImageUrl: string | null | undefined,
+  coverImageUrl: string | null | undefined
+): string | null {
+  return backgroundImageUrl || coverImageUrl || null;
+}

@@ -10,12 +10,14 @@ import {
 import { CalendarPreview } from "@/app/admin/[calendarId]/calendar-preview";
 import { checkImageUrlsAction } from "@/app/admin/[calendarId]/image-check-actions";
 import { CoverIconPicker } from "@/app/admin/[calendarId]/cover-icon-picker";
+import { CoverImagePreview, previewableImageUrl } from "@/app/admin/[calendarId]/cover-image-preview";
 import { SkinPicker, type SkinOption } from "@/app/admin/[calendarId]/skin-picker";
 import { EditorWarning } from "@/components/editor-warning";
 import { SubmitButton } from "@/components/submit-button";
 import { DEFAULT_COUNTDOWN_LABEL, MAX_COUNTDOWN_LABEL_LENGTH } from "@/lib/countdown";
 import { normalizeCoverIcon } from "@/lib/cover-icons";
 import { IMAGE_URL_WARNING, type ImageUrlWarnings } from "@/lib/image-url-warning";
+import { faintBackgroundUrl } from "@/lib/skin-appearance";
 import { ALEGRE_FALLBACK_STYLE } from "@/lib/skin-style";
 
 type EditCalendarFormProps = {
@@ -124,6 +126,7 @@ type EditCalendarFieldsProps = {
  * catálogo 2026 (skin fuera del catálogo), el respaldo Alegre (TAL-62).
  */
 function EditCalendarFields({ fieldValues, setField, skins, imageWarnings }: EditCalendarFieldsProps) {
+  const coverPreviewUrl = previewableImageUrl(fieldValues.coverImageUrl);
   const { pending } = useFormStatus();
   const selectedSkin = skins.find((skin) => skin.id === fieldValues.skinId);
   // TAL-62 — estilo del skin seleccionado en vivo (catálogo 2026); sin él
@@ -179,7 +182,7 @@ function EditCalendarFields({ fieldValues, setField, skins, imageWarnings }: Edi
             coverTitle={fieldValues.coverTitle}
             countdownLabel={fieldValues.countdownLabel}
             endDate={fieldValues.endDate}
-            backgroundImageUrl={fieldValues.backgroundImageUrl || null}
+            backgroundImageUrl={faintBackgroundUrl(fieldValues.backgroundImageUrl, fieldValues.coverImageUrl)}
             skinStyle={previewSkinStyle}
           />
         </div>
@@ -246,7 +249,7 @@ function EditCalendarFields({ fieldValues, setField, skins, imageWarnings }: Edi
             placeholder={DEFAULT_COUNTDOWN_LABEL}
           />
         </div>
-        <div className="editor-field">
+        <div className="editor-field editor-field-wrap">
           <label htmlFor="calendar-backgroundImageUrl">Imagen de fondo (URL, opcional)</label>
           <input
             id="calendar-backgroundImageUrl"
@@ -257,9 +260,17 @@ function EditCalendarFields({ fieldValues, setField, skins, imageWarnings }: Edi
             disabled={pending}
             placeholder="https://…"
           />
-          {imageWarnings.backgroundImageUrl ? <EditorWarning>{IMAGE_URL_WARNING}</EditorWarning> : null}
+          {/* TAL-85 — sin imagen de fondo, dentro del calendario se usa la foto de portada. */}
+          <p className="editor-field-extra editor-field-hint">
+            Si la dejas vacía, dentro del calendario se usa la foto de portada como fondo tenue.
+          </p>
+          {imageWarnings.backgroundImageUrl ? (
+            <div className="editor-field-extra">
+              <EditorWarning>{IMAGE_URL_WARNING}</EditorWarning>
+            </div>
+          ) : null}
         </div>
-        <div className="editor-field">
+        <div className="editor-field editor-field-wrap">
           <label htmlFor="calendar-coverImageUrl">Foto de portada (URL, opcional)</label>
           <input
             id="calendar-coverImageUrl"
@@ -269,8 +280,14 @@ function EditCalendarFields({ fieldValues, setField, skins, imageWarnings }: Edi
             onChange={(e) => setField("coverImageUrl", e.target.value)}
             disabled={pending}
             placeholder="https://…"
+            aria-describedby={coverPreviewUrl ? "cover-image-preview" : undefined}
           />
-          {imageWarnings.coverImageUrl ? <EditorWarning>{IMAGE_URL_WARNING}</EditorWarning> : null}
+          {/* TAL-85 — vista previa en vivo; sustituye al aviso de TAL-69 en este campo. */}
+          {coverPreviewUrl ? (
+            <div id="cover-image-preview" className="editor-field-extra">
+              <CoverImagePreview key={coverPreviewUrl} url={coverPreviewUrl} />
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
@@ -351,8 +368,10 @@ export function EditCalendarForm({ calendar, skins }: EditCalendarFormProps) {
       });
   }, [state.savedAt, calendar.id]);
   const current = imageCheck && imageCheck.savedAt === state.savedAt ? imageCheck.warnings : {};
+  // TAL-85 — en "Foto de portada" el aviso lo sustituye la vista previa
+  // (`CoverImagePreview`); el comprobador sigue igual y aquí solo se usa el
+  // resultado de "Imagen de fondo".
   const imageWarnings: ImageUrlWarnings = {
-    ...(current.coverImageUrl && fieldValues.coverImageUrl === state.values.coverImageUrl ? { coverImageUrl: true } : {}),
     ...(current.backgroundImageUrl && fieldValues.backgroundImageUrl === state.values.backgroundImageUrl ? { backgroundImageUrl: true } : {}),
   };
 

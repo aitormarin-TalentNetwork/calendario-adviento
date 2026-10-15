@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { CoverIcon } from "@/components/cover-icon";
+import { CalendarCardCover } from "@/app/c/calendar-card-cover";
 import { startsInText, type CalendarStatus, type UserModeCard } from "@/lib/user-mode-calendars";
 
 /**
@@ -13,7 +13,8 @@ import { startsInText, type CalendarStatus, type UserModeCard } from "@/lib/user
  * terminados solo en "Todos". Filtro de cliente, sin recordarlo.
  *
  * La portada de cada tarjeta llega ya resuelta del servidor (`cover`:
- * estilo del skin del catálogo, TAL-62).
+ * estilo del skin del catálogo, TAL-62). TAL-85 — con foto de portada, la
+ * foto encima (`CalendarCardCover`).
  */
 export type UserCalendarItem = UserModeCard & {
   cover: { className: string; skinKey: string; style: React.CSSProperties };
@@ -60,10 +61,12 @@ export function UserCalendarsList({ calendars }: { calendars: UserCalendarItem[]
           {visible.map((calendar) => (
             <li key={calendar.id} data-calendar-status={calendar.status}>
               <Link href={`/c/${calendar.id}`} className="calendar-card">
-                <div className={calendar.cover.className} aria-hidden="true" data-skin-style={calendar.cover.skinKey} style={calendar.cover.style}>
-                  {/* TAL-60 — icono Lucide en su recuadro; TAL-62 — colores del skin (--icon-tile-*). */}
-                  <CoverIcon value={calendar.icon} size={26} box={52} />
-                </div>
+                <CalendarCardCover
+                  cover={calendar.cover}
+                  icon={calendar.icon}
+                  coverImageUrl={calendar.coverImageUrl}
+                  status={calendar.status}
+                />
                 <div className="calendar-card-body">
                   <span className="calendar-card-name">{calendar.title}</span>
                   <span className="calendar-card-meta num">{calendar.subtitle}</span>

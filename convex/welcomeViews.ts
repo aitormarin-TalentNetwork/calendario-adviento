@@ -8,6 +8,13 @@ import { requireServerSecret } from "./serverAuth";
  * natural en su zona horaria). La fecha la calcula SIEMPRE el servidor de
  * Next con la cookie `tz` (`src/app/c/[calendarId]/welcome-actions.ts`),
  * nunca el navegador. Ver docs/bienvenida.md.
+ *
+ * TAL-85 — SIN USO desde TAL-85: la bienvenida sale en cada entrada y el
+ * Next nuevo ya no lee ni escribe esta marca (se borraron
+ * `src/lib/welcome.ts` y `welcome-actions.ts`). Se conserva íntegra —
+ * funciones, tabla e índices— por compatibilidad con el Next anterior
+ * durante el despliegue o un rollback; su retirada del schema va en una
+ * tarea aparte con el procedimiento de migración (como TAL-82).
  */
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;

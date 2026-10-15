@@ -14,6 +14,7 @@ import { convexAppServerSecret } from "@/lib/convex-server";
 import { DEFAULT_COUNTDOWN_LABEL } from "@/lib/countdown";
 import { getAuthorizedUser } from "@/lib/current-user";
 import { resolveCalendarAccess } from "@/lib/roles";
+import { faintBackgroundUrl } from "@/lib/skin-appearance";
 import { loadSkinCatalog } from "@/lib/skin-catalog";
 import { resolveSkinStyle, skinStyleVars, type SkinStyle } from "@/lib/skin-style";
 
@@ -123,7 +124,9 @@ export default async function AdminCalendarPage({
         // Minimal/Rojiblanco es blanco: invisible sobre el crema del tema).
         skinAccent="var(--primary-ink)"
         skinBackground={skinStyle.palette.bg}
-        backgroundImageUrl={calendar.backgroundImageUrl}
+        // TAL-85 — capa tenue: imagen de fondo o, si falta, la foto de portada
+        // (lo mismo que verá el invitado en `/c/<id>`).
+        backgroundImageUrl={faintBackgroundUrl(calendar.backgroundImageUrl, calendar.coverImageUrl)}
         skinTextColor={skinStyle.palette.ink}
         skinTextPill={false}
         skinVars={skinStyleVars(skinStyle)}

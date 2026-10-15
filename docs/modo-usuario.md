@@ -43,6 +43,16 @@ invitación — su acceso global no los hace "suyos".
 - Portada: estilo del skin resuelto con el catálogo 2026 (`resolveSkinStyle`; la fila
   solo trae `skin._id` desde TAL-72), con respaldo Alegre si el skin no existe o está
   fuera del catálogo.
+- **TAL-85 — foto de portada** (`src/app/c/calendar-card-cover.tsx`): con
+  `coverImageUrl` (lo trae la fila de Convex desde TAL-85; ausente en un Convex anterior),
+  la foto va encima de la portada de siempre, invisible hasta que carga de verdad
+  (`useImageStatus`). Al cargar: degradado inferior y píldora "En marcha" / "Próximo"
+  (`.status-pill`) arriba a la izquierda; terminado, sin píldora. Si no carga, o no hay
+  foto, la portada exactamente como antes: `backgroundImageUrl` (con su capa oscura) si
+  existe y, si no, el color del skin con el icono (decisión del PM, 2026-10-14). Con foto
+  la portada mide 130 px desde el principio (sin salto al cargar); sin ella, 110 px.
+  La foto va con `loading="lazy"`: fuera de pantalla no se pide hasta acercarse (mientras,
+  la capa base; `useImageStatus` no lo toma por error porque aún no hay `currentSrc`).
 
 ## Aterrizaje
 

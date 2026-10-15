@@ -1,4 +1,4 @@
-# Bienvenida con foto, login genérico y fondo tenue (TAL-70)
+# Bienvenida con foto, login genérico y fondo tenue (TAL-70, TAL-85)
 
 Normativo: `design/design-system.md` § "Bienvenida con foto (después de entrar) + imagen
 de fondo tenue" y `design/propuesta-bienvenida.html`.
@@ -17,26 +17,56 @@ su `/login` responde 200 sin portada, y entrar conserva el `callbackUrl`.
 
 ## Bienvenida al abrir `/c/<id>`
 
-Se muestra si se cumplen tres condiciones:
+**TAL-85 — sale en CADA entrada al calendario**, no una vez al día (design-system.md
+§ "Foto de portada visible en todas partes"). Basta con que el calendario tenga
+`coverImageUrl` y que la foto cargue; ya no hace falta la cookie `tz` (sin ella sale
+igual, sin la línea de la cuenta atrás). Si no hay foto, o no carga, no hay bienvenida.
 
-- el calendario tiene `coverImageUrl`;
-- existe la cookie `tz`;
-- la persona aún no la ha visto hoy en ese calendario (día natural en su zona).
+**Qué es "entrar":**
 
-Si no hay foto, no hay bienvenida. Si falta la cookie `tz` (caso raro: `TimezoneSync` la
-pone en la primera visita), tampoco: no hay un "hoy" fiable y se prefiere no mostrarla
-antes que gastarla en un día equivocado.
+- montar la página: carga completa (primera visita, recarga, enlace de invitación,
+  otra pestaña) o venir de otra pantalla (`/c`, `/admin`, atrás/adelante);
+- una navegación de cliente que acaba en el MISMO `/c/<id>` sin remontar la página: el
+  enlace del menú de la cuenta al calendario actual, o `/c` → redirect al mismo
+  calendario (un solo calendario).
 
-- **Dónde se guarda:** tabla `welcomeViews {userId, calendarId, date}` (índices
-  `by_user_calendar_date` y `by_calendar`). Así funciona por persona y en cualquier
-  dispositivo. Cuesta una lectura por visita y una escritura por persona, calendario y
-  día.
-- **Lectura:** `welcomeViews.hasSeenTodayPublic`, en el render del servidor, después de
-  `resolveCalendarAccess`. Si falla, no se muestra la bienvenida (nunca bloquea).
-- **Marca:** solo cuando la foto ha cargado de verdad (`onLoad`, o ya completa al
-  hidratar). La hace `markWelcomeSeenAction(calendarId)`, que saca la persona de la
-  sesión y la fecha de la cookie `tz`, en el servidor. Después llama a
-  `welcomeViews.markSeenPublic`.
+**Qué NO es entrar:** abrir y cerrar el diálogo de un vídeo, el `router.refresh()` de
+`TimezoneSync` y las server actions de la página (`markDayViewedAction`).
+
+**Cómo se distingue** (`src/lib/navigation-entry.ts`, `welcome-overlay.tsx`), con dos
+señales que tienen que cambiar las dos:
+
+1. `navSeq`: contador de navegaciones del router en este documento. Lo incrementa
+   `src/instrumentation-client.ts::onRouterTransitionStart`, que Next 16 llama en cada
+   push / replace (`<Link>`, `useRouter().push`) y en atrás/adelante, pero no en
+   `router.refresh()` ni en las server actions (comprobado en
+   `next/dist/client/components/app-router-instance.js`, 16.3.8). El overlay lo lee con
+   `useSyncExternalStore` (con `getServerSnapshot`).
+2. `renderId`: `crypto.randomUUID()` en cada render del servidor de la página.
+
+Cuando cambia el `renderId`, el overlay reabre la bienvenida (monta de nuevo
+`WelcomeDialog` con otra `key`) solo si `navSeq` avanzó desde la última vez
+(`shouldReopenWelcome`). Una navegación hacia fuera suma `navSeq` pero no pinta la
+página otra vez, así que no hay parpadeo antes de desmontarla. Caso límite aceptado:
+una navegación abortada seguida de un `router.refresh()` la reabriría; ningún camino de
+la app lo produce.
+
+Comprobado con contraprueba (desactivando `shouldReopenWelcome`): el enlace del menú
+al calendario actual deja de sacarla (`e2e/tal85-foto-portada.spec.ts`, caso 3c). En
+16.3.8, `/c` → redirect al mismo calendario y atrás/adelante ya remontan la página por
+sí solos (casos 3b y 3d pasan también sin la regla): la regla los cubre igualmente si
+eso cambia.
+
+**`welcomeViews` (TAL-70) queda sin uso.** El Next nuevo no lee ni escribe la marca (se
+borraron `src/lib/welcome.ts` y `welcome-actions.ts`). La tabla, sus índices y las
+funciones `markSeenPublic`/`hasSeenTodayPublic`/`countForCalendars` se conservan para el
+Next anterior durante el despliegue o un rollback, y `deleteCalendarHandler` sigue
+borrando sus filas. Su retirada del schema va en una tarea aparte, con el procedimiento
+de migración (como TAL-82). Lo que sigue describe cómo funcionaba la marca mientras
+exista:
+
+- **Dónde se guardaba:** tabla `welcomeViews {userId, calendarId, date}` (índices
+  `by_user_calendar_date` y `by_calendar`).
 - **`markSeenPublic` es una sola mutation.** Pasos, en orden:
   1. comprueba el secreto;
   2. valida que la fecha tenga el formato `YYYY-MM-DD`;
@@ -50,7 +80,8 @@ antes que gastarla en un día equivocado.
   borra las `welcomeViews` en su misma transacción y las dos operaciones tocan el
   documento del calendario, de modo que nunca queda una fila huérfana.
 - **Foto rota o lenta:** con `onError` o con más de 6 s de carga, la bienvenida se quita
-  sin marcar y queda el calendario debajo. En la siguiente visita se reintenta.
+  y queda el calendario debajo. Mismo criterio de "carga / no carga" que la tarjeta de
+  "Tus calendarios" y la vista previa del editor (`src/lib/use-image-status.ts`).
 - **UI** (`welcome-overlay.tsx`, estilos `.welcome-*`):
   - la foto con `object-fit: cover`;
   - el degradado del mockup, `rgba(10,8,30,0.85)` → `0.35` (50 %) → `0.1`;
@@ -73,6 +104,18 @@ antes que gastarla en un día equivocado.
   `skin-appearance.ts::faintBackgroundLayer`.
 - Se aplica en tres sitios: el `<main>` de `/c/<id>`, la vista previa del editor
   (`CalendarCoverHeader`) y la cabecera de mes del grid del editor.
+- **TAL-85 — respaldo:** si el calendario no tiene `backgroundImageUrl`, la capa usa la
+  foto de portada (`skin-appearance.ts::faintBackgroundUrl`), en los mismos tres sitios
+  y con el mismo tratamiento (10 %, ya cubierto por la puerta de contraste de abajo).
+- **Por qué se ve con `z-index: -1`** (duda del auditor en TAL-85, loop 1): `.faint-bg-host`
+  crea un contexto de apilamiento (`isolation: isolate`) y, por el orden de pintado de CSS
+  (CSS 2.1, apéndice E), dentro de él se pinta primero el fondo de la raíz (el fondo del
+  skin del `<main>`) y después los hijos con `z-index` negativo, antes que el contenido en
+  flujo. La capa queda encima del fondo y debajo del contenido. Lo comprueba en píxeles
+  `e2e/tal85-foto-portada.spec.ts` (caso 4b: el píxel con la capa frente al mismo píxel
+  con la capa oculta coincide con 10 % de la foto con `saturate(0.7)` sobre el fondo, y el
+  texto sigue en AA sobre ese compuesto; caso 4c: capturas lado a lado con una foto de
+  rayas).
 - El texto ya no usa el tratamiento "photo" (blanco con sombra): usa el normal del skin.
 - **Tarjetas al 85 %:** con imagen, `<main>` define `--skin-card-surface:
   color-mix(in srgb, var(--skin-card) 85%, transparent)`, que usan la tarjeta del mes
@@ -96,7 +139,12 @@ antes que gastarla en un día equivocado.
 
 ## Rollback
 
-`welcomeViews` es una tabla nueva: el schema anterior la acepta con datos (comprobado en
+TAL-85: revertir Next devuelve la regla "una vez al día" y vuelve a escribir en
+`welcomeViews`, que sigue en el schema con sus funciones. Revertir Convex quita
+`coverImageUrl` de las filas de "Tus calendarios"; el Next nuevo lo trata como ausente
+(tarjeta sin foto).
+
+TAL-70: `welcomeViews` es una tabla nueva: el schema anterior la acepta con datos (comprobado en
 TAL-67), así que revertir no exige vaciarla. Revertir el código devuelve el login con
 portada y el fondo de TAL-39. Auditoría: `npx convex run welcomeViews:countForCalendars
 '{"calendarIds":[…]}'`.

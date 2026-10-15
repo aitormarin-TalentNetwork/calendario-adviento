@@ -44,6 +44,7 @@ uso (decisión del PM, 2026-10-01):
 | `--primary-btn` | Fondo del botón primario (texto blanco) |
 | `--on-sun` | Todo texto sobre `--sun` |
 | `--coral-ink` | Texto de peligro |
+| `--mint-ink` | Texto verde de confirmación (TAL-85: "✓ Imagen correcta" del editor). Claro `#1f7a50` (el color del mockup), oscuro `var(--mint)`; AA sobre `--bg`/`--surface` en los dos (`tal61` caso 4) |
 | `--coral-btn` | Fondo de los botones de peligro (texto blanco) |
 | `--accent` | Acento que un skin puede sobrescribir dentro del calendario; fuera, `--primary` |
 | `--icon-tile-bg`, `--icon-tile-fg` | Recuadro de icono de portada (acordado con TAL-60) |

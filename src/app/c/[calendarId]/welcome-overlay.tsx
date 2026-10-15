@@ -1,80 +1,85 @@
 "use client";
 
-import { useEffect, useRef, useState, useTransition } from "react";
-import { markWelcomeSeenAction } from "@/app/c/[calendarId]/welcome-actions";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  getNavigationSeq,
+  getServerNavigationSeq,
+  shouldReopenWelcome,
+  subscribeNavigation,
+  type WelcomeEntryMark,
+} from "@/lib/navigation-entry";
+import { useImageStatus } from "@/lib/use-image-status";
 
 /** Si la foto no ha cargado en este tiempo, no hay bienvenida (nunca una pantalla rota). */
 const PHOTO_TIMEOUT_MS = 6000;
 
-type Phase = "loading" | "shown" | "closed";
-
-/**
- * TAL-70 — bienvenida con la foto de portada a pantalla completa
- * (design-system.md § "Bienvenida con foto (después de entrar)",
- * `design/propuesta-bienvenida.html` pantalla 2). `page.tsx` solo la monta
- * si el calendario tiene foto, hay cookie `tz` y la persona aún no la ha
- * visto hoy en este calendario.
- *
- * - La foto se carga con la capa oculta (`.welcome-pending`); al cargar
- *   (`onLoad`, o ya completa si cargó antes de hidratar) se muestra y se
- *   marca como vista (`markWelcomeSeenAction`). Si falla (`onError`) o tarda
- *   más de `PHOTO_TIMEOUT_MS`, se quita sin marcar: queda el calendario
- *   debajo y en la siguiente visita se reintenta.
- * - "Abrir mi calendario" (o Escape) la cierra y devuelve el foco al
- *   calendario. El menú de la cuenta queda por encima (z-index en globals.css).
- */
-export function WelcomeOverlay({
-  calendarId,
-  photoUrl,
-  firstName,
-  title,
-  countdownText,
-}: {
-  calendarId: string;
+type WelcomeProps = {
   photoUrl: string;
   firstName: string | null;
   title: string;
   countdownText: string | null;
-}) {
-  const [phase, setPhase] = useState<Phase>("loading");
-  const [, startTransition] = useTransition();
-  const imgRef = useRef<HTMLImageElement>(null);
+};
+
+/**
+ * TAL-70 — bienvenida con la foto de portada a pantalla completa
+ * (design-system.md § "Bienvenida con foto (después de entrar)",
+ * `design/propuesta-bienvenida.html` pantalla 2).
+ *
+ * TAL-85 — sale en CADA entrada al calendario, no una vez al día: ya no
+ * hay marca en Convex (`welcomeViews`). `page.tsx` la monta siempre que el
+ * calendario tiene foto. Una entrada es montar la página (carga completa,
+ * venir de otra pantalla) o una navegación de cliente que acaba en este
+ * mismo `/c/<id>` sin remontarla (p. ej. `/c` → redirect al mismo
+ * calendario): ahí se detecta con `navSeq` + `renderId`
+ * (`src/lib/navigation-entry.ts`) y se reabre montando de nuevo
+ * `WelcomeDialog` (`key`). Cerrar el diálogo de un vídeo, el
+ * `router.refresh()` de `TimezoneSync` o una server action no la reabren.
+ */
+export function WelcomeOverlay({ renderId, ...props }: WelcomeProps & { renderId: string }) {
+  const navSeq = useSyncExternalStore(subscribeNavigation, getNavigationSeq, getServerNavigationSeq);
+  const navSeqRef = useRef(navSeq);
+  const markRef = useRef<WelcomeEntryMark | null>(null);
+  const [entry, setEntry] = useState(0);
+
+  useEffect(() => {
+    navSeqRef.current = navSeq;
+  }, [navSeq]);
+
+  // Solo con un render nuevo del servidor: una navegación hacia fuera suma
+  // `navSeq` pero no pinta esta página otra vez, así que no la reabre.
+  useEffect(() => {
+    const current: WelcomeEntryMark = { navSeq: navSeqRef.current, renderId };
+    const last = markRef.current;
+    markRef.current = current;
+    if (last && shouldReopenWelcome(last, current)) setEntry((value) => value + 1);
+  }, [renderId]);
+
+  return <WelcomeDialog key={entry} {...props} />;
+}
+
+/**
+ * - La foto se carga con la capa oculta (`.welcome-pending`); al cargar
+ *   (`useImageStatus`, también si cargó antes de hidratar) se muestra. Si
+ *   falla o tarda más de `PHOTO_TIMEOUT_MS`, se quita: queda el calendario
+ *   debajo.
+ * - "Abrir mi calendario" (o Escape) la cierra y devuelve el foco al
+ *   calendario. El menú de la cuenta queda por encima (z-index en globals.css).
+ */
+function WelcomeDialog({ photoUrl, firstName, title, countdownText }: WelcomeProps) {
+  const { imgRef, status: imageStatus, onLoad, onError } = useImageStatus({ timeoutMs: PHOTO_TIMEOUT_MS });
+  const [closed, setClosed] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
-  const markedRef = useRef(false);
-
-  function onPhotoLoaded() {
-    setPhase((current) => (current === "loading" ? "shown" : current));
-  }
+  const phase = closed || imageStatus === "error" ? "closed" : imageStatus === "loaded" ? "shown" : "loading";
 
   function close() {
-    setPhase("closed");
+    setClosed(true);
     const main = document.getElementById("calendar-main");
     main?.focus();
   }
 
-  // La foto puede haber terminado (bien o mal) antes de que React hidrate,
-  // y entonces `onLoad`/`onError` ya no llegan: se mira su estado al montar.
-  useEffect(() => {
-    const img = imgRef.current;
-    if (img?.complete) {
-      if (img.naturalWidth > 0) onPhotoLoaded();
-      else setPhase("closed");
-    }
-    const timer = window.setTimeout(() => {
-      setPhase((current) => (current === "loading" ? "closed" : current));
-    }, PHOTO_TIMEOUT_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
-
   useEffect(() => {
     if (phase !== "shown") return;
-    if (!markedRef.current) {
-      markedRef.current = true;
-      startTransition(async () => {
-        await markWelcomeSeenAction(calendarId);
-      });
-    }
     buttonRef.current?.focus();
     // Solo con el foco dentro de la bienvenida: el Escape que cierra el menú
     // de la cuenta (que queda por encima) no debe cerrarla también.
@@ -83,7 +88,7 @@ export function WelcomeOverlay({
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [phase, calendarId]);
+  }, [phase]);
 
   if (phase === "closed") return null;
 
@@ -97,14 +102,7 @@ export function WelcomeOverlay({
       data-welcome-phase={phase}
     >
       {/* eslint-disable-next-line @next/next/no-img-element -- URL externa arbitraria (https, validada al guardarla), no vale next/image sin dominios configurados. */}
-      <img
-        ref={imgRef}
-        className="welcome-photo"
-        src={photoUrl}
-        alt=""
-        onLoad={onPhotoLoaded}
-        onError={() => setPhase("closed")}
-      />
+      <img ref={imgRef} className="welcome-photo" src={photoUrl} alt="" onLoad={onLoad} onError={onError} />
       <div className="welcome-shade" aria-hidden="true" />
       <div className="welcome-content">
         <span className="welcome-hello">{firstName ? `Hola, ${firstName}` : "Hola"}</span>

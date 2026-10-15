@@ -36,6 +36,8 @@
   --primary-btn: #6b52f5;
   --on-sun: #1d2320;
   --coral-ink: #d0353a;
+  /* TAL-85 — texto verde de confirmación ("✓ Imagen correcta" del editor), color del mockup. */
+  --mint-ink: #1f7a50;
   --coral-btn: #d0353a;
   --accent: var(--primary);
   --shadow: 0 2px 6px rgba(29, 35, 32, 0.04), 0 12px 32px rgba(29, 35, 32, 0.08);
@@ -87,6 +89,7 @@
     --primary-btn: #7157ff;
     --on-sun: #1d2320;
     --coral-ink: var(--coral);
+    --mint-ink: var(--mint);
     --coral-btn: #d0353a;
     --shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
   }
@@ -110,6 +113,7 @@
   --primary-btn: #7157ff;
   --on-sun: #1d2320;
   --coral-ink: var(--coral);
+  --mint-ink: var(--mint);
   --coral-btn: #d0353a;
   --shadow: 0 2px 6px rgba(0, 0, 0, 0.3), 0 12px 32px rgba(0, 0, 0, 0.45);
 }
@@ -553,6 +557,80 @@ a {
   padding-top: 8px;
 }
 
+/* TAL-85 — filas con contenido debajo del input (ayuda, aviso de TAL-69,
+   vista previa de la foto de portada): ese contenido ocupa la fila entera,
+   alineado con el input (152px de etiqueta + 12px de hueco). */
+.editor-field-wrap {
+  flex-wrap: wrap;
+}
+
+.editor-field-wrap > input {
+  min-width: 0;
+}
+
+.editor-field-extra {
+  flex: 1 0 100%;
+  padding-left: 164px;
+  min-width: 0;
+}
+
+p.editor-field-extra {
+  margin: 0;
+}
+
+.editor-field-hint {
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--ink-dim);
+}
+
+/* Vista previa de la foto de portada (pantalla 4 del mockup). */
+.cover-preview-box {
+  height: 120px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.cover-preview-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cover-preview-broken {
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  text-align: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--ink-dim);
+  overflow-wrap: anywhere;
+}
+
+.cover-preview-ok,
+.cover-preview-help {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.cover-preview-ok {
+  color: var(--mint-ink);
+}
+
+.cover-preview-help {
+  color: var(--coral-ink);
+}
+
+.editor-field-wrap:has([data-cover-preview="error"]) > input {
+  border-color: var(--coral-ink);
+}
+
 @media (max-width: 640px) {
   .editor-columns {
     grid-template-columns: 1fr;
@@ -572,6 +650,10 @@ a {
 
   .editor-field-skin > label {
     padding-top: 0;
+  }
+
+  .editor-field-extra {
+    padding-left: 0;
   }
 }
 
@@ -825,10 +907,50 @@ a {
 }
 
 .calendar-card-cover {
+  position: relative;
+  overflow: hidden;
   height: 110px;
   display: grid;
   place-items: center;
   font-size: 2.4rem;
+}
+
+/* TAL-85 — foto de portada en la tarjeta (pantalla 1 de
+   design/propuesta-foto-portada-en-todas-partes.html): 130px desde el
+   principio si hay `coverImageUrl` (sin salto al cargar), la foto encima de
+   la capa base de siempre e invisible hasta que carga (`.is-loaded`, lo pone
+   `calendar-card-cover.tsx`), degradado inferior y píldora de estado
+   (`.status-pill`) arriba a la izquierda. */
+.calendar-card-cover--photo {
+  height: 130px;
+}
+
+.calendar-card-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+}
+
+.calendar-card-cover.is-loaded .calendar-card-photo {
+  opacity: 1;
+}
+
+.calendar-card-cover.is-loaded::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(10, 8, 30, 0.55), rgba(10, 8, 30, 0) 60%);
+  pointer-events: none;
+}
+
+.calendar-card-status {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
 }
 
 .calendar-card-body {

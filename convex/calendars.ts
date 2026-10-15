@@ -645,6 +645,12 @@ export type UserModeCalendarRow = {
   coverTitle: string;
   coverIcon?: string;
   backgroundImageUrl?: string;
+  /**
+   * TAL-85 — foto de portada en la tarjeta de "Tus calendarios". Mismo nivel
+   * de acceso que el título y el icono (quien la lista es miembro o tiene
+   * invitación); `/login` sigue sin recibirla (TAL-25).
+   */
+  coverImageUrl?: string;
   startDate: string;
   endDate: string;
   isAdmin: boolean;
@@ -745,6 +751,7 @@ async function listUserModeCalendarsHandler(
           coverTitle: calendar.coverTitle,
           coverIcon: calendar.coverIcon,
           backgroundImageUrl: calendar.backgroundImageUrl,
+          coverImageUrl: calendar.coverImageUrl,
           startDate: calendar.startDate,
           endDate: calendar.endDate,
           isAdmin,
